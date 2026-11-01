@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24)
+cmake_minimum_required(VERSION 3.25)
 
 project(Manifold VERSION 0.0.1 LANGUAGES CXX)
 
@@ -11,20 +11,67 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type" FORCE)
 endif()
 
-add_executable(manifold
-    src/main.cpp
-)
+option(MANIFOLD_BUILD_TESTS "Build the unit tests" ON)
 
-target_compile_options(manifold PRIVATE
-    $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>
+include(FetchContent)
+# SYSTEM hides warnings coming from third-party headers.
+FetchContent_Declare(glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.1
+    GIT_SHALLOW TRUE
+    SYSTEM
 )
+FetchContent_MakeAvailable(glm)
+
+set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
+
+# Everything except main() lives in a library, so that tests can link against it.
+add_library(manifold_core STATIC
+    src/game.cpp
+    src/level/level_generator.cpp
+    src/world/geometry.cpp
+    src/world/world.cpp
+)
+target_include_directories(manifold_core PUBLIC src)
+target_link_libraries(manifold_core PUBLIC glm::glm)
+target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
+
+add_executable(manifold src/main.cpp)
+target_link_libraries(manifold PRIVATE manifold_core)
+target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
+
+if(MANIFOLD_BUILD_TESTS)
+    enable_testing()
+    FetchContent_Declare(googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.17.0
+        GIT_SHALLOW TRUE
+        SYSTEM
+    )
+    set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+    set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+
+    add_executable(manifold_tests
+        tests/geometry_test.cpp
+        tests/level_generator_test.cpp
+        tests/world_test.cpp
+    )
+    target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)
+    target_compile_options(manifold_tests PRIVATE ${MANIFOLD_WARNINGS})
+
+    include(GoogleTest)
+    gtest_discover_tests(manifold_tests)
+endif()
 
 # Code style: `format` fixes formatting in place, `lint` checks formatting and runs clang-tidy.
 file(GLOB_RECURSE MANIFOLD_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/*.cpp
     ${CMAKE_SOURCE_DIR}/src/*.hpp
+    ${CMAKE_SOURCE_DIR}/tests/*.cpp
+    ${CMAKE_SOURCE_DIR}/tests/*.hpp
 )
-file(GLOB_RECURSE MANIFOLD_TU_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE MANIFOLD_TU_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/*.cpp ${CMAKE_SOURCE_DIR}/tests/*.cpp)
 
 find_program(CLANG_FORMAT_EXE clang-format)
 find_program(CLANG_TIDY_EXE clang-tidy)

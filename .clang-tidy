@@ -11,10 +11,15 @@ Checks: >
   -readability-identifier-length,
   -cppcoreguidelines-pro-bounds-*,
   -misc-non-private-member-variables-in-classes,
-  -cppcoreguidelines-avoid-do-while
+  -cppcoreguidelines-avoid-do-while,
+  -cppcoreguidelines-pro-type-union-access,
+  -modernize-use-nodiscard,
+  -readability-uppercase-literal-suffix
 WarningsAsErrors: '*'
-HeaderFilterRegex: 'src/.*'
+HeaderFilterRegex: '/(src|tests)/'
 CheckOptions:
+  # GLM declares its types in internal headers, which confuses the include checker.
+  misc-include-cleaner.IgnoreHeaders: 'glm/.*'
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase

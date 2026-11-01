@@ -26,8 +26,19 @@ Build and run:
 ```sh
 cmake -S . -B build -G Ninja
 cmake --build build
-./build/manifold
+./build/manifold         # random level
+./build/manifold 42      # level generated from seed 42
 ```
+
+## Tests
+
+Unit tests use GoogleTest, which CMake downloads. Build as above, then:
+
+```sh
+ctest --test-dir build --output-on-failure
+```
+
+Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building the tests.
 
 ## Code style
 
