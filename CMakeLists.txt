@@ -43,7 +43,7 @@ if(CLANG_FORMAT_EXE)
 else()
     foreach(target format format-check)
         add_custom_target(${target}
-            COMMAND ${CMAKE_COMMAND} -E echo "clang-format not found: sudo apt install clang-format"
+            COMMAND ${CMAKE_COMMAND} -E echo "clang-format not found: sudo apt install clang-format, then re-run cmake -S . -B build"
             COMMAND ${CMAKE_COMMAND} -E false
             VERBATIM
         )
@@ -58,7 +58,7 @@ if(CLANG_TIDY_EXE)
     )
 else()
     add_custom_target(lint
-        COMMAND ${CMAKE_COMMAND} -E echo "clang-tidy not found: sudo apt install clang-tidy"
+        COMMAND ${CMAKE_COMMAND} -E echo "clang-tidy not found: sudo apt install clang-tidy, then re-run cmake -S . -B build"
         COMMAND ${CMAKE_COMMAND} -E false
         VERBATIM
     )
