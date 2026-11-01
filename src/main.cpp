@@ -1,8 +1,7 @@
 #include <cstdlib>
 #include <iostream>
 
-int main()
-{
+int main() {
     std::cout << "Manifold\n";
     return EXIT_SUCCESS;
 }
