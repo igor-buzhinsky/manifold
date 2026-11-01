@@ -1,6 +1,7 @@
 #include "world/geometry.hpp"
 
 #include <cmath>
+
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>

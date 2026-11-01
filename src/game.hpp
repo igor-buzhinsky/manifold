@@ -10,8 +10,7 @@ namespace manifold {
 
 struct GameConfig {
     LevelConfig level{.bounds = {.x_min = -20.0f, .x_max = 20.0f, .y_min = -20.0f, .y_max = 20.0f, .height = 4.0f}};
-    glm::vec3 player_start{0.0f};
-    float player_radius = 0.3f;
+    PlayerParams player;  // The player's start.
 };
 
 // Owns the game state. The world holds static level geometry, while the player (and later other

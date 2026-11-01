@@ -1,13 +1,13 @@
 #include "level/level_generator.hpp"
 
-#include <gtest/gtest.h>
-
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <glm/vec3.hpp>
 #include <numbers>
 #include <stdexcept>
+
+#include <glm/vec3.hpp>
+#include <gtest/gtest.h>
 
 #include "world/geometry.hpp"
 #include "world/world.hpp"

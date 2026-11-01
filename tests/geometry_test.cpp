@@ -1,8 +1,8 @@
 #include "world/geometry.hpp"
 
-#include <gtest/gtest.h>
-
 #include <numbers>
+
+#include <gtest/gtest.h>
 
 namespace manifold {
 namespace {

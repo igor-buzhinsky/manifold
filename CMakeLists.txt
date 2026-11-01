@@ -23,12 +23,40 @@ FetchContent_Declare(glm
 )
 FetchContent_MakeAvailable(glm)
 
+set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+set(SDL_STATIC ON CACHE BOOL "" FORCE)
+set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(SDL3
+    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
+    GIT_TAG release-3.4.16
+    GIT_SHALLOW TRUE
+    SYSTEM
+)
+FetchContent_MakeAvailable(SDL3)
+
+# stb has no CMake support, so it is only downloaded and exposed as an include directory.
+FetchContent_Declare(stb
+    GIT_REPOSITORY https://github.com/nothings/stb.git
+    GIT_TAG 003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5
+)
+FetchContent_MakeAvailable(stb)
+add_library(stb INTERFACE)
+target_include_directories(stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
+
+# libepoxy loads OpenGL functions, from the system package libepoxy-dev.
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(EPOXY REQUIRED IMPORTED_TARGET epoxy)
+
 set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 
-# Everything except main() lives in a library, so that tests can link against it.
+# Game logic and everything else that doesn't need a window or OpenGL lives in a library,
+# so that tests can link against it.
 add_library(manifold_core STATIC
     src/game.cpp
     src/level/level_generator.cpp
+    src/render/camera.cpp
+    src/render/viewport.cpp
+    src/render/world_mesh.cpp
     src/world/geometry.cpp
     src/world/world.cpp
 )
@@ -36,8 +64,14 @@ target_include_directories(manifold_core PUBLIC src)
 target_link_libraries(manifold_core PUBLIC glm::glm)
 target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
 
-add_executable(manifold src/main.cpp)
-target_link_libraries(manifold PRIVATE manifold_core)
+add_executable(manifold
+    src/main.cpp
+    src/platform/window.cpp
+    src/render/renderer.cpp
+    src/render/screenshot.cpp
+    src/render/stb_image_write.cpp
+)
+target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 PkgConfig::EPOXY stb)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 
 if(MANIFOLD_BUILD_TESTS)
@@ -53,8 +87,11 @@ if(MANIFOLD_BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(manifold_tests
+        tests/camera_test.cpp
         tests/geometry_test.cpp
         tests/level_generator_test.cpp
+        tests/viewport_test.cpp
+        tests/world_mesh_test.cpp
         tests/world_test.cpp
     )
     target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)

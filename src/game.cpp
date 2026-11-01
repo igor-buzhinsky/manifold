@@ -7,8 +7,6 @@
 namespace manifold {
 
 Game::Game(const GameConfig& config, std::uint64_t seed)
-    : seed_(seed),
-      player_(config.player_start, config.player_radius),
-      world_(generate_level(config.level, player_.footprint(), seed)) {}
+    : seed_(seed), player_(config.player), world_(generate_level(config.level, player_.footprint(), seed)) {}
 
 }  // namespace manifold

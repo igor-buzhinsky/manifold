@@ -4,3 +4,12 @@ ColumnLimit: 120
 AccessModifierOffset: -4
 DerivePointerAlignment: false
 PointerAlignment: Left
+# Include blocks: standard library, other libraries, project headers.
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^<[a-z_]+>$'
+    Priority: 1
+  - Regex: '^<'
+    Priority: 2
+  - Regex: '.*'
+    Priority: 3

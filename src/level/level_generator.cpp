@@ -2,10 +2,11 @@
 
 #include <cmath>
 #include <cstdint>
-#include <glm/vec3.hpp>
 #include <numbers>
 #include <random>
 #include <stdexcept>
+
+#include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
 #include "world/world.hpp"

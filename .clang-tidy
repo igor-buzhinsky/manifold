@@ -18,8 +18,8 @@ Checks: >
 WarningsAsErrors: '*'
 HeaderFilterRegex: '/(src|tests)/'
 CheckOptions:
-  # GLM declares its types in internal headers, which confuses the include checker.
-  misc-include-cleaner.IgnoreHeaders: 'glm/.*'
+  # GLM and libepoxy declare their symbols in internal headers, which confuses the include checker.
+  misc-include-cleaner.IgnoreHeaders: 'glm/.*;epoxy/.*'
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase

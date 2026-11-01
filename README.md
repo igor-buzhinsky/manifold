@@ -4,31 +4,33 @@ A hobby first-person fantasy game about playing as a mage. See [docs/roadmap.md]
 
 ## Building (Linux)
 
-Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.24+, and optionally Ninja.
+Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.25+, and optionally Ninja.
 On Ubuntu 24.04, everything needed to build and lint the project is installed with:
 
 ```sh
-sudo apt install build-essential cmake ninja-build git clang-format clang-tidy
+sudo apt install build-essential cmake ninja-build git clang-format clang-tidy pkg-config libepoxy-dev \
+    libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+    libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev \
+    libasound2-dev libpulse-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
 ```
 
-Third-party libraries (SDL3, Jolt and others) will be downloaded and built by CMake, so they don't need to be
-installed. SDL3 still needs these system development packages to talk to X11/Wayland, the GPU and audio.
-They aren't needed until SDL3 is added, but you can install them in advance:
-
-```sh
-sudo apt install libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxi-dev libxss-dev \
-    libxkbcommon-dev libwayland-dev wayland-protocols libegl1-mesa-dev libgl1-mesa-dev \
-    libasound2-dev libpulse-dev libdecor-0-dev
-```
+The first line is the toolchain and libepoxy, which loads OpenGL functions. The rest are system development
+packages that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
+The full list of SDL's optional dependencies is in its
+[README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
+(GLM, stb, GoogleTest) are downloaded and built by CMake.
 
 Build and run:
 
 ```sh
 cmake -S . -B build -G Ninja
 cmake --build build
-./build/manifold         # random level
-./build/manifold 42      # level generated from seed 42
+./build/manifold                            # random level
+./build/manifold 42                         # level generated from seed 42
+./build/manifold 42 --screenshot view.png   # save the first frame as a PNG and exit
 ```
+
+Press Escape or close the window to quit.
 
 ## Tests
 

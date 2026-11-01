@@ -28,7 +28,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 |---|---|---|
 | Window, input, full-screen, audio | **SDL3** | Works well on Wayland and X11. |
 | Rendering API | **OpenGL 4.x core** (3.3 as fallback) | Vulkan is not worth the effort for this scope. |
-| GL loader | **glad** | |
+| GL loader | **libepoxy** | Ubuntu package; nothing to generate, unlike glad. Works with GLX and EGL. |
 | Math | **GLM** | |
 | Textures | **stb_image** | |
 | Models | **cgltf** (glTF 2.0) | glTF is the single asset format. Blender converts other formats to it. |

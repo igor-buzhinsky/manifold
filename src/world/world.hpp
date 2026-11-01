@@ -1,8 +1,9 @@
 #pragma once
 
-#include <glm/vec3.hpp>
 #include <span>
 #include <vector>
+
+#include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
 
