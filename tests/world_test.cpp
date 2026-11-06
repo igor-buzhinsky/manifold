@@ -1,5 +1,7 @@
 #include "world/world.hpp"
 
+#include <numbers>
+
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
@@ -48,6 +50,34 @@ TEST(PlayerTest, EyesAreSlightlyBelowTopOfHead) {
     EXPECT_FLOAT_EQ(eye.y, -2.0f);
     EXPECT_FLOAT_EQ(eye.z, 0.5f + 1.8f - Player::kEyeDepth);
     EXPECT_GT(Player::kEyeDepth, 0.0f);
+}
+
+TEST(PlayerTest, RotateTurnsAndLooks) {
+    Player player({.yaw = 1.0f});
+    player.rotate(0.5f, 0.2f);
+    EXPECT_FLOAT_EQ(player.yaw(), 1.5f);
+    EXPECT_FLOAT_EQ(player.pitch(), 0.2f);
+    player.rotate(-0.5f, -0.3f);
+    EXPECT_FLOAT_EQ(player.yaw(), 1.0f);
+    EXPECT_FLOAT_EQ(player.pitch(), -0.1f);
+}
+
+TEST(PlayerTest, PitchIsClampedTo30Degrees) {
+    Player player({});
+    EXPECT_NEAR(Player::kMaxPitch, 30.0f * std::numbers::pi_v<float> / 180.0f, 1e-6f);
+    player.rotate(0.0f, 2.0f);
+    EXPECT_FLOAT_EQ(player.pitch(), Player::kMaxPitch);
+    player.rotate(0.0f, -5.0f);
+    EXPECT_FLOAT_EQ(player.pitch(), -Player::kMaxPitch);
+}
+
+TEST(PlayerTest, YawWrapsAround) {
+    constexpr float kFullTurn = 2.0f * std::numbers::pi_v<float>;
+    Player player({.yaw = 0.5f});
+    player.rotate(-1.0f, 0.0f);
+    EXPECT_NEAR(player.yaw(), kFullTurn - 0.5f, 1e-5f);
+    player.rotate(1.0f + (3.0f * kFullTurn), 0.0f);
+    EXPECT_NEAR(player.yaw(), 0.5f, 1e-4f);
 }
 
 }  // namespace

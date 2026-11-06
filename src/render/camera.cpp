@@ -19,6 +19,8 @@ glm::mat4 Camera::view() const { return glm::lookAt(position, position + forward
 
 glm::mat4 Camera::projection() const { return glm::perspective(vertical_fov, kAspectRatio, near_plane, far_plane); }
 
-Camera make_player_camera(const Player& player) { return {.position = player.eye_position(), .yaw = player.yaw()}; }
+Camera make_player_camera(const Player& player) {
+    return {.position = player.eye_position(), .yaw = player.yaw(), .pitch = player.pitch()};
+}
 
 }  // namespace manifold

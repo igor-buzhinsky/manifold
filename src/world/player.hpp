@@ -1,5 +1,7 @@
 #pragma once
 
+#include <numbers>
+
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
@@ -19,6 +21,8 @@ class Player {
 public:
     // How far the eyes are below the top of the head.
     static constexpr float kEyeDepth = 0.12f;
+    // How far the player can look up or down: 30 degrees.
+    static constexpr float kMaxPitch = std::numbers::pi_v<float> / 6.0f;
 
     explicit Player(const PlayerParams& params)
         : position_(params.position), radius_(params.radius), height_(params.height), yaw_(params.yaw) {}
@@ -32,6 +36,12 @@ public:
 
     // Direction the player faces, in radians counter-clockwise from +x around +z.
     float yaw() const { return yaw_; }
+    // Vertical view angle in radians, positive is up. Always within [-kMaxPitch, kMaxPitch].
+    float pitch() const { return pitch_; }
+
+    // Turns the view by the given angles in radians. Positive `delta_yaw` turns left, positive
+    // `delta_pitch` looks up. Yaw is kept within [0, 2 pi), pitch is clamped.
+    void rotate(float delta_yaw, float delta_pitch);
 
     // Where the camera is.
     glm::vec3 eye_position() const { return position_ + glm::vec3(0.0f, 0.0f, height_ - kEyeDepth); }
@@ -44,6 +54,7 @@ private:
     float radius_;
     float height_;
     float yaw_;
+    float pitch_ = 0.0f;
 };
 
 }  // namespace manifold

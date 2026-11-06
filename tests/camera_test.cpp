@@ -56,5 +56,11 @@ TEST(CameraTest, PlayerCameraIsAtEyes) {
     EXPECT_FLOAT_EQ(camera.pitch, 0.0f);
 }
 
+TEST(CameraTest, PlayerCameraFollowsPitch) {
+    Player player({});
+    player.rotate(0.0f, 0.3f);
+    EXPECT_FLOAT_EQ(make_player_camera(player).pitch, 0.3f);
+}
+
 }  // namespace
 }  // namespace manifold

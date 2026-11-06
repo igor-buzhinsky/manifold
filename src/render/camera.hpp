@@ -24,7 +24,7 @@ struct Camera {
     glm::mat4 projection() const;
 };
 
-// A camera at the player's eyes, looking where the player faces.
+// A camera at the player's eyes, looking where the player looks.
 Camera make_player_camera(const Player& player);
 
 }  // namespace manifold

@@ -30,7 +30,7 @@ cmake --build build
 ./build/manifold 42 --screenshot view.png   # save the first frame as a PNG and exit
 ```
 
-Press Escape or close the window to quit.
+Controls are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the window to quit.
 
 ## Tests
 

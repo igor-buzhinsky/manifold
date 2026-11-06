@@ -58,6 +58,7 @@ add_library(manifold_core STATIC
     src/render/viewport.cpp
     src/render/world_mesh.cpp
     src/world/geometry.cpp
+    src/world/player.cpp
     src/world/world.cpp
 )
 target_include_directories(manifold_core PUBLIC src)
@@ -88,6 +89,7 @@ if(MANIFOLD_BUILD_TESTS)
 
     add_executable(manifold_tests
         tests/camera_test.cpp
+        tests/game_test.cpp
         tests/geometry_test.cpp
         tests/level_generator_test.cpp
         tests/viewport_test.cpp

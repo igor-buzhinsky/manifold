@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
@@ -15,7 +16,10 @@
 #include <system_error>
 
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL_timer.h>
 #include <glm/vec3.hpp>
 
 #include "game.hpp"
@@ -92,22 +96,40 @@ bool quit_requested() {
     return false;
 }
 
+// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
+constexpr float kMaxFrameTime = 0.1f;
+
+// Key bindings. Keep GAME_MANUAL.md up to date when changing them.
+manifold::PlayerInput read_input() {
+    const bool* keys = SDL_GetKeyboardState(nullptr);
+    const auto axis = [keys](SDL_Scancode positive, SDL_Scancode negative) {
+        return (keys[positive] ? 1.0f : 0.0f) - (keys[negative] ? 1.0f : 0.0f);
+    };
+    return {.turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT), .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN)};
+}
+
 void run(const Options& options) {
-    const manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()));
+    manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()));
     print_game(game);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
     const manifold::Renderer renderer(manifold::build_world_mesh(game.world()));
 
-    // The light spell: a warm light at the player's eyes, plus a little ambient light.
-    const manifold::Camera camera = manifold::make_player_camera(game.player());
-    const manifold::Lighting lighting{
-        .ambient = glm::vec3(0.01f),
-        .light = {.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f},
-    };
-
+    std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
+        const std::uint64_t ticks = SDL_GetTicksNS();
+        const float dt = std::min(static_cast<float>(ticks - previous_ticks) * 1e-9f, kMaxFrameTime);
+        previous_ticks = ticks;
+        game.update(read_input(), dt);
+
+        // The light spell: a warm light at the player's eyes, plus a little ambient light.
+        const manifold::Camera camera = manifold::make_player_camera(game.player());
+        const manifold::Lighting lighting{
+            .ambient = glm::vec3(0.01f),
+            .light = {.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f},
+        };
+
         const manifold::PixelSize framebuffer = window.framebuffer_size();
         renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio));
         if (options.screenshot_path) {
