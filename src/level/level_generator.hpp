@@ -14,7 +14,8 @@ struct LevelConfig {
     int max_attempts_per_obstacle = 1000;
 };
 
-// Creates a world with `config.obstacle_count` randomly placed and rotated square obstacles.
+// Creates a world with `config.obstacle_count` randomly placed and rotated square obstacles,
+// reaching from the floor to the ceiling.
 // Obstacles lie fully inside the bounds, may overlap each other, but never overlap `keep_clear`
 // (for example, the player's start footprint). The result depends only on the arguments.
 // Throws std::runtime_error if an obstacle can't be placed.

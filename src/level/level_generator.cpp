@@ -32,8 +32,10 @@ bool try_place_obstacle(const LevelConfig& config, const Circle& keep_clear, std
         std::uniform_real_distribution<float> x_distribution(bounds.x_min + extent, bounds.x_max - extent);
         std::uniform_real_distribution<float> y_distribution(bounds.y_min + extent, bounds.y_max - extent);
 
-        const Obstacle candidate{
-            .base_center = {x_distribution(rng), y_distribution(rng), 0.0f}, .half_size = half_size, .yaw = yaw};
+        const Obstacle candidate{.base_center = {x_distribution(rng), y_distribution(rng), 0.0f},
+                                 .half_size = half_size,
+                                 .height = config.bounds.height,  // From the floor to the ceiling.
+                                 .yaw = yaw};
         if (!intersects(candidate.footprint(), keep_clear)) {
             obstacle = candidate;
             return true;

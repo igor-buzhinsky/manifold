@@ -15,6 +15,7 @@ struct Vertex {
 };
 
 // Triangles for the floor, the ceiling, the boundary walls and the obstacles of a world.
+// Obstacles are assumed to stand on the floor.
 // Every three vertices form a triangle, counter-clockwise when seen from the side the normal points to.
 // Normals of the boundary walls point into the level, normals of obstacles point out of them.
 std::vector<Vertex> build_world_mesh(const World& world);

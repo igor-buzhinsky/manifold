@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 
 namespace manifold {
 
@@ -15,6 +16,13 @@ struct RotatedSquare {
     glm::vec2 center{0.0f};
     float half_size = 0.0f;
     float yaw = 0.0f;
+};
+
+// An upright cylinder standing on `base`, e.g. the collision body of a character.
+struct VerticalCylinder {
+    glm::vec3 base{0.0f};  // Center of the bottom face.
+    float radius = 0.0f;
+    float height = 0.0f;
 };
 
 // True if the shapes overlap or touch.

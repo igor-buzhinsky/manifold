@@ -46,6 +46,9 @@ public:
     // Where the camera is.
     glm::vec3 eye_position() const { return position_ + glm::vec3(0.0f, 0.0f, height_ - kEyeDepth); }
 
+    // The player's collision body.
+    VerticalCylinder body() const { return {.base = position_, .radius = radius_, .height = height_}; }
+
     // The area the player occupies on the floor.
     Circle footprint() const { return {.center = {position_.x, position_.y}, .radius = radius_}; }
 

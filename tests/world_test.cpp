@@ -29,7 +29,7 @@ TEST(WorldBoundsTest, RejectsPointsOutside) {
 TEST(WorldTest, StoresObstacles) {
     World world(kBounds);
     EXPECT_TRUE(world.obstacles().empty());
-    world.add_obstacle({.base_center = {1.0f, 2.0f, 0.0f}, .half_size = 0.5f, .yaw = 0.25f});
+    world.add_obstacle({.base_center = {1.0f, 2.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.25f});
     ASSERT_EQ(world.obstacles().size(), 1U);
     EXPECT_EQ(world.obstacles()[0].base_center, glm::vec3(1.0f, 2.0f, 0.0f));
     EXPECT_FLOAT_EQ(world.obstacles()[0].footprint().yaw, 0.25f);

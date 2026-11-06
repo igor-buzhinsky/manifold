@@ -86,14 +86,25 @@ void print_game(const manifold::Game& game) {
     }
 }
 
-bool quit_requested() {
+// Handles pending window and key events. Returns false when the game should quit.
+bool handle_events(manifold::Game& game) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE)) {
-            return true;
+        if (event.type == SDL_EVENT_QUIT) {
+            return false;
+        }
+        if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat) {
+            continue;
+        }
+        if (event.key.key == SDLK_ESCAPE) {
+            return false;
+        }
+        if (event.key.key == SDLK_Z && (event.key.mod & SDL_KMOD_CTRL) != 0) {
+            game.toggle_noclip();
+            std::cout << "Noclip " << (game.noclip() ? "on" : "off") << '\n';
         }
     }
-    return false;
+    return true;
 }
 
 // Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
@@ -143,7 +154,7 @@ void run(const Options& options) {
             return;
         }
         window.swap_buffers();
-    } while (!quit_requested());
+    } while (handle_events(game));
 }
 
 }  // namespace

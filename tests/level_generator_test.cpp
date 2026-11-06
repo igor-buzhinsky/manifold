@@ -36,6 +36,7 @@ TEST(LevelGeneratorTest, ObstaclesHaveConfiguredSize) {
     const World world = generate_level(make_config(), kPlayer, 2);
     for (const Obstacle& obstacle : world.obstacles()) {
         EXPECT_FLOAT_EQ(obstacle.half_size, 1.0f);
+        EXPECT_FLOAT_EQ(obstacle.height, 4.0f);
         EXPECT_FLOAT_EQ(obstacle.base_center.z, 0.0f);
     }
 }

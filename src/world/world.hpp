@@ -22,10 +22,11 @@ struct WorldBounds {
     bool contains(const glm::vec3& point) const;
 };
 
-// A square block standing on the floor and reaching the ceiling, rotated around the vertical axis.
+// A block with a square footprint, rotated around the vertical axis.
 struct Obstacle {
     glm::vec3 base_center{0.0f};  // Center of the bottom face.
     float half_size = 0.0f;
+    float height = 0.0f;
     float yaw = 0.0f;  // Radians, counter-clockwise around +z.
 
     RotatedSquare footprint() const;

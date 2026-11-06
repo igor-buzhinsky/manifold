@@ -35,6 +35,10 @@ public:
     // Advances the game by `dt` seconds.
     void update(const PlayerInput& input, float dt);
 
+    // Cheat: in noclip mode the player walks through obstacles and walls.
+    bool noclip() const { return noclip_; }
+    void toggle_noclip() { noclip_ = !noclip_; }
+
     const World& world() const { return world_; }
     const Player& player() const { return player_; }
     std::uint64_t seed() const { return seed_; }
@@ -43,6 +47,7 @@ private:
     float turn_speed_;
     float look_speed_;
     float move_speed_;
+    bool noclip_ = false;
     std::uint64_t seed_;
     Player player_;
     World world_;

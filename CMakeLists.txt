@@ -54,6 +54,7 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 add_library(manifold_core STATIC
     src/game.cpp
     src/level/level_generator.cpp
+    src/physics/collision.cpp
     src/render/camera.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
@@ -89,6 +90,7 @@ if(MANIFOLD_BUILD_TESTS)
 
     add_executable(manifold_tests
         tests/camera_test.cpp
+        tests/collision_test.cpp
         tests/game_test.cpp
         tests/geometry_test.cpp
         tests/level_generator_test.cpp

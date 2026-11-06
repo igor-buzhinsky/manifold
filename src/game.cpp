@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 
 #include "level/level_generator.hpp"
+#include "physics/collision.hpp"
 
 namespace manifold {
 
@@ -31,8 +32,12 @@ void Game::update(const PlayerInput& input, float dt) {
     }
     const glm::vec3 forward{std::cos(player_.yaw()), std::sin(player_.yaw()), 0.0f};
     const glm::vec3 right{forward.y, -forward.x, 0.0f};
-    // No collision checking yet: the player can walk through obstacles and walls.
-    player_.set_position(player_.position() + (((direction.x * forward) + (direction.y * right)) * move_speed_ * dt));
+    const glm::vec3 displacement = ((direction.x * forward) + (direction.y * right)) * move_speed_ * dt;
+    if (noclip_) {
+        player_.set_position(player_.position() + displacement);
+    } else {
+        player_.set_position(move_and_slide(world_, player_.body(), displacement));
+    }
 }
 
 }  // namespace manifold

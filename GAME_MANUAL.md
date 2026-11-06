@@ -9,3 +9,9 @@
 | Left / Right arrow | Turn left / right |
 | Up / Down arrow | Look up / down (at most 30° each way) |
 | Escape | Quit |
+
+## Cheats
+
+| Key | Action |
+|---|---|
+| Ctrl+Z | Toggle noclip: walk through obstacles and walls |

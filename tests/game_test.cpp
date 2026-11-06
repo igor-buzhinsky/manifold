@@ -83,5 +83,28 @@ TEST(GameTest, DiagonalWalkIsNotFaster) {
     EXPECT_NEAR(glm::length(game.player().position()), 2.0f, 1e-5f);
 }
 
+TEST(GameTest, CollisionsStopPlayerAtLevelWall) {
+    // No obstacle is ever placed over the player's start, so walking from the start of an empty level
+    // along +x ends at the wall. Obstacles are removed by setting their count to zero.
+    GameConfig config = make_config();
+    config.level.obstacle_count = 0;
+    Game game(config, 1);
+    game.update({.forward = 1.0f}, 100.0f);
+    EXPECT_NEAR(game.player().position().x, config.level.bounds.x_max - game.player().radius(), 1e-4f);
+}
+
+TEST(GameTest, NoclipWalksThroughWalls) {
+    GameConfig config = make_config();
+    config.level.obstacle_count = 0;
+    Game game(config, 1);
+    EXPECT_FALSE(game.noclip());
+    game.toggle_noclip();
+    EXPECT_TRUE(game.noclip());
+    game.update({.forward = 1.0f}, 100.0f);
+    EXPECT_NEAR(game.player().position().x, 200.0f, 1e-3f);
+    game.toggle_noclip();
+    EXPECT_FALSE(game.noclip());
+}
+
 }  // namespace
 }  // namespace manifold

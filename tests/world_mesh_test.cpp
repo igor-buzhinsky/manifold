@@ -17,8 +17,8 @@ constexpr std::size_t kVerticesPerQuad = 6;
 
 World make_world() {
     World world(kBounds);
-    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = 0.5f, .yaw = 0.4f});
-    world.add_obstacle({.base_center = {-2.0f, -1.0f, 0.0f}, .half_size = 1.0f, .yaw = 0.0f});
+    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.4f});
+    world.add_obstacle({.base_center = {-2.0f, -1.0f, 0.0f}, .half_size = 1.0f, .height = 3.0f, .yaw = 0.0f});
     return world;
 }
 
@@ -59,6 +59,17 @@ TEST(WorldMeshTest, LevelSurfacesFaceInwardsAndObstaclesOutwards) {
             outward.z = 0.0f;
             EXPECT_GT(glm::dot(outward, mesh[i].normal), 0.0f) << "vertex " << i;
         }
+    }
+}
+
+TEST(WorldMeshTest, LowObstacleGetsTopFace) {
+    World world(kBounds);
+    world.add_obstacle({.base_center = {0.0f, 0.0f, 0.0f}, .half_size = 1.0f, .height = 1.0f, .yaw = 0.3f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    ASSERT_EQ(mesh.size(), (6 + 4 + 1) * kVerticesPerQuad);
+    for (std::size_t i = mesh.size() - kVerticesPerQuad; i < mesh.size(); ++i) {
+        EXPECT_FLOAT_EQ(mesh[i].position.z, 1.0f);
+        EXPECT_GT(mesh[i].normal.z, 0.99f);
     }
 }
 
