@@ -105,7 +105,12 @@ manifold::PlayerInput read_input() {
     const auto axis = [keys](SDL_Scancode positive, SDL_Scancode negative) {
         return (keys[positive] ? 1.0f : 0.0f) - (keys[negative] ? 1.0f : 0.0f);
     };
-    return {.turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT), .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN)};
+    return {
+        .turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT),
+        .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN),
+        .forward = axis(SDL_SCANCODE_W, SDL_SCANCODE_S),
+        .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
+    };
 }
 
 void run(const Options& options) {

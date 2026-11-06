@@ -14,13 +14,16 @@ struct GameConfig {
     PlayerParams player;                                  // The player's start.
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  // Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  // Radians per second: 60 degrees.
+    float move_speed = 3.0f;                              // Metres per second.
 };
 
 // What the player wants to do during a frame, independent of the input device.
 // Rates are in [-1, 1], where 1 means full speed.
 struct PlayerInput {
-    float turn = 0.0f;  // Positive turns left.
-    float look = 0.0f;  // Positive looks up.
+    float turn = 0.0f;     // Positive turns left.
+    float look = 0.0f;     // Positive looks up.
+    float forward = 0.0f;  // Positive walks forward, negative backward.
+    float strafe = 0.0f;   // Positive steps right, negative left.
 };
 
 // Owns the game state. The world holds static level geometry, while the player (and later other
@@ -39,6 +42,7 @@ public:
 private:
     float turn_speed_;
     float look_speed_;
+    float move_speed_;
     std::uint64_t seed_;
     Player player_;
     World world_;
