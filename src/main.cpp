@@ -43,7 +43,7 @@ struct Options {
 
 /// Parses a level seed: a non-negative decimal integer.
 ///
-/// 	hrows std::invalid_argument if `text` is not a valid seed.
+/// \throws std::invalid_argument if `text` is not a valid seed.
 std::uint64_t parse_seed(const std::string& text) {
     std::uint64_t seed = 0;
     const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), seed);
