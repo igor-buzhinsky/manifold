@@ -2,8 +2,10 @@
 
 #include <cstdint>
 #include <numbers>
+#include <optional>
 
-#include "level/level_generator.hpp"
+#include "level/layout_factory.hpp"
+#include "level/level.hpp"
 #include "world/player.hpp"
 #include "world/world.hpp"
 
@@ -11,9 +13,8 @@ namespace manifold {
 
 /// Settings for a new game.
 struct GameConfig {
-    /// How the level is generated.
-    LevelConfig level{.bounds = {.x_min = -20.0f, .x_max = 20.0f, .y_min = -20.0f, .y_max = 20.0f, .height = 4.0f}};
-    PlayerParams player;                                  ///< The player at the start of the level.
+    LevelConfig level;    ///< Settings for level generation.
+    PlayerParams player;  ///< The player at the start. The position is replaced by the level's start.
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  ///< Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  ///< Radians per second: 60 degrees.
     float move_speed = 3.0f;                              ///< Metres per second.
@@ -35,12 +36,13 @@ struct PlayerInput {
 /// to it, so systems such as physics or AI can work on both.
 class Game {
 public:
-    /// Generates the level and places the player at the start.
+    /// Generates the level and places the player at its start.
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation. The same seed gives the same level.
+    /// \param layout The level layout. If not given, a random one is chosen.
     /// \throws std::runtime_error if the level can't be generated.
-    Game(const GameConfig& config, std::uint64_t seed);
+    Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout = std::nullopt);
 
     /// Advances the game by one frame.
     ///
@@ -56,7 +58,8 @@ public:
     /// Turns the noclip cheat on or off.
     void toggle_noclip() { noclip_ = !noclip_; }
 
-    const World& world() const { return world_; }
+    const Level& level() const { return level_; }
+    const World& world() const { return level_.world; }
     const Player& player() const { return player_; }
     /// The seed the level was generated from.
     std::uint64_t seed() const { return seed_; }
@@ -67,8 +70,8 @@ private:
     float move_speed_;
     bool noclip_ = false;
     std::uint64_t seed_;
+    Level level_;
     Player player_;
-    World world_;
 };
 
 }  // namespace manifold

@@ -2,3 +2,6 @@ InheritParentConfig: true
 # clang-tidy doesn't know that a failed ASSERT_TRUE(x.has_value()) leaves the test.
 Checks: >
   -bugprone-unchecked-optional-access
+CheckOptions:
+  # GoogleTest's EXPECT_* macros hide many branches, which shouldn't count towards a test's complexity.
+  readability-function-cognitive-complexity.IgnoreMacros: true

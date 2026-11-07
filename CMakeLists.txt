@@ -53,7 +53,9 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 # so that tests can link against it.
 add_library(manifold_core STATIC
     src/game.cpp
-    src/level/level_generator.cpp
+    src/level/debug_layout.cpp
+    src/level/layout_factory.cpp
+    src/level/room_layout.cpp
     src/physics/collision.cpp
     src/render/camera.cpp
     src/render/viewport.cpp
@@ -93,7 +95,9 @@ if(MANIFOLD_BUILD_TESTS)
         tests/collision_test.cpp
         tests/game_test.cpp
         tests/geometry_test.cpp
-        tests/level_generator_test.cpp
+        tests/debug_layout_test.cpp
+        tests/layout_factory_test.cpp
+        tests/room_layout_test.cpp
         tests/viewport_test.cpp
         tests/world_mesh_test.cpp
         tests/world_test.cpp

@@ -27,6 +27,7 @@ cmake -S . -B build -G Ninja
 cmake --build build
 ./build/manifold                            # random level
 ./build/manifold 42                         # level generated from seed 42
+./build/manifold 42 --layout rooms          # force a layout: debug or rooms (random by default)
 ./build/manifold 42 --screenshot view.png   # save the first frame as a PNG and exit
 ```
 

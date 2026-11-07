@@ -2,23 +2,36 @@
 
 #include <cmath>
 #include <cstdint>
+#include <optional>
 
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
-#include "level/level_generator.hpp"
+#include "level/layout_factory.hpp"
+#include "level/level.hpp"
 #include "physics/collision.hpp"
+#include "world/player.hpp"
 
 namespace manifold {
 
-Game::Game(const GameConfig& config, std::uint64_t seed)
+namespace {
+
+/// The player's settings, moved to `position`.
+PlayerParams with_position(PlayerParams params, const glm::vec3& position) {
+    params.position = position;
+    return params;
+}
+
+}  // namespace
+
+Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
     : turn_speed_(config.turn_speed),
       look_speed_(config.look_speed),
       move_speed_(config.move_speed),
       seed_(seed),
-      player_(config.player),
-      world_(generate_level(config.level, player_.footprint(), seed)) {}
+      level_(generate_level(config.level, layout, config.player.radius, seed)),
+      player_(with_position(config.player, level_.player_start)) {}
 
 void Game::update(const PlayerInput& input, float dt) {
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
@@ -36,7 +49,7 @@ void Game::update(const PlayerInput& input, float dt) {
     if (noclip_) {
         player_.set_position(player_.position() + displacement);
     } else {
-        player_.set_position(move_and_slide(world_, player_.body(), displacement));
+        player_.set_position(move_and_slide(level_.world, player_.body(), displacement));
     }
 }
 

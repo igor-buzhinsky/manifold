@@ -7,7 +7,6 @@
 #include <exception>
 #include <format>
 #include <iostream>
-#include <numbers>
 #include <optional>
 #include <random>
 #include <span>
@@ -23,6 +22,8 @@
 #include <glm/vec3.hpp>
 
 #include "game.hpp"
+#include "level/layout_factory.hpp"
+#include "level/level.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
 #include "render/renderer.hpp"
@@ -39,6 +40,7 @@ constexpr int kWindowWidth = 1600;
 struct Options {
     std::optional<std::uint64_t> seed;           ///< Level seed. Random if not given.
     std::optional<std::string> screenshot_path;  ///< If given, save the first frame there and quit.
+    std::optional<manifold::LayoutKind> layout;  ///< Level layout. Random if not given.
 };
 
 /// Parses a level seed: a non-negative decimal integer.
@@ -53,7 +55,7 @@ std::uint64_t parse_seed(const std::string& text) {
     return seed;
 }
 
-/// Parses the command line: `manifold [SEED] [--screenshot FILE.png]`.
+/// Parses the command line: `manifold [SEED] [--layout debug|rooms] [--screenshot FILE.png]`.
 ///
 /// \param args All arguments, including the program name.
 /// \throws std::invalid_argument if an argument is invalid.
@@ -61,11 +63,19 @@ Options parse_options(std::span<char*> args) {
     Options options;
     for (std::size_t i = 1; i < args.size(); ++i) {
         const std::string arg = args[i];
-        if (arg == "--screenshot") {
+        if (arg == "--screenshot" || arg == "--layout") {
             if (i + 1 == args.size()) {
-                throw std::invalid_argument("--screenshot needs a file name");
+                throw std::invalid_argument(arg + " needs a value");
             }
-            options.screenshot_path = args[++i];
+            const std::string value = args[++i];
+            if (arg == "--screenshot") {
+                options.screenshot_path = value;
+            } else {
+                options.layout = manifold::parse_layout_name(value);
+                if (!options.layout) {
+                    throw std::invalid_argument("unknown layout: " + value);
+                }
+            }
         } else {
             options.seed = parse_seed(arg);
         }
@@ -83,17 +93,14 @@ std::uint64_t random_seed() {
 void print_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
-    std::cout << std::format("Manifold, level seed {}\n", game.seed());
+    std::cout << std::format("Manifold, level seed {}, layout {}\n", game.seed(),
+                             manifold::layout_name(game.level().layout));
     std::cout << std::format("World: x [{}, {}], y [{}, {}], height {} m\n", bounds.x_min, bounds.x_max, bounds.y_min,
                              bounds.y_max, bounds.height);
     std::cout << std::format("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m\n",
                              player.position().x, player.position().y, player.position().z, player.radius(),
                              player.height());
-    for (const auto& obstacle : game.world().obstacles()) {
-        std::cout << std::format("Obstacle: center ({:6.2f}, {:6.2f}), size {} m, yaw {:5.1f} deg\n",
-                                 obstacle.base_center.x, obstacle.base_center.y, 2.0f * obstacle.half_size,
-                                 obstacle.yaw * 180.0f / std::numbers::pi_v<float>);
-    }
+    std::cout << game.level().plan;
 }
 
 /// Handles pending window and key events, such as quitting and cheats.
@@ -140,7 +147,7 @@ manifold::PlayerInput read_input() {
 
 /// Runs the game until the player quits, or until the screenshot is saved.
 void run(const Options& options) {
-    manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()));
+    manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
     print_game(game);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
