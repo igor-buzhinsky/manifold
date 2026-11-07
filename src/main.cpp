@@ -32,13 +32,18 @@
 
 namespace {
 
+/// Width of the window in screen units. The height follows from the 16:9 aspect ratio.
 constexpr int kWindowWidth = 1600;
 
+/// Command-line options.
 struct Options {
-    std::optional<std::uint64_t> seed;
-    std::optional<std::string> screenshot_path;
+    std::optional<std::uint64_t> seed;           ///< Level seed. Random if not given.
+    std::optional<std::string> screenshot_path;  ///< If given, save the first frame there and quit.
 };
 
+/// Parses a level seed: a non-negative decimal integer.
+///
+/// 	hrows std::invalid_argument if `text` is not a valid seed.
 std::uint64_t parse_seed(const std::string& text) {
     std::uint64_t seed = 0;
     const auto [end, error] = std::from_chars(text.data(), text.data() + text.size(), seed);
@@ -48,7 +53,10 @@ std::uint64_t parse_seed(const std::string& text) {
     return seed;
 }
 
-// Usage: manifold [SEED] [--screenshot FILE.png]
+/// Parses the command line: `manifold [SEED] [--screenshot FILE.png]`.
+///
+/// \param args All arguments, including the program name.
+/// \throws std::invalid_argument if an argument is invalid.
 Options parse_options(std::span<char*> args) {
     Options options;
     for (std::size_t i = 1; i < args.size(); ++i) {
@@ -65,11 +73,13 @@ Options parse_options(std::span<char*> args) {
     return options;
 }
 
+/// Creates an unpredictable level seed.
 std::uint64_t random_seed() {
     std::random_device device;
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
+/// Prints the seed, the level and the player to stdout.
 void print_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
@@ -86,7 +96,9 @@ void print_game(const manifold::Game& game) {
     }
 }
 
-// Handles pending window and key events. Returns false when the game should quit.
+/// Handles pending window and key events, such as quitting and cheats.
+///
+/// \return False when the game should quit.
 bool handle_events(manifold::Game& game) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
@@ -107,10 +119,12 @@ bool handle_events(manifold::Game& game) {
     return true;
 }
 
-// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
+/// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
 constexpr float kMaxFrameTime = 0.1f;
 
-// Key bindings. Keep GAME_MANUAL.md up to date when changing them.
+/// Reads the keys that are held down.
+///
+/// These are the key bindings. Keep GAME_MANUAL.md up to date when changing them.
 manifold::PlayerInput read_input() {
     const bool* keys = SDL_GetKeyboardState(nullptr);
     const auto axis = [keys](SDL_Scancode positive, SDL_Scancode negative) {
@@ -124,6 +138,7 @@ manifold::PlayerInput read_input() {
     };
 }
 
+/// Runs the game until the player quits, or until the screenshot is saved.
 void run(const Options& options) {
     manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()));
     print_game(game);

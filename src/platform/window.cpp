@@ -13,6 +13,7 @@ namespace manifold {
 
 namespace {
 
+/// Combines `what` with SDL's last error message.
 std::string sdl_error(const std::string& what) { return what + ": " + SDL_GetError(); }
 
 }  // namespace

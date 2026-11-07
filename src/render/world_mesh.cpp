@@ -14,12 +14,15 @@ namespace manifold {
 
 namespace {
 
+// Surface albedos in linear RGB.
 constexpr glm::vec3 kFloorColor{0.30f, 0.28f, 0.25f};
 constexpr glm::vec3 kCeilingColor{0.20f, 0.20f, 0.22f};
 constexpr glm::vec3 kWallColor{0.45f, 0.40f, 0.33f};
 constexpr glm::vec3 kObstacleColor{0.35f, 0.38f, 0.45f};
 
-// Adds a quad given by its corners in counter-clockwise order, as seen from the front side.
+/// Adds a quad as two triangles. The normal is computed from the corner order.
+///
+/// \param corners Corners in counter-clockwise order, as seen from the front side.
 void add_quad(std::vector<Vertex>& vertices, const std::array<glm::vec3, 4>& corners, const glm::vec3& color) {
     const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
     for (const int index : {0, 1, 2, 0, 2, 3}) {
@@ -27,7 +30,9 @@ void add_quad(std::vector<Vertex>& vertices, const std::array<glm::vec3, 4>& cor
     }
 }
 
-// Adds a vertical wall from `from` to `to` (on the floor), facing left of the from -> to direction.
+/// Adds a vertical wall standing on the line from `from` to `to`.
+///
+/// The wall faces to the left of the direction from `from` to `to`, as seen from above.
 void add_wall(std::vector<Vertex>& vertices, const glm::vec3& from, const glm::vec3& to, float height,
               const glm::vec3& color) {
     const glm::vec3 up{0.0f, 0.0f, height};

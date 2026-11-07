@@ -17,6 +17,7 @@ namespace manifold {
 
 namespace {
 
+/// Passes world positions, normals and colors to the fragment shader.
 constexpr const char* kVertexShader = R"glsl(
 #version 330 core
 layout(location = 0) in vec3 a_position;
@@ -37,7 +38,9 @@ void main() {
 }
 )glsl";
 
-// Lighting is computed in linear RGB and then tonemapped and converted to sRGB for the display.
+/// Lights each pixel with the ambient light and the point light.
+///
+/// Lighting is computed in linear RGB and then tonemapped and converted to sRGB for the display.
 constexpr const char* kFragmentShader = R"glsl(
 #version 330 core
 in vec3 v_position;
@@ -75,6 +78,11 @@ void main() {
 }
 )glsl";
 
+/// Compiles one shader stage.
+///
+/// \param type   GL_VERTEX_SHADER or GL_FRAGMENT_SHADER.
+/// \param source GLSL source code.
+/// \throws std::runtime_error with the compiler log if compilation fails.
 GLuint compile_shader(GLenum type, const char* source) {
     const GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &source, nullptr);
@@ -90,6 +98,9 @@ GLuint compile_shader(GLenum type, const char* source) {
     return shader;
 }
 
+/// Compiles and links a shader program.
+///
+/// \throws std::runtime_error with the compiler or linker log if anything fails.
 GLuint link_program(const char* vertex_source, const char* fragment_source) {
     const GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_source);
     const GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
@@ -110,6 +121,10 @@ GLuint link_program(const char* vertex_source, const char* fragment_source) {
     return program;
 }
 
+/// Describes a vec3 field of Vertex to the currently bound vertex array.
+///
+/// \param location Attribute location in the vertex shader.
+/// \param offset   Offset of the field in Vertex, in bytes.
 void set_vertex_attribute(GLuint location, std::size_t offset) {
     glEnableVertexAttribArray(location);
     // OpenGL takes the offset into the bound buffer as a pointer.

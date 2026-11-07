@@ -16,6 +16,8 @@ Checks: >
   -modernize-use-nodiscard,
   -readability-uppercase-literal-suffix
 WarningsAsErrors: '*'
+# Checks that doc comments match the code, e.g. \param names (see docs/CODING_STYLE.md).
+ExtraArgs: ['-Wdocumentation']
 HeaderFilterRegex: '/(src|tests)/'
 CheckOptions:
   # Pairs like (x, y) or (yaw, pitch) are conventional; flag only three or more similar parameters in a row.

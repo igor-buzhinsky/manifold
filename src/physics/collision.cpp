@@ -16,19 +16,19 @@ namespace manifold {
 
 namespace {
 
-// A single step may move the body at most this fraction of its radius, so it can't skip through thin walls.
+/// A single step may move the body at most this fraction of its radius, so it can't skip through thin walls.
 constexpr float kMaxStepFraction = 0.5f;
-// How many times per step overlaps are resolved. Several are needed in corners between surfaces.
+/// How many times per step overlaps are resolved. Several are needed in corners between surfaces.
 constexpr int kMaxResolveIterations = 4;
 
-// Keeps the contact with the larger depth.
+/// Replaces `deepest` with `contact` if `contact` is deeper.
 void keep_deepest(std::optional<Contact>& deepest, const std::optional<Contact>& contact) {
     if (contact && (!deepest || contact->depth > deepest->depth)) {
         deepest = contact;
     }
 }
 
-// The deepest overlap of a body with anything in the world.
+/// Finds the deepest overlap of a body with anything in the world, if any.
 std::optional<Contact> find_deepest_contact(const World& world, const VerticalCylinder& body) {
     std::optional<Contact> deepest = find_contact(body, world.bounds());
     for (const Obstacle& obstacle : world.obstacles()) {

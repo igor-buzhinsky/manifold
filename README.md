@@ -52,5 +52,7 @@ cmake --build build --target format   # reformat all sources in place
 cmake --build build --target lint     # check formatting, then run clang-tidy (fails on any issue)
 ```
 
+See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including doc comments.
+
 Naming: types `PascalCase`; functions, variables and namespaces `snake_case`; private and
 protected members `snake_case_`; constants and enum values `kPascalCase`; macros `UPPER_CASE`.

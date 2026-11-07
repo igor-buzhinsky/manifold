@@ -15,7 +15,10 @@ namespace manifold {
 
 namespace {
 
-// Places one obstacle, or returns false if every attempt overlapped `keep_clear`.
+/// Tries to place one obstacle at a random position with a random rotation.
+///
+/// \param[out] obstacle The placed obstacle, set only on success.
+/// \return False if every attempt overlapped `keep_clear` or didn't fit into the bounds.
 bool try_place_obstacle(const LevelConfig& config, const Circle& keep_clear, std::mt19937_64& rng, Obstacle& obstacle) {
     const float half_size = config.obstacle_size / 2.0f;
     std::uniform_real_distribution<float> yaw_distribution(0.0f, std::numbers::pi_v<float> / 2.0f);
