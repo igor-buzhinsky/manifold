@@ -13,7 +13,7 @@ namespace manifold {
 struct RoomLayoutConfig {
     int grid_width = 80;            ///< Number of tiles along x.
     int grid_height = 80;           ///< Number of tiles along y.
-    float tile_size = 1.5f;         ///< Side of a square tile, in metres.
+    float tile_size = 2.0f;         ///< Side of a square tile, in metres.
     float height = 3.0f;            ///< Height of the ceiling, in metres.
     int min_room_size = 1;          ///< Smallest inside width or depth of a room, in tiles.
     int max_room_size = 5;          ///< Largest inside width or depth of a room, in tiles.
