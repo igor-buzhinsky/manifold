@@ -8,6 +8,7 @@
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "world/world.hpp"
 
@@ -222,13 +223,16 @@ TEST(GameTest, WalkingOffLedgeFalls) {
 }
 
 /// Jumps from the floor of an empty level and returns the highest position of the feet.
-float jump_peak(float dt) {
-    Game game(make_config(), 1, LayoutKind::kDebug);
+float jump_peak(float dt, float gravity = kEarthGravity) {
+    const GameConfig config = make_config();
+    Level level = generate_level(config.level, LayoutKind::kDebug, config.player.radius, 1);
+    level.gravity = gravity;
+    Game game(config, std::move(level));
     game.update({}, dt);  // Find the ground.
     EXPECT_TRUE(game.player().on_ground());
     game.update({.rise = 1.0f}, dt);
     float peak = game.player().position().z;
-    for (int frame = 0; frame < static_cast<int>(2.0f / dt); ++frame) {
+    for (int frame = 0; frame < static_cast<int>(5.0f / dt); ++frame) {
         game.update({}, dt);
         peak = std::max(peak, game.player().position().z);
     }
@@ -241,6 +245,12 @@ TEST(GameTest, JumpReachesJumpHeightAtAnyFrameRate) {
     EXPECT_NEAR(jump_peak(1.0f / 60.0f), 0.5f, 0.01f);
     EXPECT_NEAR(jump_peak(1.0f / 144.0f), 0.5f, 0.01f);
     EXPECT_NEAR(jump_peak(1.0f / 20.0f), 0.5f, 0.02f);
+}
+
+TEST(GameTest, JumpIsHigherUnderWeakerGravity) {
+    EXPECT_NEAR(jump_peak(1.0f / 60.0f, kEarthGravity / 2.0f), 1.0f, 0.01f);
+    EXPECT_NEAR(jump_peak(1.0f / 60.0f, kEarthGravity / 4.0f), 2.0f, 0.01f);
+    EXPECT_NEAR(jump_peak(1.0f / 60.0f, kEarthGravity * 2.0f), 0.25f, 0.01f);
 }
 
 TEST(GameTest, CannotJumpInTheAir) {

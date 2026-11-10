@@ -20,7 +20,9 @@ struct GameConfig {
     float move_speed = 3.0f;                              ///< Metres per second, also when rising.
     /// Steepest slope, as height per horizontal distance, that the player sticks to when walking down.
     float max_snap_slope = 1.0f;
-    float jump_height = 0.5f;  ///< How high a jump lifts the player's feet, in metres.
+    /// How high a jump lifts the player's feet under Earth gravity, in metres. The take-off speed is the same
+    /// in every level, so the jump is higher where gravity is weaker: jump_height * kEarthGravity / gravity.
+    float jump_height = 0.5f;
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -83,7 +85,7 @@ private:
     float look_speed_;
     float move_speed_;
     float max_snap_slope_;
-    float jump_height_;
+    float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     bool noclip_ = false;
     std::uint64_t seed_;
     Level level_;

@@ -34,7 +34,7 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       look_speed_(config.look_speed),
       move_speed_(config.move_speed),
       max_snap_slope_(config.max_snap_slope),
-      jump_height_(config.jump_height),
+      jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       seed_(seed),
       level_(std::move(level)),
       player_(with_position(config.player, level_.player_start)) {}
@@ -63,9 +63,9 @@ void Game::update(const PlayerInput& input, float dt) {
 
     float start_speed = player_.vertical_speed();
     if (input.rise > 0.0f && player_.on_ground()) {
-        // The speed that reaches jump_height against gravity. The extra half step of gravity makes up for
-        // the position lagging behind the speed in the update below, so the peak is right at any frame rate.
-        start_speed = std::sqrt(2.0f * level_.gravity * jump_height_) + (level_.gravity * dt / 2.0f);
+        // The extra half step of gravity makes up for the position lagging behind the speed in the update
+        // below, so the peak is the same at any frame rate.
+        start_speed = jump_speed_ + (level_.gravity * dt / 2.0f);
     }
     // Speed changes before the position (semi-implicit Euler), which keeps falls stable.
     const float vertical_speed = start_speed - (level_.gravity * dt);
