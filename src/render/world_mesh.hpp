@@ -19,7 +19,8 @@ struct Vertex {
 ///
 /// Every three vertices form a triangle, counter-clockwise when seen from the side the normal points to.
 /// Normals of the boundary walls point into the level, normals of obstacles point out of them.
-/// Obstacles are assumed to stand on the floor. Their tops are only added if they don't reach the ceiling.
+/// The top of an obstacle is only added if it doesn't reach the ceiling, and the bottom only if it is above
+/// the floor.
 std::vector<Vertex> build_world_mesh(const World& world);
 
 }  // namespace manifold

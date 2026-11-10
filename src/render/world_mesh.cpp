@@ -77,11 +77,14 @@ std::vector<Vertex> build_world_mesh(const World& world) {
         for (std::size_t i = 0; i < corners.size(); ++i) {
             add_wall(vertices, corners.at((i + 1) % corners.size()), corners.at(i), obstacle.height, kObstacleColor);
         }
-        // The top is hidden when the obstacle reaches the ceiling. The bottom always stands on the floor.
+        // The top is hidden when the obstacle reaches the ceiling, and the bottom when it stands on the floor.
         if (obstacle.base_center.z + obstacle.height < h) {
             const glm::vec3 top{0.0f, 0.0f, obstacle.height};
             add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top},
                      kObstacleColor);
+        }
+        if (obstacle.base_center.z > 0.0f) {
+            add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]}, kObstacleColor);
         }
     }
     return vertices;

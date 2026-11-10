@@ -1,11 +1,13 @@
 #include "level/room_layout.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <queue>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -24,7 +26,10 @@ namespace {
 
 constexpr int kSeeds = 20;
 
-RoomLayoutConfig make_config() { return {.grid_width = 40, .grid_height = 30, .placement_attempts = 2000}; }
+// A small grid keeps the tests fast. Holes rarely fit into it, so it needs many attempts.
+RoomLayoutConfig make_config() {
+    return {.grid_width = 40, .grid_height = 30, .placement_attempts = 2000, .max_plan_attempts = 1000};
+}
 
 RoomPlan make_plan(std::uint64_t seed, const RoomLayoutConfig& config = make_config()) {
     LevelRng rng(seed);
@@ -82,11 +87,11 @@ TEST(RoomPlanTest, FloorTilesBelongToRooms) {
     }
 }
 
-/// Counts the open tiles reachable from the start room by walking between neighboring open tiles.
+/// Counts the open tiles reachable from the first room by walking between neighboring open tiles.
 std::size_t count_reachable(const RoomPlan& plan) {
     std::vector<bool> visited(plan.tiles.size(), false);
     std::queue<std::pair<int, int>> queue;
-    const GridRoom& start = plan.rooms[plan.start_room];
+    const GridRoom& start = plan.rooms.front();
     queue.emplace(start.x, start.y);
     visited[(static_cast<std::size_t>(start.y) * static_cast<std::size_t>(plan.width)) +
             static_cast<std::size_t>(start.x)] = true;
@@ -112,7 +117,7 @@ std::size_t count_reachable(const RoomPlan& plan) {
     return count;
 }
 
-TEST(RoomPlanTest, AllRoomsAreReachableFromStart) {
+TEST(RoomPlanTest, AllRoomsAreReachable) {
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const RoomPlan plan = make_plan(seed);
         const auto open_tiles = static_cast<std::size_t>(std::count_if(plan.tiles.begin(), plan.tiles.end(), is_open));
@@ -171,7 +176,6 @@ TEST(RoomPlanTest, SameSeedGivesSamePlan) {
     const RoomPlan first = make_plan(7);
     const RoomPlan second = make_plan(7);
     EXPECT_EQ(first.tiles, second.tiles);
-    EXPECT_EQ(first.start_room, second.start_room);
     EXPECT_NE(first.tiles, make_plan(8).tiles);
 }
 
@@ -181,56 +185,210 @@ TEST(RoomPlanTest, ThrowsWhenGridIsTooSmall) {
     EXPECT_THROW(make_plan(1, config), std::runtime_error);
 }
 
-TEST(RoomPlanTest, DrawingMarksStartAndUsesOneCharacterPerTile) {
-    const RoomPlan plan = make_plan(3);
+LayeredPlan make_layered_plan(std::uint64_t seed, const RoomLayoutConfig& config = make_config()) {
+    LevelRng rng(seed);
+    return plan_layers(config, rng);
+}
+
+/// Calls `visit(x, y)` for every tile of a hole.
+template <typename Visit>
+void for_each_hole_tile(const LayeredPlan& plan, const Hole& hole, Visit visit) {
+    for (int y = hole.y; y < hole.y + plan.hole_size; ++y) {
+        for (int x = hole.x; x < hole.x + plan.hole_size; ++x) {
+            visit(x, y);
+        }
+    }
+}
+
+TEST(LayeredPlanTest, HasConfiguredLayersAndHoleCounts) {
+    const RoomLayoutConfig config = make_config();
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        ASSERT_EQ(plan.layers.size(), static_cast<std::size_t>(config.layer_count));
+        EXPECT_EQ(plan.hole_size, config.hole_size);
+        EXPECT_GE(plan.attempts, 1);
+        for (int lower = 0; lower + 1 < config.layer_count; ++lower) {
+            const auto count = std::count_if(plan.holes.begin(), plan.holes.end(),
+                                             [lower](const Hole& hole) { return hole.layer == lower; });
+            EXPECT_GE(count, config.min_holes) << "seed " << seed;
+            EXPECT_LE(count, config.max_holes) << "seed " << seed;
+        }
+    }
+}
+
+TEST(LayeredPlanTest, HolesLieInsideOneRoomOfBothLayersAwayFromOpenings) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        for (const Hole& hole : plan.holes) {
+            for (const std::size_t index :
+                 {static_cast<std::size_t>(hole.layer), static_cast<std::size_t>(hole.layer) + 1}) {
+                const RoomPlan& layer = plan.layers.at(index);
+                const int room = layer.room_at(hole.x, hole.y);
+                EXPECT_GE(room, 0);
+                for_each_hole_tile(plan, hole, [&](int x, int y) {
+                    EXPECT_EQ(layer.room_at(x, y), room);
+                    for (const auto& [dx, dy] :
+                         {std::pair{0, 0}, std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}}) {
+                        EXPECT_NE(layer.tile(x + dx, y + dy), Tile::kOpening) << "seed " << seed;
+                    }
+                });
+            }
+        }
+    }
+}
+
+TEST(LayeredPlanTest, EveryRoomHasAtMostOneHole) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        std::map<std::pair<int, int>, int> holes_per_room;  // (layer, room) -> holes
+        for (const Hole& hole : plan.holes) {
+            for (const int layer : {hole.layer, hole.layer + 1}) {
+                ++holes_per_room[{layer, plan.layers.at(static_cast<std::size_t>(layer)).room_at(hole.x, hole.y)}];
+            }
+        }
+        for (const auto& [room, count] : holes_per_room) {
+            EXPECT_EQ(count, 1) << "seed " << seed << ", layer " << room.first << ", room " << room.second;
+        }
+    }
+}
+
+TEST(LayeredPlanTest, StartRoomHasNoHoleInFloor) {
+    std::set<int> start_layers;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        start_layers.insert(plan.start_layer);
+        const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(plan.start_layer));
+        ASSERT_LT(plan.start_room, layer.rooms.size());
+        for (const Hole& hole : plan.holes) {
+            if (hole.layer + 1 == plan.start_layer) {
+                EXPECT_NE(layer.room_at(hole.x, hole.y), static_cast<int>(plan.start_room)) << "seed " << seed;
+            }
+        }
+    }
+    // The start layer is random too.
+    EXPECT_GT(start_layers.size(), 1U);
+}
+
+TEST(LayeredPlanTest, SameSeedGivesSamePlan) {
+    const LayeredPlan first = make_layered_plan(7);
+    const LayeredPlan second = make_layered_plan(7);
+    EXPECT_EQ(draw_plan(first), draw_plan(second));
+    EXPECT_NE(draw_plan(first), draw_plan(make_layered_plan(8)));
+}
+
+TEST(LayeredPlanTest, SingleLayerHasNoHoles) {
+    RoomLayoutConfig config = make_config();
+    config.layer_count = 1;
+    const LayeredPlan plan = make_layered_plan(1, config);
+    EXPECT_EQ(plan.layers.size(), 1U);
+    EXPECT_TRUE(plan.holes.empty());
+    EXPECT_EQ(plan.start_layer, 0);
+    EXPECT_EQ(plan.attempts, 1);
+}
+
+TEST(LayeredPlanTest, ThrowsWhenHolesNeverFit) {
+    // Rooms of one tile have no space for a hole of 2 x 2 tiles.
+    RoomLayoutConfig config = make_config();
+    config.max_room_size = 1;
+    config.max_plan_attempts = 3;
+    EXPECT_THROW(make_layered_plan(1, config), std::runtime_error);
+}
+
+TEST(LayeredPlanTest, ThrowsOnInvalidHoleCounts) {
+    RoomLayoutConfig config = make_config();
+    config.min_holes = 4;
+    config.max_holes = 3;
+    EXPECT_THROW(make_layered_plan(1, config), std::invalid_argument);
+}
+
+TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartAndHoles) {
+    const LayeredPlan plan = make_layered_plan(3);
     const std::string text = draw_plan(plan);
     EXPECT_EQ(std::count(text.begin(), text.end(), '@'), 1);
-    // All lines are equally long.
+    for (int layer = 0; layer < static_cast<int>(plan.layers.size()); ++layer) {
+        EXPECT_NE(text.find("Layer " + std::to_string(layer) + ":\n"), std::string::npos);
+    }
+    // Every hole shows in the layer below and the layer above. The start is never on a hole.
+    const auto hole_tiles = static_cast<std::ptrdiff_t>(plan.holes.size()) * plan.hole_size * plan.hole_size;
+    EXPECT_EQ(std::count(text.begin(), text.end(), 'O'), 2 * hole_tiles);
+    // All plan lines are equally long.
     std::size_t line_start = 0;
     std::optional<std::size_t> width;
     while (line_start < text.size()) {
         const std::size_t line_end = text.find('\n', line_start);
         ASSERT_NE(line_end, std::string::npos);
-        const std::size_t length = line_end - line_start;
-        if (width) {
-            EXPECT_EQ(length, *width);
+        if (text.compare(line_start, 6, "Layer ") != 0) {
+            const std::size_t length = line_end - line_start;
+            if (width) {
+                EXPECT_EQ(length, *width);
+            }
+            width = length;
         }
-        width = length;
         line_start = line_end + 1;
     }
-    EXPECT_EQ(std::count(text.begin(), text.end(), '+'),
-              std::count(plan.tiles.begin(), plan.tiles.end(), Tile::kOpening));
 }
 
-Level generate(std::uint64_t seed) {
+Level generate(std::uint64_t seed, const RoomLayoutConfig& config = make_config()) {
     LevelRng rng(seed);
-    return RoomLayout(make_config()).generate(0.3f, rng);
+    return RoomLayout(config).generate(0.6f, rng);
 }
 
-TEST(RoomLayoutTest, WallTilesBecomeBlocks) {
+/// Counts the tiles that get a slab block between layer `lower` and the layer above.
+std::size_t count_slab_tiles(const LayeredPlan& plan, int lower) {
+    const RoomPlan& below = plan.layers.at(static_cast<std::size_t>(lower));
+    const RoomPlan& above = plan.layers.at(static_cast<std::size_t>(lower) + 1);
+    std::size_t count = 0;
+    for (int y = 0; y < below.height; ++y) {
+        for (int x = 0; x < below.width; ++x) {
+            const bool used = below.tile(x, y) != Tile::kEmpty || above.tile(x, y) != Tile::kEmpty;
+            count += used && !plan.is_hole(lower, x, y) ? 1 : 0;
+        }
+    }
+    return count;
+}
+
+TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
     const RoomLayoutConfig config = make_config();
     const Level level = generate(5);
-    const RoomPlan plan = make_plan(5);  // The same seed gives the same plan as inside generate().
+    const LayeredPlan plan = make_layered_plan(5);  // The same seed gives the same plan as inside generate().
     EXPECT_EQ(level.layout, LayoutKind::kRooms);
-    EXPECT_EQ(level.world.obstacles().size(),
-              static_cast<std::size_t>(std::count(plan.tiles.begin(), plan.tiles.end(), Tile::kWall)));
+
+    const float layer_step = config.height + config.slab_thickness;
+    std::size_t walls = 0;
+    std::size_t slabs = 0;
     for (const Obstacle& obstacle : level.world.obstacles()) {
         EXPECT_FLOAT_EQ(obstacle.half_size, config.tile_size / 2.0f);
-        EXPECT_FLOAT_EQ(obstacle.height, config.height);
         EXPECT_FLOAT_EQ(obstacle.yaw, 0.0f);
+        const float layer = obstacle.base_center.z / layer_step;
+        if (obstacle.height == config.height) {
+            // Walls stand on the floor of a layer.
+            EXPECT_NEAR(layer, std::round(layer), 1e-5f);
+            ++walls;
+        } else {
+            EXPECT_FLOAT_EQ(obstacle.height, config.slab_thickness);
+            EXPECT_NEAR(obstacle.base_center.z + config.slab_thickness, std::ceil(layer) * layer_step, 1e-4f);
+            ++slabs;
+        }
     }
+    std::size_t expected_walls = 0;
+    for (const RoomPlan& layer : plan.layers) {
+        expected_walls += static_cast<std::size_t>(std::count(layer.tiles.begin(), layer.tiles.end(), Tile::kWall));
+    }
+    EXPECT_EQ(walls, expected_walls);
+    EXPECT_EQ(slabs, count_slab_tiles(plan, 0) + count_slab_tiles(plan, 1));
+
     const WorldBounds& bounds = level.world.bounds();
     EXPECT_FLOAT_EQ(bounds.x_max - bounds.x_min, static_cast<float>(config.grid_width) * config.tile_size);
     EXPECT_FLOAT_EQ(bounds.y_max - bounds.y_min, static_cast<float>(config.grid_height) * config.tile_size);
-    EXPECT_FLOAT_EQ(bounds.height, config.height);
+    EXPECT_FLOAT_EQ(bounds.height, (3.0f * config.height) + (2.0f * config.slab_thickness));
 }
 
 TEST(RoomLayoutTest, PlayerStartsInCenterOfStartRoomWithoutCollisions) {
     const RoomLayoutConfig config = make_config();
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const Level level = generate(seed);
-        const RoomPlan plan = make_plan(seed);
-        const GridRoom& room = plan.rooms[plan.start_room];
+        const LayeredPlan plan = make_layered_plan(seed);
+        const GridRoom& room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
         const WorldBounds& bounds = level.world.bounds();
         const float center_x =
             bounds.x_min + ((static_cast<float>(room.x) + (static_cast<float>(room.width) / 2.0f)) * config.tile_size);
@@ -238,13 +396,41 @@ TEST(RoomLayoutTest, PlayerStartsInCenterOfStartRoomWithoutCollisions) {
             bounds.y_min + ((static_cast<float>(room.y) + (static_cast<float>(room.height) / 2.0f)) * config.tile_size);
         EXPECT_FLOAT_EQ(level.player_start.x, center_x);
         EXPECT_FLOAT_EQ(level.player_start.y, center_y);
-        EXPECT_FLOAT_EQ(level.player_start.z, 0.0f);
+        EXPECT_FLOAT_EQ(level.player_start.z,
+                        static_cast<float>(plan.start_layer) * (config.height + config.slab_thickness));
 
-        const VerticalCylinder body{.base = level.player_start, .radius = 0.3f, .height = 1.8f};
+        const VerticalCylinder body{.base = level.player_start, .radius = 0.6f, .height = 1.8f};
         for (const Obstacle& obstacle : level.world.obstacles()) {
             EXPECT_FALSE(find_contact(body, obstacle).has_value()) << "seed " << seed;
         }
+        // The player stands on something: the level floor or a slab.
+        const VerticalCylinder lowered{
+            .base = level.player_start - glm::vec3(0.0f, 0.0f, 0.01f), .radius = 0.6f, .height = 1.8f};
+        EXPECT_TRUE(find_contact(lowered, bounds).has_value() ||
+                    std::any_of(level.world.obstacles().begin(), level.world.obstacles().end(),
+                                [&](const Obstacle& obstacle) { return find_contact(lowered, obstacle).has_value(); }))
+            << "seed " << seed;
     }
+}
+
+TEST(RoomLayoutTest, PlayerFallsThroughHoleToLayerBelow) {
+    const RoomLayoutConfig config = make_config();
+    const Level level = generate(2);
+    const LayeredPlan plan = make_layered_plan(2);
+    ASSERT_FALSE(plan.holes.empty());
+    const Hole& hole = plan.holes.back();
+    const WorldBounds& bounds = level.world.bounds();
+    const float size = static_cast<float>(plan.hole_size) * config.tile_size;
+    const float layer_step = config.height + config.slab_thickness;
+    VerticalCylinder body{.base = {bounds.x_min + (static_cast<float>(hole.x) * config.tile_size) + (size / 2.0f),
+                                   bounds.y_min + (static_cast<float>(hole.y) * config.tile_size) + (size / 2.0f),
+                                   static_cast<float>(hole.layer + 1) * layer_step},
+                          .radius = 0.6f,
+                          .height = 1.8f};
+    for (int frame = 0; frame < 100; ++frame) {
+        body.base = move_and_slide(level.world, body, {0.0f, 0.0f, -0.1f}).position;
+    }
+    EXPECT_NEAR(body.base.z, static_cast<float>(hole.layer) * layer_step, 1e-4f);
 }
 
 TEST(RoomLayoutTest, ThrowsWhenTilesAreTooSmallForClearance) {

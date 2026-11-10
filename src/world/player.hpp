@@ -12,7 +12,7 @@ namespace manifold {
 struct PlayerParams {
     glm::vec3 position{0.0f};  ///< The point between the feet.
     float yaw = 0.0f;          ///< Radians, counter-clockwise from +x. Zero faces +x.
-    float radius = 0.5f;       ///< Radius of the collision body, in metres.
+    float radius = 0.6f;       ///< Radius of the collision body, in metres.
     float height = 1.8f;       ///< Metres.
 };
 

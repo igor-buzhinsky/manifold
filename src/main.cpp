@@ -5,8 +5,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
-#include <format>
-#include <iostream>
 #include <optional>
 #include <random>
 #include <span>
@@ -30,6 +28,7 @@
 #include "render/screenshot.hpp"
 #include "render/viewport.hpp"
 #include "render/world_mesh.hpp"
+#include "util/log.hpp"
 
 namespace {
 
@@ -89,18 +88,17 @@ std::uint64_t random_seed() {
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
-/// Prints the seed, the level and the player to stdout.
-void print_game(const manifold::Game& game) {
+/// Logs the seed, the level and the player.
+void log_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
-    std::cout << std::format("Manifold, level seed {}, layout {}\n", game.seed(),
-                             manifold::layout_name(game.level().layout));
-    std::cout << std::format("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2\n", bounds.x_min,
-                             bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity);
-    std::cout << std::format("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m\n",
-                             player.position().x, player.position().y, player.position().z, player.radius(),
-                             player.height());
-    std::cout << game.level().plan;
+    manifold::log_info("Manifold, level seed {}, layout {}", game.seed(), manifold::layout_name(game.level().layout));
+    manifold::log_info("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles", bounds.x_min,
+                       bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
+                       game.world().obstacles().size());
+    manifold::log_info("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m", player.position().x,
+                       player.position().y, player.position().z, player.radius(), player.height());
+    manifold::log_info("Level plan:\n{}", game.level().plan);
 }
 
 /// Handles pending window and key events, such as quitting and cheats.
@@ -120,7 +118,7 @@ bool handle_events(manifold::Game& game) {
         }
         if (event.key.key == SDLK_Z && (event.key.mod & SDL_KMOD_CTRL) != 0) {
             game.toggle_noclip();
-            std::cout << "Noclip " << (game.noclip() ? "on" : "off") << '\n';
+            manifold::log_info("Noclip {}", game.noclip() ? "on" : "off");
         }
     }
     return true;
@@ -149,7 +147,7 @@ manifold::PlayerInput read_input() {
 /// Runs the game until the player quits, or until the screenshot is saved.
 void run(const Options& options) {
     manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
-    print_game(game);
+    log_game(game);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
@@ -173,7 +171,7 @@ void run(const Options& options) {
         renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio));
         if (options.screenshot_path) {
             manifold::save_screenshot(*options.screenshot_path, framebuffer.width, framebuffer.height);
-            std::cout << "Saved " << *options.screenshot_path << '\n';
+            manifold::log_info("Saved {}", *options.screenshot_path);
             return;
         }
         window.swap_buffers();
@@ -186,7 +184,7 @@ int main(int argc, char* argv[]) {
     try {
         run(parse_options(std::span(argv, argc)));
     } catch (const std::exception& error) {
-        std::cerr << "Error: " << error.what() << '\n';
+        manifold::log_error("{}", error.what());
         return EXIT_FAILURE;
     }
     return EXIT_SUCCESS;

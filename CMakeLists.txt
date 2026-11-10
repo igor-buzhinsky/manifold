@@ -60,6 +60,7 @@ add_library(manifold_core STATIC
     src/render/camera.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
+    src/util/log.cpp
     src/world/geometry.cpp
     src/world/player.cpp
     src/world/world.cpp
@@ -97,6 +98,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
         tests/layout_factory_test.cpp
+        tests/log_test.cpp
         tests/room_layout_test.cpp
         tests/viewport_test.cpp
         tests/world_mesh_test.cpp

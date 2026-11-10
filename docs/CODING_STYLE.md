@@ -25,9 +25,15 @@ ctest --test-dir build --output-on-failure
 ## Units and coordinates
 
 - Lengths are in metres, angles in radians, time in seconds.
-- z points up, and the floor is at z = 0. Yaw is counter-clockwise from +x around +z, positive pitch looks up.
+- z points up, and the lowest floor is at z = 0. Yaw is counter-clockwise from +x around +z, positive pitch looks up.
 - Colors used in lighting are in linear RGB.
 - Positions, velocities and transforms are 3D (`glm::vec3`), even where the game is currently 2D.
+
+## Logging
+
+- Write messages with `log_info`, `log_warning` and `log_error` from `src/util/log.hpp`, not with `std::cout`.
+  They take `std::format` arguments and go to stderr with a `[info]`, `[warning]` or `[error]` prefix.
+- Use a warning for something unusual that still works, such as a level that needed many generation attempts.
 
 ## Documentation comments
 

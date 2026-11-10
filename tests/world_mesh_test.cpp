@@ -73,5 +73,16 @@ TEST(WorldMeshTest, LowObstacleGetsTopFace) {
     }
 }
 
+TEST(WorldMeshTest, RaisedObstacleGetsBottomFace) {
+    World world(kBounds);
+    world.add_obstacle({.base_center = {0.0f, 0.0f, 1.0f}, .half_size = 1.0f, .height = 2.0f, .yaw = 0.3f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    ASSERT_EQ(mesh.size(), (6 + 4 + 1) * kVerticesPerQuad);
+    for (std::size_t i = mesh.size() - kVerticesPerQuad; i < mesh.size(); ++i) {
+        EXPECT_FLOAT_EQ(mesh[i].position.z, 1.0f);
+        EXPECT_LT(mesh[i].normal.z, -0.99f);
+    }
+}
+
 }  // namespace
 }  // namespace manifold
