@@ -84,5 +84,31 @@ TEST(WorldMeshTest, RaisedObstacleGetsBottomFace) {
     }
 }
 
+TEST(WorldMeshTest, RampHasSlopeHighEndAndSidesFacingOutwards) {
+    World world(kBounds);
+    const Ramp ramp{
+        .base_center = {1.0f, 0.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.0f, .yaw = 0.5f};
+    world.add_ramp(ramp);
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    // After the level boundaries: 2 quads (slope and high end) and 2 triangles (sides).
+    const std::size_t first = 6 * kVerticesPerQuad;
+    ASSERT_EQ(mesh.size(), first + (2 * kVerticesPerQuad) + 6);
+    // Every face points away from the middle of the ramp, and the slope points up.
+    const glm::vec3 middle = ramp.base_center + glm::vec3(0.0f, 0.0f, ramp.rise / 4.0f);
+    for (std::size_t i = first; i < mesh.size(); ++i) {
+        EXPECT_GT(glm::dot(mesh[i].position - middle, mesh[i].normal), 0.0f) << "vertex " << i;
+        EXPECT_TRUE(kBounds.contains(mesh[i].position));
+    }
+    EXPECT_GT(mesh[first].normal.z, 0.5f);
+}
+
+TEST(WorldMeshTest, RaisedRampGetsBottomFace) {
+    World world(kBounds);
+    world.add_ramp({.base_center = {0.0f, 0.0f, 0.5f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.0f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    ASSERT_EQ(mesh.size(), ((6 + 3) * kVerticesPerQuad) + 6);
+    EXPECT_LT(mesh.back().normal.z, -0.99f);
+}
+
 }  // namespace
 }  // namespace manifold

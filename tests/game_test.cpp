@@ -1,12 +1,14 @@
 #include "game.hpp"
 
 #include <numbers>
+#include <utility>
 
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
+#include "world/world.hpp"
 
 namespace manifold {
 namespace {
@@ -168,6 +170,53 @@ TEST(GameTest, StandingOnFloorKeepsVerticalSpeedZero) {
         EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
         EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
     }
+}
+
+// A ramp from x = -2 to x = 2, rising by 2.5 m towards +x, onto a platform from x = 2 to x = 6.
+// The player starts at x = -4, facing the ramp.
+Level make_ramp_level() {
+    World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 6.0f});
+    world.add_ramp({.base_center = {0.0f, 0.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.5f});
+    world.add_obstacle({.base_center = {4.0f, 0.0f, 0.0f}, .half_size = 2.0f, .height = 2.5f, .yaw = 0.0f});
+    return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = {-4.0f, 0.0f, 0.0f}, .plan = ""};
+}
+
+TEST(GameTest, WalksUpRampOntoPlatform) {
+    Game game(make_config(), make_ramp_level());
+    for (int frame = 0; frame < 240; ++frame) {
+        game.update({.forward = 1.0f}, 1.0f / 60.0f);
+    }
+    expect_near(game.player().position(), {4.0f, 0.0f, 2.5f});
+    EXPECT_TRUE(game.player().on_ground());
+}
+
+TEST(GameTest, WalksDownRampWithoutLeavingGround) {
+    GameConfig config = make_config();
+    Level level = make_ramp_level();
+    level.player_start = {4.0f, 0.0f, 2.5f};
+    config.player.yaw = kPi;
+    Game game(config, std::move(level));
+    game.update({}, 1.0f / 60.0f);  // Find the ground.
+    for (int frame = 0; frame < 240; ++frame) {
+        game.update({.forward = 1.0f}, 1.0f / 60.0f);
+        EXPECT_TRUE(game.player().on_ground()) << "frame " << frame;
+    }
+    expect_near(game.player().position(), {-4.0f, 0.0f, 0.0f});
+}
+
+TEST(GameTest, WalkingOffLedgeFalls) {
+    // Snapping to the ground only works for small steps down, not for a 2.5 m drop.
+    GameConfig config = make_config();
+    Level level = make_ramp_level();
+    level.player_start = {4.0f, 0.0f, 2.5f};
+    config.player.yaw = kPi / 2.0f;  // Facing +y, off the side of the platform.
+    Game game(config, std::move(level));
+    game.update({}, 1.0f / 60.0f);
+    for (int frame = 0; frame < 120 && game.player().position().z > 2.0f; ++frame) {
+        game.update({.forward = 1.0f}, 1.0f / 60.0f);
+    }
+    EXPECT_LT(game.player().vertical_speed(), 0.0f);
+    EXPECT_FALSE(game.player().on_ground());
 }
 
 }  // namespace

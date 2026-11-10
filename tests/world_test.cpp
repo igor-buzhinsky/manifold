@@ -26,6 +26,21 @@ TEST(WorldBoundsTest, RejectsPointsOutside) {
     EXPECT_FALSE(kBounds.contains({0.0f, 5.0f, 3.1f}));
 }
 
+TEST(WorldTest, StoresRamps) {
+    World world({.x_min = -5.0f, .x_max = 5.0f, .y_min = -5.0f, .y_max = 5.0f, .height = 3.0f});
+    EXPECT_TRUE(world.ramps().empty());
+    world.add_ramp({.base_center = {1.0f, 2.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 3.0f});
+    ASSERT_EQ(world.ramps().size(), 1U);
+    EXPECT_FLOAT_EQ(world.ramps()[0].half_length, 2.0f);
+}
+
+TEST(WorldTest, RampHeightGrowsAlongSlope) {
+    const Ramp ramp{.half_length = 2.0f, .half_width = 1.0f, .rise = 3.0f};
+    EXPECT_FLOAT_EQ(ramp.height_at(-2.0f), 0.0f);
+    EXPECT_FLOAT_EQ(ramp.height_at(0.0f), 1.5f);
+    EXPECT_FLOAT_EQ(ramp.height_at(2.0f), 3.0f);
+}
+
 TEST(WorldTest, StoresObstacles) {
     World world(kBounds);
     EXPECT_TRUE(world.obstacles().empty());

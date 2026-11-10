@@ -16,6 +16,7 @@
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "game.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
 #include "world/geometry.hpp"
@@ -290,6 +291,57 @@ TEST(LayeredPlanTest, HolesDontBlockTheWayThroughRooms) {
     }
 }
 
+/// The tiles where a ramp under `hole` starts (in the lower layer) and ends (in the upper layer).
+std::pair<std::pair<int, int>, std::pair<int, int>> ramp_ends(const Hole& hole) {
+    const std::pair<int, int> before = hole.along_x() ? std::pair{hole.x - 1, hole.y} : std::pair{hole.x, hole.y - 1};
+    const std::pair<int, int> after =
+        hole.along_x() ? std::pair{hole.x + hole.width, hole.y} : std::pair{hole.x, hole.y + hole.height};
+    return hole.ramp == RampRise::kForward ? std::pair{before, after} : std::pair{after, before};
+}
+
+TEST(LayeredPlanTest, RampCountsAreWithinSettings) {
+    const RoomLayoutConfig config = make_config();
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        for (int lower = 0; lower + 1 < config.layer_count; ++lower) {
+            const auto ramps = std::count_if(plan.holes.begin(), plan.holes.end(), [lower](const Hole& hole) {
+                return hole.layer == lower && hole.ramp != RampRise::kNone;
+            });
+            EXPECT_GE(ramps, config.min_ramps) << "seed " << seed;
+            EXPECT_LE(ramps, config.max_ramps) << "seed " << seed;
+        }
+    }
+}
+
+TEST(LayeredPlanTest, RampsLeadFromLowerRoomIntoUpperRoomInAllDirections) {
+    std::set<std::pair<bool, RampRise>> directions;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        for (const Hole& hole : plan.holes) {
+            if (hole.ramp == RampRise::kNone) {
+                continue;
+            }
+            directions.insert({hole.along_x(), hole.ramp});
+            const RoomPlan& below = plan.layers.at(static_cast<std::size_t>(hole.layer));
+            const RoomPlan& above = plan.layers.at(static_cast<std::size_t>(hole.layer) + 1);
+            const auto [low, high] = ramp_ends(hole);
+            EXPECT_EQ(below.room_at(low.first, low.second), below.room_at(hole.x, hole.y)) << "seed " << seed;
+            EXPECT_EQ(above.room_at(high.first, high.second), above.room_at(hole.x, hole.y)) << "seed " << seed;
+        }
+    }
+    EXPECT_EQ(directions.size(), 4U);
+}
+
+TEST(LayeredPlanTest, ThrowsOnImpossibleRampCounts) {
+    RoomLayoutConfig config = make_config();
+    config.min_ramps = 5;  // More than max_ramps.
+    EXPECT_THROW(make_layered_plan(1, config), std::invalid_argument);
+    config.max_ramps = 6;  // Now more than min_holes, so some levels could not have enough ramps.
+    EXPECT_THROW(make_layered_plan(1, config), std::invalid_argument);
+    config.min_holes = 5;
+    EXPECT_NO_THROW(make_layered_plan(1, config));
+}
+
 TEST(LayeredPlanTest, EveryRoomHasAtMostOneHole) {
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const LayeredPlan plan = make_layered_plan(seed);
@@ -366,7 +418,9 @@ TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartAndHoles) {
     for (const Hole& hole : plan.holes) {
         hole_tiles += static_cast<std::ptrdiff_t>(hole.width) * hole.height;
     }
-    EXPECT_EQ(std::count(text.begin(), text.end(), 'O'), 2 * hole_tiles);
+    const auto hole_symbols = std::count_if(
+        text.begin(), text.end(), [](char c) { return c == 'O' || c == '>' || c == '<' || c == '^' || c == 'v'; });
+    EXPECT_EQ(hole_symbols, 2 * hole_tiles);
     // All plan lines are equally long.
     std::size_t line_start = 0;
     std::optional<std::size_t> width;
@@ -489,6 +543,54 @@ TEST(RoomLayoutTest, PlayerFallsThroughHoleToLayerBelow) {
         body.base = move_and_slide(level.world, body, {0.0f, 0.0f, -0.1f}).position;
     }
     EXPECT_NEAR(body.base.z, static_cast<float>(hole.layer) * layer_step, 1e-4f);
+}
+
+TEST(RoomLayoutTest, RampsFillHolesFromFloorToFloor) {
+    const RoomLayoutConfig config = make_config();
+    const Level level = generate(4);
+    const LayeredPlan plan = make_layered_plan(4);
+    const auto ramp_holes = std::count_if(plan.holes.begin(), plan.holes.end(),
+                                          [](const Hole& hole) { return hole.ramp != RampRise::kNone; });
+    EXPECT_EQ(level.world.ramps().size(), static_cast<std::size_t>(ramp_holes));
+    const float layer_step = config.height + config.slab_thickness;
+    for (const Ramp& ramp : level.world.ramps()) {
+        EXPECT_FLOAT_EQ(ramp.half_length, static_cast<float>(config.hole_length) * config.tile_size / 2.0f);
+        EXPECT_FLOAT_EQ(ramp.half_width, config.tile_size / 2.0f);
+        EXPECT_NEAR(ramp.rise, layer_step, 1e-5f);
+        const float layer = ramp.base_center.z / layer_step;
+        EXPECT_NEAR(layer, std::round(layer), 1e-5f);
+    }
+}
+
+TEST(RoomLayoutTest, PlayerWalksUpGeneratedRamps) {
+    const RoomLayoutConfig config = make_config();
+    const LayeredPlan plan = make_layered_plan(6);
+    const float layer_step = config.height + config.slab_thickness;
+    int ramps = 0;
+    for (const Hole& hole : plan.holes) {
+        if (hole.ramp == RampRise::kNone) {
+            continue;
+        }
+        ++ramps;
+        // Start in the middle of the tile at the low end, facing up the ramp.
+        Level level = generate(6);
+        const WorldBounds& bounds = level.world.bounds();
+        const auto [low, high] = ramp_ends(hole);
+        level.player_start = {bounds.x_min + ((static_cast<float>(low.first) + 0.5f) * config.tile_size),
+                              bounds.y_min + ((static_cast<float>(low.second) + 0.5f) * config.tile_size),
+                              static_cast<float>(hole.layer) * layer_step};
+        GameConfig game_config;
+        game_config.player.yaw =
+            std::atan2(static_cast<float>(high.second - low.second), static_cast<float>(high.first - low.first));
+        Game game(game_config, std::move(level));
+        for (int frame = 0; frame < 180; ++frame) {
+            game.update({.forward = 1.0f}, 1.0f / 60.0f);
+        }
+        EXPECT_NEAR(game.player().position().z, static_cast<float>(hole.layer + 1) * layer_step, 1e-3f)
+            << "hole at " << hole.x << ", " << hole.y << " in layer " << hole.layer;
+        EXPECT_TRUE(game.player().on_ground());
+    }
+    EXPECT_GT(ramps, 0);
 }
 
 TEST(RoomLayoutTest, ThrowsWhenTilesAreTooSmallForClearance) {

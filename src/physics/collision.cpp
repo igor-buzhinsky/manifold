@@ -28,13 +28,76 @@ void keep_deepest(std::optional<Contact>& deepest, const std::optional<Contact>&
     }
 }
 
+/// Replaces `shallowest` with `contact` if `contact` is shallower.
+void keep_shallowest(std::optional<Contact>& shallowest, const Contact& contact) {
+    if (!shallowest || contact.depth < shallowest->depth) {
+        shallowest = contact;
+    }
+}
+
 /// Finds the deepest overlap of a body with anything in the world, if any.
 std::optional<Contact> find_deepest_contact(const World& world, const VerticalCylinder& body) {
     std::optional<Contact> deepest = find_contact(body, world.bounds());
     for (const Obstacle& obstacle : world.obstacles()) {
         keep_deepest(deepest, find_contact(body, obstacle));
     }
+    for (const Ramp& ramp : world.ramps()) {
+        keep_deepest(deepest, find_contact(body, ramp));
+    }
     return deepest;
+}
+
+/// The horizontal frame of a block rotated around the vertical axis, where its footprint is axis-aligned.
+class LocalFrame {
+public:
+    /// \param origin Center of the block. Only x and y are used.
+    /// \param yaw    Rotation of the block, in radians counter-clockwise.
+    LocalFrame(const glm::vec3& origin, float yaw) : origin_(origin), cos_(std::cos(yaw)), sin_(std::sin(yaw)) {}
+
+    /// Converts a world point to the frame, ignoring z.
+    glm::vec2 to_local(const glm::vec3& point) const {
+        const glm::vec2 offset = glm::vec2(point) - origin_;
+        return {(cos_ * offset.x) + (sin_ * offset.y), (-sin_ * offset.x) + (cos_ * offset.y)};
+    }
+
+    /// Converts a horizontal direction from the frame to the world.
+    glm::vec3 to_world_direction(const glm::vec2& direction) const {
+        return {(cos_ * direction.x) - (sin_ * direction.y), (sin_ * direction.x) + (cos_ * direction.y), 0.0f};
+    }
+
+private:
+    glm::vec2 origin_;
+    float cos_;
+    float sin_;
+};
+
+/// Finds the shortest horizontal push of a vertical cylinder out of a block's sides.
+///
+/// \param frame     The block's frame.
+/// \param local     The cylinder's axis in that frame.
+/// \param half_size Half of the footprint's size along the frame's axes.
+/// \param radius    The cylinder's radius.
+/// \return The contact, or nothing if the footprints don't overlap.
+std::optional<Contact> side_contact(const LocalFrame& frame, const glm::vec2& local, const glm::vec2& half_size,
+                                    float radius) {
+    const glm::vec2 closest = glm::clamp(local, -half_size, half_size);
+    const glm::vec2 outside = local - closest;
+    const float distance = glm::length(outside);
+    if (distance > 0.0f) {
+        if (distance >= radius) {
+            return std::nullopt;
+        }
+        return Contact{.normal = frame.to_world_direction(outside / distance), .depth = radius - distance};
+    }
+    // The axis of the cylinder is inside the footprint: leave through the nearest side.
+    const float to_x_side = half_size.x - std::abs(local.x);
+    const float to_y_side = half_size.y - std::abs(local.y);
+    if (to_x_side < to_y_side) {
+        return Contact{.normal = frame.to_world_direction({local.x >= 0.0f ? 1.0f : -1.0f, 0.0f}),
+                       .depth = to_x_side + radius};
+    }
+    return Contact{.normal = frame.to_world_direction({0.0f, local.y >= 0.0f ? 1.0f : -1.0f}),
+                   .depth = to_y_side + radius};
 }
 
 }  // namespace
@@ -45,51 +108,45 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const Obstacle
     if (body.base.z >= obstacle_top || body_top <= obstacle.base_center.z) {
         return std::nullopt;
     }
-
-    // Horizontal overlap, computed in the obstacle's frame, where its footprint is axis-aligned.
-    const float cos_yaw = std::cos(obstacle.yaw);
-    const float sin_yaw = std::sin(obstacle.yaw);
-    const glm::vec2 offset = glm::vec2(body.base) - glm::vec2(obstacle.base_center);
-    const glm::vec2 local{(cos_yaw * offset.x) + (sin_yaw * offset.y), (-sin_yaw * offset.x) + (cos_yaw * offset.y)};
-    const glm::vec2 closest = glm::clamp(local, glm::vec2(-obstacle.half_size), glm::vec2(obstacle.half_size));
-    const glm::vec2 outside = local - closest;
-    const float distance = glm::length(outside);
-
-    glm::vec2 local_normal{0.0f};
-    float horizontal_depth = 0.0f;
-    if (distance > 0.0f) {
-        if (distance >= body.radius) {
-            return std::nullopt;
-        }
-        local_normal = outside / distance;
-        horizontal_depth = body.radius - distance;
-    } else {
-        // The axis of the body is inside the footprint: leave through the nearest side.
-        const float to_x_side = obstacle.half_size - std::abs(local.x);
-        const float to_y_side = obstacle.half_size - std::abs(local.y);
-        if (to_x_side < to_y_side) {
-            local_normal = {local.x >= 0.0f ? 1.0f : -1.0f, 0.0f};
-            horizontal_depth = to_x_side + body.radius;
-        } else {
-            local_normal = {0.0f, local.y >= 0.0f ? 1.0f : -1.0f};
-            horizontal_depth = to_y_side + body.radius;
-        }
+    const LocalFrame frame(obstacle.base_center, obstacle.yaw);
+    const glm::vec2 local = frame.to_local(body.base);
+    std::optional<Contact> contact = side_contact(frame, local, glm::vec2(obstacle.half_size), body.radius);
+    if (!contact) {
+        return std::nullopt;
     }
-
-    Contact contact{
-        .normal = {(cos_yaw * local_normal.x) - (sin_yaw * local_normal.y),
-                   (sin_yaw * local_normal.x) + (cos_yaw * local_normal.y), 0.0f},
-        .depth = horizontal_depth,
-    };
     // Pushing up onto the obstacle or down below it may be shorter, e.g. for a low block.
-    const float up_depth = obstacle_top - body.base.z;
-    const float down_depth = body_top - obstacle.base_center.z;
-    if (up_depth < contact.depth) {
-        contact = {.normal = {0.0f, 0.0f, 1.0f}, .depth = up_depth};
+    keep_shallowest(contact, {.normal = {0.0f, 0.0f, 1.0f}, .depth = obstacle_top - body.base.z});
+    keep_shallowest(contact, {.normal = {0.0f, 0.0f, -1.0f}, .depth = body_top - obstacle.base_center.z});
+    return contact;
+}
+
+std::optional<Contact> find_contact(const VerticalCylinder& body, const Ramp& ramp) {
+    const float body_top = body.base.z + body.height;
+    if (body.base.z >= ramp.base_center.z + ramp.rise || body_top <= ramp.base_center.z) {
+        return std::nullopt;
     }
-    if (down_depth < contact.depth) {
-        contact = {.normal = {0.0f, 0.0f, -1.0f}, .depth = down_depth};
+    const LocalFrame frame(ramp.base_center, ramp.yaw);
+    const glm::vec2 local = frame.to_local(body.base);
+    const glm::vec2 half_size{ramp.half_length, ramp.half_width};
+    std::optional<Contact> contact = side_contact(frame, local, half_size, body.radius);
+    if (!contact) {
+        return std::nullopt;
     }
+
+    // The flat bottom of the body rests on the highest point of the slope below it. That is the point of the
+    // footprint inside the body's circle that is furthest up the slope: across the slope it is as close to
+    // the body's axis as the footprint allows, and along the slope as far as the circle reaches.
+    const float across = glm::clamp(local.y, -half_size.y, half_size.y) - local.y;
+    const float reach = std::sqrt(std::max(0.0f, (body.radius * body.radius) - (across * across)));
+    const float highest_u = std::min(half_size.x, local.x + reach);
+    const float up_depth = ramp.base_center.z + ramp.height_at(highest_u) - body.base.z;
+    if (up_depth <= 0.0f) {
+        return std::nullopt;  // The body is above the slope.
+    }
+    // Pushing straight up, not along the slope's normal, lets the body walk up at full speed, and keeps it
+    // from sliding down when it stands still.
+    keep_shallowest(contact, {.normal = {0.0f, 0.0f, 1.0f}, .depth = up_depth});
+    keep_shallowest(contact, {.normal = {0.0f, 0.0f, -1.0f}, .depth = body_top - ramp.base_center.z});
     return contact;
 }
 

@@ -102,6 +102,69 @@ TEST(BoundsContactTest, FloorAndCeilingPushVertically) {
     expect_near(above->normal, {0.0f, 0.0f, -1.0f});
 }
 
+// A ramp 4 m long and 2 m wide, rising by 3 m towards +x. Its low end is at x = -2, the high end at x = 2.
+constexpr Ramp kRamp{.base_center = {0.0f, 0.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 3.0f};
+
+TEST(RampContactTest, NoContactWhenApart) {
+    EXPECT_FALSE(find_contact(body_at({-3.0f, 0.0f, 0.0f}), kRamp).has_value());
+    EXPECT_FALSE(find_contact(body_at({0.0f, 2.0f, 0.0f}), kRamp).has_value());
+}
+
+TEST(RampContactTest, NoContactAboveSlope) {
+    // At the body's axis the slope is 1.5 m high, and 1.5 + 0.3 * 0.75 m at its uphill edge.
+    EXPECT_FALSE(find_contact(body_at({0.0f, 0.0f, 1.8f}), kRamp).has_value());
+}
+
+TEST(RampContactTest, BodyOnSlopeIsPushedUpToHighestPointBelowIt) {
+    const std::optional<Contact> contact = find_contact(body_at({0.0f, 0.0f, 1.5f}), kRamp);
+    ASSERT_TRUE(contact.has_value());
+    expect_near(contact->normal, {0.0f, 0.0f, 1.0f});
+    EXPECT_NEAR(contact->depth, kRadius * 0.75f, 1e-5f);
+}
+
+TEST(RampContactTest, BodyAtLowEndIsLiftedOntoSlope) {
+    // The body reaches 0.1 m over the low end, where the slope is 0.075 m high.
+    const std::optional<Contact> contact = find_contact(body_at({-2.0f - kRadius + 0.1f, 0.0f, 0.0f}), kRamp);
+    ASSERT_TRUE(contact.has_value());
+    expect_near(contact->normal, {0.0f, 0.0f, 1.0f});
+    EXPECT_NEAR(contact->depth, 0.075f, 1e-5f);
+}
+
+TEST(RampContactTest, BodyAtHighEndIsPushedAway) {
+    const std::optional<Contact> contact = find_contact(body_at({2.0f + kRadius - 0.1f, 0.0f, 0.0f}), kRamp);
+    ASSERT_TRUE(contact.has_value());
+    expect_near(contact->normal, {1.0f, 0.0f, 0.0f});
+    EXPECT_NEAR(contact->depth, 0.1f, 1e-5f);
+}
+
+TEST(RampContactTest, BodyAtSideIsPushedAway) {
+    const std::optional<Contact> contact = find_contact(body_at({1.0f, -1.0f - kRadius + 0.1f, 0.0f}), kRamp);
+    ASSERT_TRUE(contact.has_value());
+    expect_near(contact->normal, {0.0f, -1.0f, 0.0f});
+    EXPECT_NEAR(contact->depth, 0.1f, 1e-5f);
+}
+
+TEST(RampContactTest, YawTurnsTheSlope) {
+    // Rising towards +y, the high end is at y = 2.
+    Ramp ramp = kRamp;
+    ramp.yaw = std::numbers::pi_v<float> / 2.0f;
+    const std::optional<Contact> contact = find_contact(body_at({0.0f, 2.0f + kRadius - 0.1f, 0.0f}), ramp);
+    ASSERT_TRUE(contact.has_value());
+    expect_near(contact->normal, {0.0f, 1.0f, 0.0f});
+    EXPECT_NEAR(contact->depth, 0.1f, 1e-5f);
+}
+
+TEST(MoveAndSlideTest, WalkingIntoRampGoesUpIt) {
+    World world(kBounds);
+    world.add_ramp(kRamp);
+    VerticalCylinder body = body_at({-3.0f, 0.0f, 0.0f});
+    for (int i = 0; i < 30; ++i) {
+        body.base = move_and_slide(world, body, {0.1f, 0.0f, 0.0f}).position;
+    }
+    // At x = 0, the uphill edge of the body is at x = 0.3, where the slope is 1.5 + 0.225 m high.
+    expect_near(body.base, {0.0f, 0.0f, 1.725f});
+}
+
 World make_world() {
     World world(kBounds);
     world.add_obstacle(kBlock);

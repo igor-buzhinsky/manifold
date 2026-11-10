@@ -37,6 +37,10 @@ public:
     float vertical_speed() const { return vertical_speed_; }
     void set_vertical_speed(float vertical_speed) { vertical_speed_ = vertical_speed; }
 
+    /// Whether the player stood on something at the end of the last update.
+    bool on_ground() const { return on_ground_; }
+    void set_on_ground(bool on_ground) { on_ground_ = on_ground; }
+
     /// Radius of the player's collision body.
     float radius() const { return radius_; }
     float height() const { return height_; }
@@ -70,6 +74,7 @@ private:
     float yaw_;
     float pitch_ = 0.0f;
     float vertical_speed_ = 0.0f;
+    bool on_ground_ = false;
 };
 
 }  // namespace manifold

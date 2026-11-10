@@ -34,6 +34,21 @@ struct Obstacle {
     RotatedSquare footprint() const;
 };
 
+/// A wedge: a block with a rectangular footprint whose top slopes up from one end to the other.
+///
+/// In its own frame, u runs along the slope and v across it. The low end at u = -half_length has zero
+/// height, the high end at u = +half_length is `rise` high.
+struct Ramp {
+    glm::vec3 base_center{0.0f};  ///< Center of the bottom face.
+    float half_length = 0.0f;     ///< Half of the length along the slope, in metres.
+    float half_width = 0.0f;      ///< Half of the width across the slope, in metres.
+    float rise = 0.0f;            ///< Height of the high end above the base, in metres.
+    float yaw = 0.0f;             ///< Direction in which the ramp goes up: radians counter-clockwise from +x.
+
+    /// Height of the slope above the base at position `u` along it, in [0, rise] for u in the footprint.
+    float height_at(float u) const { return rise * (u + half_length) / (2.0f * half_length); }
+};
+
 /// The static part of a level: its boundaries and the geometry inside them.
 ///
 /// Dynamic entities, such as the player, are kept outside of the world model.
@@ -44,12 +59,15 @@ public:
 
     const WorldBounds& bounds() const { return bounds_; }
     std::span<const Obstacle> obstacles() const { return obstacles_; }
+    std::span<const Ramp> ramps() const { return ramps_; }
 
     void add_obstacle(const Obstacle& obstacle);
+    void add_ramp(const Ramp& ramp);
 
 private:
     WorldBounds bounds_;
     std::vector<Obstacle> obstacles_;
+    std::vector<Ramp> ramps_;
 };
 
 }  // namespace manifold

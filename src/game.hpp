@@ -18,6 +18,8 @@ struct GameConfig {
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  ///< Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  ///< Radians per second: 60 degrees.
     float move_speed = 3.0f;                              ///< Metres per second, also when rising.
+    /// Steepest slope, as height per horizontal distance, that the player sticks to when walking down.
+    float max_snap_slope = 1.0f;
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -45,11 +47,19 @@ public:
     /// \throws std::runtime_error if the level can't be generated.
     Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout = std::nullopt);
 
+    /// Starts a game in a level that is already generated, e.g. one built by hand in a test.
+    ///
+    /// \param config Game settings. The level settings are not used.
+    /// \param level  The level. The player starts at its start.
+    /// \param seed   The seed reported by seed().
+    Game(const GameConfig& config, Level level, std::uint64_t seed = 0);
+
     /// Advances the game by one frame.
     ///
     /// Turns the player first, then walks in the new direction. Without noclip, the player falls by the
-    /// level's gravity and is stopped by obstacles and level walls. With noclip, the player flies: moves up
-    /// and down by `input.rise`, doesn't fall, and goes through everything.
+    /// level's gravity and is stopped by obstacles and level walls. Walking into a ramp goes up it, and a
+    /// player who walks down a ramp sticks to it instead of falling in small hops. With noclip, the player flies: moves
+    /// up and down by `input.rise`, doesn't fall, and goes through everything.
     ///
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
@@ -70,6 +80,7 @@ private:
     float turn_speed_;
     float look_speed_;
     float move_speed_;
+    float max_snap_slope_;
     bool noclip_ = false;
     std::uint64_t seed_;
     Level level_;

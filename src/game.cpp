@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <utility>
 
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -26,11 +27,15 @@ PlayerParams with_position(PlayerParams params, const glm::vec3& position) {
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
+    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {}
+
+Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
     : turn_speed_(config.turn_speed),
       look_speed_(config.look_speed),
       move_speed_(config.move_speed),
+      max_snap_slope_(config.max_snap_slope),
       seed_(seed),
-      level_(generate_level(config.level, layout, config.player.radius, seed)),
+      level_(std::move(level)),
       player_(with_position(config.player, level_.player_start)) {}
 
 void Game::update(const PlayerInput& input, float dt) {
@@ -51,6 +56,7 @@ void Game::update(const PlayerInput& input, float dt) {
         player_.set_position(player_.position() + displacement);
         // When noclip is turned off in the air, the fall starts from rest.
         player_.set_vertical_speed(0.0f);
+        player_.set_on_ground(false);
         return;
     }
 
@@ -59,10 +65,23 @@ void Game::update(const PlayerInput& input, float dt) {
     displacement.z = vertical_speed * dt;
     const SlideResult result = move_and_slide(level_.world, player_.body(), displacement);
     player_.set_position(result.position);
+    bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
+
+    // Walking down a slope, the ground drops away faster than gravity pulls the player down at first. If
+    // there is ground close below, move down onto it, so the player doesn't fall in small hops.
+    if (!landed && player_.on_ground() && vertical_speed <= 0.0f) {
+        const float snap = glm::length(glm::vec2(displacement)) * max_snap_slope_;
+        const SlideResult snapped = move_and_slide(level_.world, player_.body(), {0.0f, 0.0f, -snap});
+        if (snapped.correction.z > 0.0f) {
+            player_.set_position(snapped.position);
+            landed = true;
+        }
+    }
+
     // Landing on something, or bumping into something above, stops the vertical movement.
-    const bool blocked =
-        (vertical_speed < 0.0f && result.correction.z > 0.0f) || (vertical_speed > 0.0f && result.correction.z < 0.0f);
-    player_.set_vertical_speed(blocked ? 0.0f : vertical_speed);
+    const bool bumped = vertical_speed > 0.0f && result.correction.z < 0.0f;
+    player_.set_vertical_speed(landed || bumped ? 0.0f : vertical_speed);
+    player_.set_on_ground(landed);
 }
 
 }  // namespace manifold

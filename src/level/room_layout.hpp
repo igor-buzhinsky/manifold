@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -20,10 +21,14 @@ struct RoomLayoutConfig {
     int placement_attempts = 5000;  ///< How often to try placing another room. More attempts fill more space.
     int layer_count = 3;            ///< Number of layers stacked on top of each other.
     float slab_thickness = 0.3f;    ///< Thickness of the floor between two layers, in metres.
-    int hole_length = 2;            ///< Long side of a hole between two layers, in tiles. The short side is 1.
-    int min_holes = 3;              ///< Fewest holes between every two neighboring layers.
-    int max_holes = 6;              ///< Most holes between every two neighboring layers.
-    int max_plan_attempts = 100;    ///< How often to plan the level again when the holes don't fit.
+    /// Long side of a hole between two layers, in tiles. The short side is 1. A ramp under a hole is only
+    /// walkable if it is longer than it is high.
+    int hole_length = 2;
+    int min_holes = 3;            ///< Fewest holes between every two neighboring layers.
+    int max_holes = 6;            ///< Most holes between every two neighboring layers.
+    int min_ramps = 2;            ///< Fewest holes with a ramp under them, between every two neighboring layers.
+    int max_ramps = 4;            ///< Most holes with a ramp under them, between every two neighboring layers.
+    int max_plan_attempts = 100;  ///< How often to plan the level again when the holes don't fit.
 };
 
 /// What a tile of the room grid contains.
@@ -64,13 +69,27 @@ struct RoomPlan {
     int room_at(int x, int y) const;
 };
 
-/// A rectangular hole in the floor between two neighboring layers.
+/// Which way a ramp under a hole goes up, if there is one.
+enum class RampRise : std::uint8_t {
+    kNone,      ///< No ramp: the hole is only a way down.
+    kForward,   ///< Up towards +x or +y, along the long side of the hole.
+    kBackward,  ///< Up towards -x or -y, along the long side of the hole.
+};
+
+/// A rectangular hole in the floor between two neighboring layers, possibly with a ramp under it.
+///
+/// A ramp fills the hole's tiles in the lower layer and goes up from the floor of the lower layer to the
+/// floor of the upper layer.
 struct Hole {
-    int layer = 0;   ///< The lower of the two layers. The hole is in its ceiling.
-    int x = 0;       ///< First tile along x.
-    int y = 0;       ///< First tile along y.
-    int width = 1;   ///< Size along x, in tiles.
-    int height = 1;  ///< Size along y, in tiles.
+    int layer = 0;                    ///< The lower of the two layers. The hole is in its ceiling.
+    int x = 0;                        ///< First tile along x.
+    int y = 0;                        ///< First tile along y.
+    int width = 1;                    ///< Size along x, in tiles.
+    int height = 1;                   ///< Size along y, in tiles.
+    RampRise ramp = RampRise::kNone;  ///< The ramp under the hole.
+
+    /// Whether the long side of the hole runs along x.
+    bool along_x() const { return width > height; }
 
     /// Checks whether tile (x, y) is part of the hole.
     bool contains(int tile_x, int tile_y) const {
@@ -86,8 +105,10 @@ struct LayeredPlan {
     std::size_t start_room = 0;    ///< Index of the start room in that layer's rooms.
     int attempts = 0;              ///< How many times the level was planned until the holes fit.
 
+    /// The hole in the ceiling of `layer` that tile (x, y) is part of, if any.
+    std::optional<Hole> hole_at(int layer, int x, int y) const;
     /// Checks whether tile (x, y) is part of a hole in the ceiling of `layer`.
-    bool is_hole(int layer, int x, int y) const;
+    bool is_hole(int layer, int x, int y) const { return hole_at(layer, x, y).has_value(); }
 };
 
 /// Plans one layer of rooms on a grid.
@@ -109,21 +130,29 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 /// - the rest of the room's floor stays connected, so the hole (or a ramp there later) doesn't block the
 ///   way through the room.
 ///
-/// Every room has at most one hole in its floor or ceiling. If the holes don't fit, all layers are planned
-/// again. The number of attempts is logged, as a warning when more than two were needed.
+/// Every room has at most one hole in its floor or ceiling.
+///
+/// Then a random number of holes between `config.min_ramps` and `config.max_ramps`, chosen at random, get
+/// a ramp. The low end of a ramp must lead into the room of the lower layer, and its high end into the room
+/// of the upper layer. If both directions are possible, one is chosen at random.
+///
+/// If the holes or ramps don't fit, all layers are planned again. The number of attempts is logged, as a warning when
+/// more than two were needed.
 ///
 /// The player starts in the center of a random room without a hole in its floor. All such rooms have the
 /// same chance, so layers with more rooms are more likely.
 ///
-/// \throws std::invalid_argument if the settings are invalid, e.g. min_holes > max_holes.
+/// \throws std::invalid_argument if the settings are invalid or can't be met, e.g. min_holes > max_holes,
+///         or min_ramps > min_holes.
 /// \throws std::runtime_error if the grid is too small for a room, or the holes don't fit after
 ///         `config.max_plan_attempts` attempts.
 LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng);
 
 /// Draws the plan as text: each layer from the bottom up, one character per tile, with +y up and +x right.
 ///
-/// Uses `#` for walls, `.` for floor, `+` for openings, `O` for holes to the layer below or above, and `@`
-/// for the player start. Empty tiles around the rooms of all layers are cropped.
+/// Uses `#` for walls, `.` for floor, `+` for openings, `O` for holes to the layer below or above, `>`,
+/// `<`, `^` and `v` for ramps, pointing up the ramp, and `@` for the player start. Empty tiles around the rooms of all
+/// layers are cropped.
 std::string draw_plan(const LayeredPlan& plan);
 
 /// Layers of rooms on a grid of square tiles, connected by openings in their walls and by holes in the
@@ -131,6 +160,7 @@ std::string draw_plan(const LayeredPlan& plan);
 ///
 /// Each wall tile becomes a non-rotated block from the floor to the ceiling of its layer. The floors
 /// between layers are made of thin blocks, one per tile, except at holes and where both layers are empty.
+/// Ramps are wedges under their holes.
 /// The player starts in the center of a random room, see plan_layers(). The plan is drawn as text, see
 /// draw_plan().
 class RoomLayout final : public LevelLayout {

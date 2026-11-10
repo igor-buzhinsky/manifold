@@ -93,9 +93,9 @@ void log_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
     manifold::log_info("Manifold, level seed {}, layout {}", game.seed(), manifold::layout_name(game.level().layout));
-    manifold::log_info("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles", bounds.x_min,
-                       bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
-                       game.world().obstacles().size());
+    manifold::log_info("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles, {} ramps",
+                       bounds.x_min, bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
+                       game.world().obstacles().size(), game.world().ramps().size());
     manifold::log_info("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m", player.position().x,
                        player.position().y, player.position().z, player.radius(), player.height());
     manifold::log_info("Level plan:\n{}", game.level().plan);

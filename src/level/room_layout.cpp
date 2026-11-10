@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <map>
+#include <numbers>
 #include <optional>
 #include <random>
 #include <stdexcept>
@@ -267,6 +268,25 @@ TileBox used_tiles(const LayeredPlan& plan) {
     return box;
 }
 
+/// The hole in the floor or the ceiling of `layer` at tile (x, y), if any.
+std::optional<Hole> find_hole(const LayeredPlan& plan, int layer, int x, int y) {
+    const std::optional<Hole> hole = plan.hole_at(layer, x, y);
+    return hole ? hole : plan.hole_at(layer - 1, x, y);
+}
+
+/// The character that shows a hole on the printed plan: `O`, or an arrow pointing up its ramp.
+char hole_symbol(const Hole& hole) {
+    switch (hole.ramp) {
+        case RampRise::kNone:
+            return 'O';
+        case RampRise::kForward:
+            return hole.along_x() ? '>' : '^';
+        case RampRise::kBackward:
+            return hole.along_x() ? '<' : 'v';
+    }
+    return '?';
+}
+
 /// The character that shows a tile on the printed plan.
 char tile_symbol(Tile tile) {
     switch (tile) {
@@ -282,6 +302,54 @@ char tile_symbol(Tile tile) {
     return '?';
 }
 
+/// The directions a ramp under `hole` could go up: its low end must lead into the hole's room in the lower
+/// layer, and its high end into the hole's room in the upper layer.
+std::vector<RampRise> possible_ramps(const LayeredPlan& plan, const Hole& hole) {
+    const RoomPlan& below = plan.layers.at(static_cast<std::size_t>(hole.layer));
+    const RoomPlan& above = plan.layers.at(static_cast<std::size_t>(hole.layer) + 1);
+    const int lower_room = below.room_at(hole.x, hole.y);
+    const int upper_room = above.room_at(hole.x, hole.y);
+    // The tiles right before the hole and right after it, along its long side.
+    const TilePosition before =
+        hole.along_x() ? TilePosition{.x = hole.x - 1, .y = hole.y} : TilePosition{.x = hole.x, .y = hole.y - 1};
+    const TilePosition after = hole.along_x() ? TilePosition{.x = hole.x + hole.width, .y = hole.y}
+                                              : TilePosition{.x = hole.x, .y = hole.y + hole.height};
+    std::vector<RampRise> possible;
+    if (below.room_at(before.x, before.y) == lower_room && above.room_at(after.x, after.y) == upper_room) {
+        possible.push_back(RampRise::kForward);
+    }
+    if (below.room_at(after.x, after.y) == lower_room && above.room_at(before.x, before.y) == upper_room) {
+        possible.push_back(RampRise::kBackward);
+    }
+    return possible;
+}
+
+/// Puts ramps under random holes between layer `lower` and the layer above it.
+///
+/// \return False if fewer than `config.min_ramps` holes can have a ramp.
+bool add_ramps(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, LevelRng& rng) {
+    std::vector<std::pair<Hole*, std::vector<RampRise>>> candidates;
+    for (Hole& hole : plan.holes) {
+        if (hole.layer == lower) {
+            std::vector<RampRise> possible = possible_ramps(plan, hole);
+            if (!possible.empty()) {
+                candidates.emplace_back(&hole, std::move(possible));
+            }
+        }
+    }
+    if (static_cast<int>(candidates.size()) < config.min_ramps) {
+        return false;
+    }
+    std::shuffle(candidates.begin(), candidates.end(), rng);
+    const int wanted =
+        std::min(random_int(rng, config.min_ramps, config.max_ramps), static_cast<int>(candidates.size()));
+    for (int i = 0; i < wanted; ++i) {
+        auto& [hole, possible] = candidates[static_cast<std::size_t>(i)];
+        hole->ramp = possible[static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(possible.size()) - 1))];
+    }
+    return true;
+}
+
 /// Plans all layers and the holes between them once.
 ///
 /// \return The plan, or nothing if the holes don't fit.
@@ -294,6 +362,11 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     }
     for (int lower = 0; lower + 1 < config.layer_count; ++lower) {
         if (!add_holes(plan, lower, config, has_hole, rng)) {
+            return std::nullopt;
+        }
+    }
+    for (int lower = 0; lower + 1 < config.layer_count; ++lower) {
+        if (!add_ramps(plan, lower, config, rng)) {
             return std::nullopt;
         }
     }
@@ -328,9 +401,10 @@ RoomPlan::RoomPlan(int width, int height)
       tiles(static_cast<std::size_t>(width) * static_cast<std::size_t>(height), Tile::kEmpty),
       room_of_tile(tiles.size(), -1) {}
 
-bool LayeredPlan::is_hole(int layer, int x, int y) const {
-    return std::any_of(holes.begin(), holes.end(),
-                       [&](const Hole& hole) { return hole.layer == layer && hole.contains(x, y); });
+std::optional<Hole> LayeredPlan::hole_at(int layer, int x, int y) const {
+    const auto found = std::find_if(holes.begin(), holes.end(),
+                                    [&](const Hole& hole) { return hole.layer == layer && hole.contains(x, y); });
+    return found == holes.end() ? std::nullopt : std::optional<Hole>(*found);
 }
 
 Tile RoomPlan::tile(int x, int y) const { return contains(x, y) ? tiles[tile_index(*this, x, y)] : Tile::kEmpty; }
@@ -371,6 +445,11 @@ LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
         config.min_holes > config.max_holes || config.max_plan_attempts < 1) {
         throw std::invalid_argument("invalid room layout settings for layers and holes");
     }
+    // Every two neighboring layers get at least min_holes holes, so that many can have ramps.
+    if (config.min_ramps < 0 || config.min_ramps > config.max_ramps || config.min_ramps > config.min_holes) {
+        throw std::invalid_argument(
+            "invalid room layout settings for ramps: need 0 <= min_ramps <= max_ramps and min_ramps <= min_holes");
+    }
     for (int attempt = 1; attempt <= config.max_plan_attempts; ++attempt) {
         std::optional<LayeredPlan> plan = try_plan_layers(config, rng);
         if (!plan) {
@@ -402,8 +481,8 @@ std::string draw_plan(const LayeredPlan& plan) {
             for (int x = box.x_min; x <= box.x_max; ++x) {
                 if (layer_number == plan.start_layer && x == start_x && y == start_y) {
                     text += '@';
-                } else if (plan.is_hole(layer_number, x, y) || plan.is_hole(layer_number - 1, x, y)) {
-                    text += 'O';
+                } else if (const std::optional<Hole> hole = find_hole(plan, layer_number, x, y)) {
+                    text += hole_symbol(*hole);
                 } else {
                     text += tile_symbol(layer.tile(x, y));
                 }
@@ -413,6 +492,81 @@ std::string draw_plan(const LayeredPlan& plan) {
     }
     return text;
 }
+
+namespace {
+
+/// Where the tiles and the layers of a plan are in the world.
+struct GridPlacement {
+    float tile = 0.0f;           ///< Side of a tile, in metres.
+    float x_min = 0.0f;          ///< World x of the grid's edge at tile x = 0.
+    float y_min = 0.0f;          ///< World y of the grid's edge at tile y = 0.
+    std::vector<float> floor_z;  ///< Height of each layer's floor.
+
+    /// The world position of a point given in tiles, e.g. (x + 0.5, y + 0.5) for the center of tile (x, y).
+    glm::vec3 at(float x, float y, float z) const { return {x_min + (x * tile), y_min + (y * tile), z}; }
+    /// The world position of the center of tile (x, y), at height z.
+    glm::vec3 tile_center(int x, int y, float z) const {
+        return at(static_cast<float>(x) + 0.5f, static_cast<float>(y) + 0.5f, z);
+    }
+};
+
+/// Adds a block from the floor to the ceiling for every wall tile of every layer.
+void add_walls(World& world, const LayeredPlan& plan, const GridPlacement& grid, float height) {
+    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
+        const RoomPlan& layer = plan.layers[index];
+        for (int y = 0; y < layer.height; ++y) {
+            for (int x = 0; x < layer.width; ++x) {
+                if (layer.tile(x, y) == Tile::kWall) {
+                    world.add_obstacle({.base_center = grid.tile_center(x, y, grid.floor_z[index]),
+                                        .half_size = grid.tile / 2.0f,
+                                        .height = height,
+                                        .yaw = 0.0f});
+                }
+            }
+        }
+    }
+}
+
+/// Adds the floors between layers as thin blocks, except at holes and where neither layer has anything.
+void add_slabs(World& world, const LayeredPlan& plan, const GridPlacement& grid, float height, float thickness) {
+    for (std::size_t index = 0; index + 1 < plan.layers.size(); ++index) {
+        const RoomPlan& below = plan.layers[index];
+        const RoomPlan& above = plan.layers[index + 1];
+        const float slab_z = grid.floor_z[index] + height;
+        for (int y = 0; y < below.height; ++y) {
+            for (int x = 0; x < below.width; ++x) {
+                const bool used = below.tile(x, y) != Tile::kEmpty || above.tile(x, y) != Tile::kEmpty;
+                if (used && !plan.is_hole(static_cast<int>(index), x, y)) {
+                    world.add_obstacle({.base_center = grid.tile_center(x, y, slab_z),
+                                        .half_size = grid.tile / 2.0f,
+                                        .height = thickness,
+                                        .yaw = 0.0f});
+                }
+            }
+        }
+    }
+}
+
+/// Adds the ramps. Each fills its hole in the lower layer, from its floor up to the floor of the layer above.
+void build_ramps(World& world, const LayeredPlan& plan, const GridPlacement& grid) {
+    const float pi = std::numbers::pi_v<float>;
+    for (const Hole& hole : plan.holes) {
+        if (hole.ramp == RampRise::kNone) {
+            continue;
+        }
+        const auto lower = static_cast<std::size_t>(hole.layer);
+        const float forward_yaw = hole.along_x() ? 0.0f : pi / 2.0f;
+        world.add_ramp({.base_center = grid.at(static_cast<float>(hole.x) + (static_cast<float>(hole.width) / 2.0f),
+                                               static_cast<float>(hole.y) + (static_cast<float>(hole.height) / 2.0f),
+                                               grid.floor_z.at(lower)),
+                        .half_length = static_cast<float>(std::max(hole.width, hole.height)) * grid.tile / 2.0f,
+                        .half_width = grid.tile / 2.0f,
+                        .rise = grid.floor_z.at(lower + 1) - grid.floor_z.at(lower),
+                        .yaw = hole.ramp == RampRise::kForward ? forward_yaw : forward_yaw + pi});
+    }
+}
+
+}  // namespace
 
 Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     // The player starts in the center of a room, which is at least half a tile away from any wall.
@@ -424,56 +578,27 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
 
     // The grid is centered on the origin. Each layer's floor is the top of the slab below it. Adding up
     // the heights, instead of multiplying, makes the floors match the slab tops exactly.
-    const float tile = config_.tile_size;
-    const float x_min = -static_cast<float>(bottom.width) * tile / 2.0f;
-    const float y_min = -static_cast<float>(bottom.height) * tile / 2.0f;
-    std::vector<float> floor_z{0.0f};
-    while (floor_z.size() < plan.layers.size()) {
-        floor_z.push_back(floor_z.back() + config_.height + config_.slab_thickness);
-    }
-    const float height = floor_z.back() + config_.height;
-    const auto tile_center = [&](int x, int y, float z) {
-        return glm::vec3(x_min + ((static_cast<float>(x) + 0.5f) * tile),
-                         y_min + ((static_cast<float>(y) + 0.5f) * tile), z);
-    };
-
-    World world({.x_min = x_min, .x_max = -x_min, .y_min = y_min, .y_max = -y_min, .height = height});
-    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
-        const RoomPlan& layer = plan.layers[index];
-        for (int y = 0; y < layer.height; ++y) {
-            for (int x = 0; x < layer.width; ++x) {
-                if (layer.tile(x, y) == Tile::kWall) {
-                    world.add_obstacle({.base_center = tile_center(x, y, floor_z[index]),
-                                        .half_size = tile / 2.0f,
-                                        .height = config_.height,
-                                        .yaw = 0.0f});
-                }
-            }
-        }
-    }
-    // The floor between two layers, except at holes and where neither layer has anything.
-    for (std::size_t index = 0; index + 1 < plan.layers.size(); ++index) {
-        const RoomPlan& below = plan.layers[index];
-        const RoomPlan& above = plan.layers[index + 1];
-        const float slab_z = floor_z[index] + config_.height;
-        for (int y = 0; y < below.height; ++y) {
-            for (int x = 0; x < below.width; ++x) {
-                const bool used = below.tile(x, y) != Tile::kEmpty || above.tile(x, y) != Tile::kEmpty;
-                if (used && !plan.is_hole(static_cast<int>(index), x, y)) {
-                    world.add_obstacle({.base_center = tile_center(x, y, slab_z),
-                                        .half_size = tile / 2.0f,
-                                        .height = config_.slab_thickness,
-                                        .yaw = 0.0f});
-                }
-            }
-        }
+    GridPlacement grid{.tile = config_.tile_size,
+                       .x_min = -static_cast<float>(bottom.width) * config_.tile_size / 2.0f,
+                       .y_min = -static_cast<float>(bottom.height) * config_.tile_size / 2.0f,
+                       .floor_z = {0.0f}};
+    while (grid.floor_z.size() < plan.layers.size()) {
+        grid.floor_z.push_back(grid.floor_z.back() + config_.height + config_.slab_thickness);
     }
 
-    const GridRoom& start_room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
-    const glm::vec3 start{
-        x_min + ((static_cast<float>(start_room.x) + (static_cast<float>(start_room.width) / 2.0f)) * tile),
-        y_min + ((static_cast<float>(start_room.y) + (static_cast<float>(start_room.height) / 2.0f)) * tile),
-        floor_z.at(static_cast<std::size_t>(plan.start_layer))};
+    World world({.x_min = grid.x_min,
+                 .x_max = -grid.x_min,
+                 .y_min = grid.y_min,
+                 .y_max = -grid.y_min,
+                 .height = grid.floor_z.back() + config_.height});
+    add_walls(world, plan, grid, config_.height);
+    add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
+    build_ramps(world, plan, grid);
+
+    const GridRoom& room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
+    const glm::vec3 start = grid.at(static_cast<float>(room.x) + (static_cast<float>(room.width) / 2.0f),
+                                    static_cast<float>(room.y) + (static_cast<float>(room.height) / 2.0f),
+                                    grid.floor_z.at(static_cast<std::size_t>(plan.start_layer)));
     return {.layout = LayoutKind::kRooms, .world = std::move(world), .player_start = start, .plan = draw_plan(plan)};
 }
 

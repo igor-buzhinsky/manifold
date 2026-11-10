@@ -23,6 +23,16 @@ struct Contact {
 /// \return The contact, or nothing if they don't overlap.
 std::optional<Contact> find_contact(const VerticalCylinder& body, const Obstacle& obstacle);
 
+/// Finds the overlap of a body with a ramp.
+///
+/// Where the body stands on the slope, it is pushed straight up, so that the flat bottom of the body rests
+/// on the highest point of the slope below it. Bodies walking into the slope are therefore lifted onto it,
+/// as long as the slope is less steep than 45 degrees. Against the high end and the sides, the body is
+/// pushed out horizontally, like from an obstacle.
+///
+/// \return The contact, or nothing if they don't overlap.
+std::optional<Contact> find_contact(const VerticalCylinder& body, const Ramp& ramp);
+
 /// Finds the overlap of a body with the level boundaries: walls, floor and ceiling.
 ///
 /// \return The deepest contact, or nothing if the body is fully inside the level.
@@ -36,7 +46,7 @@ struct SlideResult {
     glm::vec3 correction{0.0f};
 };
 
-/// Moves a body through the world without letting it enter obstacles or leave the level.
+/// Moves a body through the world without letting it enter obstacles or ramps, or leave the level.
 ///
 /// Whenever the body runs into the world geometry, it is pushed back out along the contact normal. This
 /// removes the part of the movement that goes into the surface, so the body slides along walls instead of

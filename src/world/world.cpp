@@ -20,4 +20,6 @@ World::World(const WorldBounds& bounds) : bounds_(bounds) {}
 
 void World::add_obstacle(const Obstacle& obstacle) { obstacles_.push_back(obstacle); }
 
+void World::add_ramp(const Ramp& ramp) { ramps_.push_back(ramp); }
+
 }  // namespace manifold
