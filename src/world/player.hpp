@@ -12,14 +12,13 @@ namespace manifold {
 struct PlayerParams {
     glm::vec3 position{0.0f};  ///< The point between the feet.
     float yaw = 0.0f;          ///< Radians, counter-clockwise from +x. Zero faces +x.
-    float radius = 0.3f;       ///< Radius of the collision body, in metres.
+    float radius = 0.5f;       ///< Radius of the collision body, in metres.
     float height = 1.8f;       ///< Metres.
 };
 
 /// The player character.
 ///
-/// The position is the point between the feet, in metres. It is 3D already, although for now the player
-/// always stays on the floor (z = 0).
+/// The position is the point between the feet, in metres.
 class Player {
 public:
     /// How far the eyes are below the top of the head, in metres.
@@ -33,6 +32,10 @@ public:
 
     const glm::vec3& position() const { return position_; }
     void set_position(const glm::vec3& position) { position_ = position; }
+
+    /// Vertical speed in metres per second, positive is up. Negative while falling.
+    float vertical_speed() const { return vertical_speed_; }
+    void set_vertical_speed(float vertical_speed) { vertical_speed_ = vertical_speed; }
 
     /// Radius of the player's collision body.
     float radius() const { return radius_; }
@@ -66,6 +69,7 @@ private:
     float height_;
     float yaw_;
     float pitch_ = 0.0f;
+    float vertical_speed_ = 0.0f;
 };
 
 }  // namespace manifold

@@ -109,33 +109,51 @@ World make_world() {
 }
 
 TEST(MoveAndSlideTest, FreeMovementIsUnchanged) {
-    expect_near(move_and_slide(make_world(), body_at({-5.0f, 0.0f, 0.0f}), {1.0f, 2.0f, 0.0f}), {-4.0f, 2.0f, 0.0f});
+    expect_near(move_and_slide(make_world(), body_at({-5.0f, 0.0f, 0.0f}), {1.0f, 2.0f, 0.0f}).position,
+                {-4.0f, 2.0f, 0.0f});
 }
 
 TEST(MoveAndSlideTest, StopsAtWallWhenMovingStraightIntoIt) {
-    expect_near(move_and_slide(make_world(), body_at({0.0f, 0.0f, 0.0f}), {2.0f, 0.0f, 0.0f}),
+    expect_near(move_and_slide(make_world(), body_at({0.0f, 0.0f, 0.0f}), {2.0f, 0.0f, 0.0f}).position,
                 {1.0f - kRadius, 0.0f, 0.0f});
 }
 
 TEST(MoveAndSlideTest, SlidesAlongWall) {
     // Moving diagonally into the block's -x side keeps the movement along the side.
-    expect_near(move_and_slide(make_world(), body_at({0.6f, -0.5f, 0.0f}), {0.5f, 0.5f, 0.0f}),
+    expect_near(move_and_slide(make_world(), body_at({0.6f, -0.5f, 0.0f}), {0.5f, 0.5f, 0.0f}).position,
                 {1.0f - kRadius, 0.0f, 0.0f});
 }
 
 TEST(MoveAndSlideTest, LargeMovementDoesNotTunnelThroughObstacle) {
-    const glm::vec3 end = move_and_slide(make_world(), body_at({0.0f, 0.0f, 0.0f}), {6.0f, 0.0f, 0.0f});
+    const glm::vec3 end = move_and_slide(make_world(), body_at({0.0f, 0.0f, 0.0f}), {6.0f, 0.0f, 0.0f}).position;
     EXPECT_LE(end.x, 1.0f - kRadius + 1e-4f);
 }
 
 TEST(MoveAndSlideTest, StaysInsideLevel) {
-    const glm::vec3 end = move_and_slide(make_world(), body_at({-9.0f, -9.0f, 0.0f}), {-5.0f, -1.0f, 0.0f});
+    const glm::vec3 end = move_and_slide(make_world(), body_at({-9.0f, -9.0f, 0.0f}), {-5.0f, -1.0f, 0.0f}).position;
     expect_near(end, {-10.0f + kRadius, -10.0f + kRadius, 0.0f});
 }
 
 TEST(MoveAndSlideTest, SlidesAlongLevelWall) {
-    const glm::vec3 end = move_and_slide(make_world(), body_at({-9.0f, -5.0f, 0.0f}), {-2.0f, 1.0f, 0.0f});
+    const glm::vec3 end = move_and_slide(make_world(), body_at({-9.0f, -5.0f, 0.0f}), {-2.0f, 1.0f, 0.0f}).position;
     expect_near(end, {-10.0f + kRadius, -4.0f, 0.0f});
+}
+
+TEST(MoveAndSlideTest, FreeMovementHasNoCorrection) {
+    EXPECT_EQ(move_and_slide(make_world(), body_at({-5.0f, 0.0f, 1.0f}), {0.0f, 0.0f, -0.5f}).correction,
+              glm::vec3(0.0f));
+}
+
+TEST(MoveAndSlideTest, LandsOnFloor) {
+    const SlideResult result = move_and_slide(make_world(), body_at({-5.0f, 0.0f, 0.2f}), {0.0f, 0.0f, -0.5f});
+    expect_near(result.position, {-5.0f, 0.0f, 0.0f});
+    expect_near(result.correction, {0.0f, 0.0f, 0.3f});
+}
+
+TEST(MoveAndSlideTest, BumpsIntoCeiling) {
+    const SlideResult result = move_and_slide(make_world(), body_at({-5.0f, 0.0f, 2.0f}), {0.0f, 0.0f, 0.5f});
+    expect_near(result.position, {-5.0f, 0.0f, 4.0f - kHeight});
+    EXPECT_LT(result.correction.z, 0.0f);
 }
 
 }  // namespace

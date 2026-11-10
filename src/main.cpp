@@ -95,8 +95,8 @@ void print_game(const manifold::Game& game) {
     const auto& player = game.player();
     std::cout << std::format("Manifold, level seed {}, layout {}\n", game.seed(),
                              manifold::layout_name(game.level().layout));
-    std::cout << std::format("World: x [{}, {}], y [{}, {}], height {} m\n", bounds.x_min, bounds.x_max, bounds.y_min,
-                             bounds.y_max, bounds.height);
+    std::cout << std::format("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2\n", bounds.x_min,
+                             bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity);
     std::cout << std::format("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m\n",
                              player.position().x, player.position().y, player.position().z, player.radius(),
                              player.height());
@@ -142,6 +142,7 @@ manifold::PlayerInput read_input() {
         .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN),
         .forward = axis(SDL_SCANCODE_W, SDL_SCANCODE_S),
         .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
+        .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
     };
 }
 

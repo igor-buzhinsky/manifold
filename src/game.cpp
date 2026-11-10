@@ -45,12 +45,24 @@ void Game::update(const PlayerInput& input, float dt) {
     }
     const glm::vec3 forward{std::cos(player_.yaw()), std::sin(player_.yaw()), 0.0f};
     const glm::vec3 right{forward.y, -forward.x, 0.0f};
-    const glm::vec3 displacement = ((direction.x * forward) + (direction.y * right)) * move_speed_ * dt;
+    glm::vec3 displacement = ((direction.x * forward) + (direction.y * right)) * move_speed_ * dt;
     if (noclip_) {
+        displacement.z = input.rise * move_speed_ * dt;
         player_.set_position(player_.position() + displacement);
-    } else {
-        player_.set_position(move_and_slide(level_.world, player_.body(), displacement));
+        // When noclip is turned off in the air, the fall starts from rest.
+        player_.set_vertical_speed(0.0f);
+        return;
     }
+
+    // Speed changes before the position (semi-implicit Euler), which keeps falls stable.
+    const float vertical_speed = player_.vertical_speed() - (level_.gravity * dt);
+    displacement.z = vertical_speed * dt;
+    const SlideResult result = move_and_slide(level_.world, player_.body(), displacement);
+    player_.set_position(result.position);
+    // Landing on something, or bumping into something above, stops the vertical movement.
+    const bool blocked =
+        (vertical_speed < 0.0f && result.correction.z > 0.0f) || (vertical_speed > 0.0f && result.correction.z < 0.0f);
+    player_.set_vertical_speed(blocked ? 0.0f : vertical_speed);
 }
 
 }  // namespace manifold

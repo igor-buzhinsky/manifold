@@ -113,5 +113,62 @@ TEST(GameTest, PlayerStartsAtLevelStart) {
     EXPECT_EQ(game.player().position(), game.level().player_start);
 }
 
+TEST(GameTest, LevelHasEarthGravityByDefault) {
+    const Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_FLOAT_EQ(game.level().gravity, kEarthGravity);
+}
+
+TEST(GameTest, RisingWorksOnlyWithNoclip) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.rise = 1.0f}, 0.5f);
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+    game.toggle_noclip();
+    game.update({.rise = 1.0f}, 0.5f);
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-6f);
+    game.update({.rise = -1.0f}, 0.25f);
+    EXPECT_NEAR(game.player().position().z, 0.5f, 1e-6f);
+}
+
+TEST(GameTest, NoclipDoesNotFall) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.toggle_noclip();
+    game.update({.rise = 1.0f}, 0.5f);
+    game.update({}, 1.0f);
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-6f);
+    EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
+}
+
+TEST(GameTest, FallsByGravityAndLands) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.toggle_noclip();
+    game.update({.rise = 1.0f}, 1.0f);
+    game.toggle_noclip();
+
+    // Each frame, the speed changes first and then the position.
+    const float dt = 0.1f;
+    const float g = game.level().gravity;
+    game.update({}, dt);
+    EXPECT_NEAR(game.player().vertical_speed(), -g * dt, 1e-5f);
+    EXPECT_NEAR(game.player().position().z, 2.0f - (g * dt * dt), 1e-5f);
+    game.update({}, dt);
+    EXPECT_NEAR(game.player().vertical_speed(), -2.0f * g * dt, 1e-5f);
+    EXPECT_NEAR(game.player().position().z, 2.0f - (3.0f * g * dt * dt), 1e-5f);
+
+    for (int i = 0; i < 20; ++i) {
+        game.update({}, dt);
+    }
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+    EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
+}
+
+TEST(GameTest, StandingOnFloorKeepsVerticalSpeedZero) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    for (int i = 0; i < 10; ++i) {
+        game.update({.forward = 1.0f}, 0.1f);
+        EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+        EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
+    }
+}
+
 }  // namespace
 }  // namespace manifold

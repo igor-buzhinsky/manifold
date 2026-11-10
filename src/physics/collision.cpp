@@ -109,12 +109,13 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const WorldBou
     return deepest;
 }
 
-glm::vec3 move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement) {
+SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement) {
     const float max_step = kMaxStepFraction * body.radius;
     const int steps = std::max(1, static_cast<int>(std::ceil(glm::length(displacement) / max_step)));
     const glm::vec3 step = displacement / static_cast<float>(steps);
 
     VerticalCylinder moved = body;
+    glm::vec3 correction{0.0f};
     for (int i = 0; i < steps; ++i) {
         moved.base += step;
         for (int iteration = 0; iteration < kMaxResolveIterations; ++iteration) {
@@ -123,9 +124,10 @@ glm::vec3 move_and_slide(const World& world, const VerticalCylinder& body, const
                 break;
             }
             moved.base += contact->normal * contact->depth;
+            correction += contact->normal * contact->depth;
         }
     }
-    return moved.base;
+    return {.position = moved.base, .correction = correction};
 }
 
 }  // namespace manifold

@@ -14,4 +14,5 @@
 
 | Key | Action |
 |---|---|
-| Ctrl+Z | Toggle noclip: walk through obstacles and walls |
+| Ctrl+Z | Toggle noclip: fly through obstacles and walls, without falling |
+| Page Up / Page Down | Fly up / down (only with noclip) |

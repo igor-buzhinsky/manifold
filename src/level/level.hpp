@@ -16,6 +16,9 @@ namespace manifold {
 /// only with the same standard library.
 using LevelRng = std::mt19937_64;
 
+/// Gravity on Earth, in metres per second squared.
+constexpr float kEarthGravity = 9.81f;
+
 /// The kinds of level layouts.
 enum class LayoutKind : std::uint8_t {
     kDebug,  ///< Randomly placed and rotated blocks in one open area, see DebugLayout.
@@ -24,10 +27,11 @@ enum class LayoutKind : std::uint8_t {
 
 /// A generated level, ready to play.
 struct Level {
-    LayoutKind layout;             ///< The layout that generated the level.
-    World world;                   ///< Geometry of the level.
-    glm::vec3 player_start{0.0f};  ///< Where the player starts: the point between the feet.
-    std::string plan;              ///< Human-readable description of the level plan, for debugging.
+    LayoutKind layout;              ///< The layout that generated the level.
+    World world;                    ///< Geometry of the level.
+    glm::vec3 player_start{0.0f};   ///< Where the player starts: the point between the feet.
+    std::string plan;               ///< Human-readable description of the level plan, for debugging.
+    float gravity = kEarthGravity;  ///< Downward acceleration, in metres per second squared.
 };
 
 /// A way of generating levels.

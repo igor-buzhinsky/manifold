@@ -17,7 +17,7 @@ struct GameConfig {
     PlayerParams player;  ///< The player at the start. The position is replaced by the level's start.
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  ///< Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  ///< Radians per second: 60 degrees.
-    float move_speed = 3.0f;                              ///< Metres per second.
+    float move_speed = 3.0f;                              ///< Metres per second, also when rising.
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -28,6 +28,7 @@ struct PlayerInput {
     float look = 0.0f;     ///< Positive looks up.
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     float strafe = 0.0f;   ///< Positive steps right, negative left.
+    float rise = 0.0f;     ///< Positive moves up, negative down. Only works with noclip for now.
 };
 
 /// Owns the game state.
@@ -46,14 +47,15 @@ public:
 
     /// Advances the game by one frame.
     ///
-    /// Turns the player first, then walks in the new direction. Walking is stopped by obstacles and
-    /// level walls unless noclip is on.
+    /// Turns the player first, then walks in the new direction. Without noclip, the player falls by the
+    /// level's gravity and is stopped by obstacles and level walls. With noclip, the player flies: moves up
+    /// and down by `input.rise`, doesn't fall, and goes through everything.
     ///
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
     void update(const PlayerInput& input, float dt);
 
-    /// Whether the noclip cheat is on: the player walks through obstacles and walls.
+    /// Whether the noclip cheat is on: the player flies through obstacles and walls.
     bool noclip() const { return noclip_; }
     /// Turns the noclip cheat on or off.
     void toggle_noclip() { noclip_ = !noclip_; }

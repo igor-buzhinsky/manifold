@@ -28,6 +28,14 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const Obstacle
 /// \return The deepest contact, or nothing if the body is fully inside the level.
 std::optional<Contact> find_contact(const VerticalCylinder& body, const WorldBounds& bounds);
 
+/// Where a body ended up after move_and_slide().
+struct SlideResult {
+    glm::vec3 position{0.0f};  ///< The new base position of the body.
+    /// The sum of all pushes out of the world geometry. Its z is positive when the body landed on
+    /// something, and negative when it bumped into something above.
+    glm::vec3 correction{0.0f};
+};
+
 /// Moves a body through the world without letting it enter obstacles or leave the level.
 ///
 /// Whenever the body runs into the world geometry, it is pushed back out along the contact normal. This
@@ -37,7 +45,6 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const WorldBou
 /// \param world        The geometry to collide with.
 /// \param body         The body at its start position.
 /// \param displacement The wanted movement in metres.
-/// \return The new base position of the body.
-glm::vec3 move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement);
+SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement);
 
 }  // namespace manifold
