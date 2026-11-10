@@ -20,7 +20,7 @@ struct RoomLayoutConfig {
     int placement_attempts = 5000;  ///< How often to try placing another room. More attempts fill more space.
     int layer_count = 3;            ///< Number of layers stacked on top of each other.
     float slab_thickness = 0.3f;    ///< Thickness of the floor between two layers, in metres.
-    int hole_size = 2;              ///< Width and depth of a hole between two layers, in tiles.
+    int hole_length = 2;            ///< Long side of a hole between two layers, in tiles. The short side is 1.
     int min_holes = 3;              ///< Fewest holes between every two neighboring layers.
     int max_holes = 6;              ///< Most holes between every two neighboring layers.
     int max_plan_attempts = 100;    ///< How often to plan the level again when the holes don't fit.
@@ -64,18 +64,24 @@ struct RoomPlan {
     int room_at(int x, int y) const;
 };
 
-/// A square hole in the floor between two neighboring layers.
+/// A rectangular hole in the floor between two neighboring layers.
 struct Hole {
-    int layer = 0;  ///< The lower of the two layers. The hole is in its ceiling.
-    int x = 0;      ///< First tile along x.
-    int y = 0;      ///< First tile along y.
+    int layer = 0;   ///< The lower of the two layers. The hole is in its ceiling.
+    int x = 0;       ///< First tile along x.
+    int y = 0;       ///< First tile along y.
+    int width = 1;   ///< Size along x, in tiles.
+    int height = 1;  ///< Size along y, in tiles.
+
+    /// Checks whether tile (x, y) is part of the hole.
+    bool contains(int tile_x, int tile_y) const {
+        return tile_x >= x && tile_x < x + width && tile_y >= y && tile_y < y + height;
+    }
 };
 
 /// The plan of a level with several layers of rooms on top of each other.
 struct LayeredPlan {
     std::vector<RoomPlan> layers;  ///< From the bottom up.
     std::vector<Hole> holes;       ///< Holes between the layers.
-    int hole_size = 0;             ///< Width and depth of every hole, in tiles.
     int start_layer = 0;           ///< Index in `layers` of the layer where the player starts.
     std::size_t start_room = 0;    ///< Index of the start room in that layer's rooms.
     int attempts = 0;              ///< How many times the level was planned until the holes fit.
@@ -96,9 +102,14 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 /// Plans a level of several layers, connected by holes in the floors between them.
 ///
 /// Every layer is planned with plan_rooms(). Then every two neighboring layers get a random number of
-/// holes between `config.min_holes` and `config.max_holes`. A hole lies inside one room of the lower layer
-/// and one room of the upper layer, doesn't share a side with any opening in either layer, and every
-/// room has at most one hole in its floor or ceiling. If the holes don't fit, all layers are planned
+/// holes between `config.min_holes` and `config.max_holes`. A hole is 1 tile wide and
+/// `config.hole_length` tiles long, along x or y at random. It lies inside one room of the lower layer and
+/// one room of the upper layer, and in both of them:
+/// - it doesn't share a side with any opening;
+/// - the rest of the room's floor stays connected, so the hole (or a ramp there later) doesn't block the
+///   way through the room.
+///
+/// Every room has at most one hole in its floor or ceiling. If the holes don't fit, all layers are planned
 /// again. The number of attempts is logged, as a warning when more than two were needed.
 ///
 /// The player starts in the center of a random room without a hole in its floor. All such rooms have the

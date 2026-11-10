@@ -131,22 +131,65 @@ bool near_opening(const RoomPlan& plan, int x, int y) {
            plan.tile(x, y + 1) == Tile::kOpening;
 }
 
-/// Finds the room that could get a hole with its first tile at (x, y).
+/// Checks whether the floor of a room without the tiles of `hole` is still connected and not empty.
+bool stays_connected(const GridRoom& room, const Hole& hole) {
+    const auto index = [&room](int x, int y) {
+        return (static_cast<std::size_t>(y - room.y) * static_cast<std::size_t>(room.width)) +
+               static_cast<std::size_t>(x - room.x);
+    };
+    const auto is_free = [&](int x, int y) {
+        return x >= room.x && x < room.x + room.width && y >= room.y && y < room.y + room.height &&
+               !hole.contains(x, y);
+    };
+
+    // Flood fill from the first free tile, then check that all free tiles were reached.
+    std::vector<bool> reached(static_cast<std::size_t>(room.width) * static_cast<std::size_t>(room.height), false);
+    std::vector<TilePosition> stack;
+    int free_tiles = 0;
+    for_each_inside_tile(room, [&](int x, int y) {
+        if (is_free(x, y)) {
+            ++free_tiles;
+            if (free_tiles == 1) {
+                reached[index(x, y)] = true;
+                stack.push_back({.x = x, .y = y});
+            }
+        }
+    });
+    int reached_tiles = 0;
+    while (!stack.empty()) {
+        const TilePosition tile = stack.back();
+        stack.pop_back();
+        ++reached_tiles;
+        for (const TilePosition step : {TilePosition{.x = 1, .y = 0}, TilePosition{.x = -1, .y = 0},
+                                        TilePosition{.x = 0, .y = 1}, TilePosition{.x = 0, .y = -1}}) {
+            const int x = tile.x + step.x;
+            const int y = tile.y + step.y;
+            if (is_free(x, y) && !reached[index(x, y)]) {
+                reached[index(x, y)] = true;
+                stack.push_back({.x = x, .y = y});
+            }
+        }
+    }
+    return free_tiles > 0 && reached_tiles == free_tiles;
+}
+
+/// Finds the room of a layer that could get `hole`.
 ///
-/// \return Index of the room, or -1 if the hole isn't inside one room or touches an opening.
-int room_for_hole(const RoomPlan& plan, int x, int y, int size) {
-    const int room = plan.room_at(x, y);
+/// \return Index of the room, or -1 if the hole isn't inside one room, touches an opening, or would cut the
+///         room's floor into parts.
+int room_for_hole(const RoomPlan& plan, const Hole& hole) {
+    const int room = plan.room_at(hole.x, hole.y);
     if (room < 0) {
         return -1;
     }
-    for (int dy = 0; dy < size; ++dy) {
-        for (int dx = 0; dx < size; ++dx) {
-            if (plan.room_at(x + dx, y + dy) != room || near_opening(plan, x + dx, y + dy)) {
+    for (int y = hole.y; y < hole.y + hole.height; ++y) {
+        for (int x = hole.x; x < hole.x + hole.width; ++x) {
+            if (plan.room_at(x, y) != room || near_opening(plan, x, y)) {
                 return -1;
             }
         }
     }
-    return room;
+    return stays_connected(plan.rooms.at(static_cast<std::size_t>(room)), hole) ? room : -1;
 }
 
 /// Marks which rooms of each layer have a hole in their floor or ceiling.
@@ -165,11 +208,15 @@ bool add_holes(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, Roo
     const RoomPlan& below = plan.layers.at(lower_index);
     const RoomPlan& above = plan.layers.at(lower_index + 1);
     std::vector<Hole> candidates;
-    for (int y = 0; y + config.hole_size <= below.height; ++y) {
-        for (int x = 0; x + config.hole_size <= below.width; ++x) {
-            if (room_for_hole(below, x, y, config.hole_size) >= 0 &&
-                room_for_hole(above, x, y, config.hole_size) >= 0) {
-                candidates.push_back({.layer = lower, .x = x, .y = y});
+    for (const bool along_x : {true, false}) {
+        const int width = along_x ? config.hole_length : 1;
+        const int height = along_x ? 1 : config.hole_length;
+        for (int y = 0; y + height <= below.height; ++y) {
+            for (int x = 0; x + width <= below.width; ++x) {
+                const Hole hole{.layer = lower, .x = x, .y = y, .width = width, .height = height};
+                if (room_for_hole(below, hole) >= 0 && room_for_hole(above, hole) >= 0) {
+                    candidates.push_back(hole);
+                }
             }
         }
     }
@@ -240,7 +287,6 @@ char tile_symbol(Tile tile) {
 /// \return The plan, or nothing if the holes don't fit.
 std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
     LayeredPlan plan;
-    plan.hole_size = config.hole_size;
     RoomFlags has_hole;
     for (int layer = 0; layer < config.layer_count; ++layer) {
         plan.layers.push_back(plan_rooms(config, rng));
@@ -283,9 +329,8 @@ RoomPlan::RoomPlan(int width, int height)
       room_of_tile(tiles.size(), -1) {}
 
 bool LayeredPlan::is_hole(int layer, int x, int y) const {
-    return std::any_of(holes.begin(), holes.end(), [&](const Hole& hole) {
-        return hole.layer == layer && x >= hole.x && x < hole.x + hole_size && y >= hole.y && y < hole.y + hole_size;
-    });
+    return std::any_of(holes.begin(), holes.end(),
+                       [&](const Hole& hole) { return hole.layer == layer && hole.contains(x, y); });
 }
 
 Tile RoomPlan::tile(int x, int y) const { return contains(x, y) ? tiles[tile_index(*this, x, y)] : Tile::kEmpty; }
@@ -322,8 +367,8 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng) {
 }
 
 LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
-    if (config.layer_count < 1 || config.hole_size < 1 || config.min_holes < 0 || config.min_holes > config.max_holes ||
-        config.max_plan_attempts < 1) {
+    if (config.layer_count < 1 || config.hole_length < 1 || config.min_holes < 0 ||
+        config.min_holes > config.max_holes || config.max_plan_attempts < 1) {
         throw std::invalid_argument("invalid room layout settings for layers and holes");
     }
     for (int attempt = 1; attempt <= config.max_plan_attempts; ++attempt) {

@@ -192,9 +192,9 @@ LayeredPlan make_layered_plan(std::uint64_t seed, const RoomLayoutConfig& config
 
 /// Calls `visit(x, y)` for every tile of a hole.
 template <typename Visit>
-void for_each_hole_tile(const LayeredPlan& plan, const Hole& hole, Visit visit) {
-    for (int y = hole.y; y < hole.y + plan.hole_size; ++y) {
-        for (int x = hole.x; x < hole.x + plan.hole_size; ++x) {
+void for_each_hole_tile(const Hole& hole, Visit visit) {
+    for (int y = hole.y; y < hole.y + hole.height; ++y) {
+        for (int x = hole.x; x < hole.x + hole.width; ++x) {
             visit(x, y);
         }
     }
@@ -205,7 +205,6 @@ TEST(LayeredPlanTest, HasConfiguredLayersAndHoleCounts) {
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const LayeredPlan plan = make_layered_plan(seed);
         ASSERT_EQ(plan.layers.size(), static_cast<std::size_t>(config.layer_count));
-        EXPECT_EQ(plan.hole_size, config.hole_size);
         EXPECT_GE(plan.attempts, 1);
         for (int lower = 0; lower + 1 < config.layer_count; ++lower) {
             const auto count = std::count_if(plan.holes.begin(), plan.holes.end(),
@@ -225,13 +224,67 @@ TEST(LayeredPlanTest, HolesLieInsideOneRoomOfBothLayersAwayFromOpenings) {
                 const RoomPlan& layer = plan.layers.at(index);
                 const int room = layer.room_at(hole.x, hole.y);
                 EXPECT_GE(room, 0);
-                for_each_hole_tile(plan, hole, [&](int x, int y) {
+                for_each_hole_tile(hole, [&](int x, int y) {
                     EXPECT_EQ(layer.room_at(x, y), room);
                     for (const auto& [dx, dy] :
                          {std::pair{0, 0}, std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}}) {
                         EXPECT_NE(layer.tile(x + dx, y + dy), Tile::kOpening) << "seed " << seed;
                     }
                 });
+            }
+        }
+    }
+}
+
+TEST(LayeredPlanTest, HolesAreOneByTwoTilesInBothDirections) {
+    const RoomLayoutConfig config = make_config();
+    std::set<std::pair<int, int>> shapes;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        for (const Hole& hole : make_layered_plan(seed).holes) {
+            shapes.insert({hole.width, hole.height});
+        }
+    }
+    EXPECT_EQ(shapes, (std::set<std::pair<int, int>>{{1, config.hole_length}, {config.hole_length, 1}}));
+}
+
+/// Checks whether the floor tiles of a room that are not in `hole` are connected.
+bool rest_of_room_is_connected(const RoomPlan& layer, int room, const Hole& hole) {
+    std::vector<std::pair<int, int>> free;
+    for (int y = 0; y < layer.height; ++y) {
+        for (int x = 0; x < layer.width; ++x) {
+            if (layer.room_at(x, y) == room && !hole.contains(x, y)) {
+                free.emplace_back(x, y);
+            }
+        }
+    }
+    if (free.empty()) {
+        return false;
+    }
+    std::set<std::pair<int, int>> reached{free.front()};
+    std::queue<std::pair<int, int>> queue;
+    queue.push(free.front());
+    while (!queue.empty()) {
+        const auto [x, y] = queue.front();
+        queue.pop();
+        for (const auto& [dx, dy] : {std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}}) {
+            const std::pair next{x + dx, y + dy};
+            if (layer.room_at(next.first, next.second) == room && !hole.contains(next.first, next.second) &&
+                reached.insert(next).second) {
+                queue.push(next);
+            }
+        }
+    }
+    return reached.size() == free.size();
+}
+
+TEST(LayeredPlanTest, HolesDontBlockTheWayThroughRooms) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        for (const Hole& hole : plan.holes) {
+            for (const int index : {hole.layer, hole.layer + 1}) {
+                const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(index));
+                EXPECT_TRUE(rest_of_room_is_connected(layer, layer.room_at(hole.x, hole.y), hole))
+                    << "seed " << seed << ", layer " << index;
             }
         }
     }
@@ -287,7 +340,7 @@ TEST(LayeredPlanTest, SingleLayerHasNoHoles) {
 }
 
 TEST(LayeredPlanTest, ThrowsWhenHolesNeverFit) {
-    // Rooms of one tile have no space for a hole of 2 x 2 tiles.
+    // Rooms of one tile have no space for a hole of 1 x 2 tiles.
     RoomLayoutConfig config = make_config();
     config.max_room_size = 1;
     config.max_plan_attempts = 3;
@@ -309,7 +362,10 @@ TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartAndHoles) {
         EXPECT_NE(text.find("Layer " + std::to_string(layer) + ":\n"), std::string::npos);
     }
     // Every hole shows in the layer below and the layer above. The start is never on a hole.
-    const auto hole_tiles = static_cast<std::ptrdiff_t>(plan.holes.size()) * plan.hole_size * plan.hole_size;
+    std::ptrdiff_t hole_tiles = 0;
+    for (const Hole& hole : plan.holes) {
+        hole_tiles += static_cast<std::ptrdiff_t>(hole.width) * hole.height;
+    }
     EXPECT_EQ(std::count(text.begin(), text.end(), 'O'), 2 * hole_tiles);
     // All plan lines are equally long.
     std::size_t line_start = 0;
@@ -420,13 +476,15 @@ TEST(RoomLayoutTest, PlayerFallsThroughHoleToLayerBelow) {
     ASSERT_FALSE(plan.holes.empty());
     const Hole& hole = plan.holes.back();
     const WorldBounds& bounds = level.world.bounds();
-    const float size = static_cast<float>(plan.hole_size) * config.tile_size;
     const float layer_step = config.height + config.slab_thickness;
-    VerticalCylinder body{.base = {bounds.x_min + (static_cast<float>(hole.x) * config.tile_size) + (size / 2.0f),
-                                   bounds.y_min + (static_cast<float>(hole.y) * config.tile_size) + (size / 2.0f),
-                                   static_cast<float>(hole.layer + 1) * layer_step},
-                          .radius = 0.6f,
-                          .height = 1.8f};
+    VerticalCylinder body{
+        .base = {bounds.x_min +
+                     ((static_cast<float>(hole.x) + (static_cast<float>(hole.width) / 2.0f)) * config.tile_size),
+                 bounds.y_min +
+                     ((static_cast<float>(hole.y) + (static_cast<float>(hole.height) / 2.0f)) * config.tile_size),
+                 static_cast<float>(hole.layer + 1) * layer_step},
+        .radius = 0.6f,
+        .height = 1.8f};
     for (int frame = 0; frame < 100; ++frame) {
         body.base = move_and_slide(level.world, body, {0.0f, 0.0f, -0.1f}).position;
     }
