@@ -31,7 +31,7 @@ struct Obstacle {
     float yaw = 0.0f;  ///< Radians, counter-clockwise around +z.
 
     /// The area the obstacle occupies in the horizontal plane.
-    RotatedSquare footprint() const;
+    RotatedRectangle footprint() const;
 };
 
 /// A wedge: a block with a rectangular footprint whose top slopes up from one end to the other.
@@ -47,6 +47,9 @@ struct Ramp {
 
     /// Height of the slope above the base at position `u` along it, in [0, rise] for u in the footprint.
     float height_at(float u) const { return rise * (u + half_length) / (2.0f * half_length); }
+
+    /// The area the ramp occupies in the horizontal plane. The rectangle's own x axis runs up the slope.
+    RotatedRectangle footprint() const;
 };
 
 /// The static part of a level: its boundaries and the geometry inside them.

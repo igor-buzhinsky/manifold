@@ -19,6 +19,7 @@ constexpr float kPi = std::numbers::pi_v<float>;
 GameConfig make_config() {
     GameConfig config;
     config.level.debug.obstacle_count = 0;
+    config.level.debug.ramp_count = 0;
     config.turn_speed = kPi / 2.0f;
     config.look_speed = kPi / 3.0f;
     config.move_speed = 2.0f;
@@ -93,7 +94,7 @@ TEST(GameTest, CollisionsStopPlayerAtLevelWall) {
     const GameConfig config = make_config();
     Game game(config, 1, LayoutKind::kDebug);
     game.update({.forward = 1.0f}, 100.0f);
-    EXPECT_NEAR(game.player().position().x, config.level.debug.bounds.x_max - game.player().radius(), 1e-4f);
+    EXPECT_NEAR(game.player().position().x, config.level.debug.x_max - game.player().radius(), 1e-4f);
 }
 
 TEST(GameTest, NoclipWalksThroughWalls) {

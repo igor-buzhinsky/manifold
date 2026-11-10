@@ -11,11 +11,11 @@ struct Circle {
     float radius = 0.0f;
 };
 
-/// A square in the horizontal (x, y) plane, rotated around its center.
-struct RotatedSquare {
+/// A rectangle in the horizontal (x, y) plane, rotated around its center.
+struct RotatedRectangle {
     glm::vec2 center{0.0f};
-    float half_size = 0.0f;  ///< Half of the side length.
-    float yaw = 0.0f;        ///< Radians, counter-clockwise around +z.
+    glm::vec2 half_size{0.0f};  ///< Half of the side lengths, along the rectangle's own x and y axes.
+    float yaw = 0.0f;           ///< Radians, counter-clockwise around +z.
 };
 
 /// An upright cylinder, e.g. the collision body of a character.
@@ -25,7 +25,13 @@ struct VerticalCylinder {
     float height = 0.0f;
 };
 
-/// Checks whether a square and a circle overlap or touch.
-bool intersects(const RotatedSquare& square, const Circle& circle);
+/// Checks whether a rectangle and a circle overlap or touch.
+bool intersects(const RotatedRectangle& rectangle, const Circle& circle);
+
+/// Checks whether two rectangles overlap or touch.
+bool intersects(const RotatedRectangle& first, const RotatedRectangle& second);
+
+/// Half of the size of the axis-aligned box around a rectangle, along x and y.
+glm::vec2 bounding_half_size(const RotatedRectangle& rectangle);
 
 }  // namespace manifold

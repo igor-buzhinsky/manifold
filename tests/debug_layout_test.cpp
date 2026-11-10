@@ -1,11 +1,15 @@
 #include "level/debug_layout.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
 #include <stdexcept>
+#include <string>
+#include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
@@ -16,73 +20,158 @@
 namespace manifold {
 namespace {
 
-constexpr float kClearance = 0.3f;
+constexpr float kClearance = 0.6f;
+constexpr int kSeeds = 50;
 
-DebugLayoutConfig make_config() {
-    return {.bounds = {.x_min = -20.0f, .x_max = 20.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 4.0f},
-            .obstacle_count = 10,
-            .obstacle_size = 2.0f};
-}
+DebugLayoutConfig make_config() { return {.y_min = -15.0f, .y_max = 15.0f}; }
 
 Level generate(const DebugLayoutConfig& config, std::uint64_t seed, float clearance = kClearance) {
     LevelRng rng(seed);
     return DebugLayout(config).generate(clearance, rng);
 }
 
-TEST(DebugLayoutTest, CreatesConfiguredNumberOfObstacles) {
-    DebugLayoutConfig config = make_config();
-    EXPECT_EQ(generate(config, 1).world.obstacles().size(), 10U);
-    config.obstacle_count = 25;
-    EXPECT_EQ(generate(config, 1).world.obstacles().size(), 25U);
-    config.obstacle_count = 0;
-    EXPECT_TRUE(generate(config, 1).world.obstacles().empty());
+/// Splits the blocks of a level into obstacles on the floor and ceiling blocks above them.
+struct Blocks {
+    std::vector<Obstacle> floor;
+    std::vector<Obstacle> ceiling;
+};
+
+Blocks split_blocks(const Level& level) {
+    Blocks blocks;
+    for (const Obstacle& obstacle : level.world.obstacles()) {
+        (obstacle.base_center.z > 0.0f ? blocks.ceiling : blocks.floor).push_back(obstacle);
+    }
+    return blocks;
 }
 
-TEST(DebugLayoutTest, ObstaclesHaveConfiguredSize) {
+TEST(DebugLayoutTest, CreatesConfiguredNumberOfObstaclesCeilingBlocksAndRamps) {
+    DebugLayoutConfig config = make_config();
+    Blocks blocks = split_blocks(generate(config, 1));
+    EXPECT_EQ(blocks.floor.size(), 10U);
+    EXPECT_EQ(blocks.ceiling.size(), 10U);
+    EXPECT_EQ(generate(config, 1).world.ramps().size(), 10U);
+
+    config.obstacle_count = 25;
+    config.ramp_count = 3;
+    const Level level = generate(config, 1);
+    blocks = split_blocks(level);
+    EXPECT_EQ(blocks.floor.size(), 25U);
+    EXPECT_EQ(blocks.ceiling.size(), 25U);
+    EXPECT_EQ(level.world.ramps().size(), 3U);
+
+    config.obstacle_count = 0;
+    config.ramp_count = 0;
+    EXPECT_TRUE(generate(config, 1).world.obstacles().empty());
+    EXPECT_TRUE(generate(config, 1).world.ramps().empty());
+}
+
+TEST(DebugLayoutTest, BlocksAndRampsHaveRoomLayoutSizes) {
     const Level level = generate(make_config(), 2);
-    for (const Obstacle& obstacle : level.world.obstacles()) {
+    const Blocks blocks = split_blocks(level);
+    for (const Obstacle& obstacle : blocks.floor) {
         EXPECT_FLOAT_EQ(obstacle.half_size, 1.0f);
-        EXPECT_FLOAT_EQ(obstacle.height, 4.0f);
+        EXPECT_FLOAT_EQ(obstacle.height, 3.0f);
         EXPECT_FLOAT_EQ(obstacle.base_center.z, 0.0f);
     }
+    for (const Obstacle& obstacle : blocks.ceiling) {
+        EXPECT_FLOAT_EQ(obstacle.half_size, 1.0f);
+        EXPECT_FLOAT_EQ(obstacle.height, 0.3f);
+        EXPECT_FLOAT_EQ(obstacle.base_center.z, 3.0f);
+    }
+    for (const Ramp& ramp : level.world.ramps()) {
+        EXPECT_FLOAT_EQ(ramp.half_length, 2.0f);
+        EXPECT_FLOAT_EQ(ramp.half_width, 1.0f);
+        EXPECT_FLOAT_EQ(ramp.rise, 3.3f);
+        EXPECT_FLOAT_EQ(ramp.base_center.z, 0.0f);
+    }
+}
+
+TEST(DebugLayoutTest, LevelIsFiveObstaclesAndFourCeilingBlocksHigh) {
+    EXPECT_FLOAT_EQ(generate(make_config(), 1).world.bounds().height, (5.0f * 3.0f) + (4.0f * 0.3f));
+}
+
+TEST(DebugLayoutTest, CeilingBlocksArePlacedIndependentlyOfObstacles) {
+    const Blocks blocks = split_blocks(generate(make_config(), 3));
+    ASSERT_EQ(blocks.floor.size(), blocks.ceiling.size());
+    int same = 0;
+    for (std::size_t i = 0; i < blocks.floor.size(); ++i) {
+        same += glm::vec2(blocks.floor[i].base_center) == glm::vec2(blocks.ceiling[i].base_center) ? 1 : 0;
+    }
+    EXPECT_EQ(same, 0);
 }
 
 TEST(DebugLayoutTest, PlayerStartsInCenter) {
     DebugLayoutConfig config = make_config();
-    config.bounds.x_min = 0.0f;
+    config.x_min = 0.0f;
     const Level level = generate(config, 3);
     EXPECT_EQ(level.layout, LayoutKind::kDebug);
     EXPECT_EQ(level.player_start, glm::vec3(10.0f, 0.0f, 0.0f));
 }
 
-TEST(DebugLayoutTest, ObstaclesNeverOverlapStartArea) {
+TEST(DebugLayoutTest, NothingOverlapsStartArea) {
     // A large clearance and many obstacles make overlaps likely if the check were broken.
     DebugLayoutConfig config = make_config();
     config.obstacle_count = 50;
     constexpr float kLargeClearance = 4.0f;
-    for (std::uint64_t seed = 0; seed < 50; ++seed) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const Level level = generate(config, seed, kLargeClearance);
         const Circle start{.center = {level.player_start.x, level.player_start.y}, .radius = kLargeClearance};
         for (const Obstacle& obstacle : level.world.obstacles()) {
             EXPECT_FALSE(intersects(obstacle.footprint(), start)) << "seed " << seed;
         }
+        for (const Ramp& ramp : level.world.ramps()) {
+            EXPECT_FALSE(intersects(ramp.footprint(), start)) << "seed " << seed;
+        }
     }
 }
 
-TEST(DebugLayoutTest, ObstaclesStayInsideBounds) {
+TEST(DebugLayoutTest, RampsOverlapNothingElse) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(make_config(), seed);
+        const auto ramps = level.world.ramps();
+        for (std::size_t i = 0; i < ramps.size(); ++i) {
+            for (const Obstacle& obstacle : level.world.obstacles()) {
+                EXPECT_FALSE(intersects(ramps[i].footprint(), obstacle.footprint())) << "seed " << seed;
+            }
+            for (std::size_t j = i + 1; j < ramps.size(); ++j) {
+                EXPECT_FALSE(intersects(ramps[i].footprint(), ramps[j].footprint())) << "seed " << seed;
+            }
+        }
+    }
+}
+
+TEST(DebugLayoutTest, RampsGoUpInAllDirections) {
+    // Ramps aren't symmetric, so their yaw covers the full circle.
+    float min_yaw = 10.0f;
+    float max_yaw = -10.0f;
+    for (std::uint64_t seed = 0; seed < 5; ++seed) {
+        const Level level = generate(make_config(), seed);
+        for (const Ramp& ramp : level.world.ramps()) {
+            min_yaw = std::min(min_yaw, ramp.yaw);
+            max_yaw = std::max(max_yaw, ramp.yaw);
+        }
+    }
+    EXPECT_LT(min_yaw, 0.5f);
+    EXPECT_GT(max_yaw, 2.0f * std::numbers::pi_v<float> - 0.5f);
+}
+
+/// Checks whether the box around a footprint lies inside the level.
+bool inside(const WorldBounds& bounds, const RotatedRectangle& footprint) {
+    const glm::vec2 extent = bounding_half_size(footprint);
+    return footprint.center.x - extent.x >= bounds.x_min && footprint.center.x + extent.x <= bounds.x_max &&
+           footprint.center.y - extent.y >= bounds.y_min && footprint.center.y + extent.y <= bounds.y_max;
+}
+
+TEST(DebugLayoutTest, EverythingStaysInsideBounds) {
     const DebugLayoutConfig config = make_config();
-    for (std::uint64_t seed = 0; seed < 50; ++seed) {
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const Level level = generate(config, seed);
         for (const Obstacle& obstacle : level.world.obstacles()) {
-            // Check all four corners of the rotated square.
-            for (int corner = 0; corner < 4; ++corner) {
-                const float angle = obstacle.yaw + (static_cast<float>(corner) * std::numbers::pi_v<float> / 2.0f) +
-                                    (std::numbers::pi_v<float> / 4.0f);
-                const float distance = obstacle.half_size * std::numbers::sqrt2_v<float>;
-                const glm::vec3 point =
-                    obstacle.base_center + glm::vec3(distance * std::cos(angle), distance * std::sin(angle), 0.0f);
-                EXPECT_TRUE(config.bounds.contains(point)) << "seed " << seed;
-            }
+            EXPECT_TRUE(inside(config.bounds(), obstacle.footprint())) << "seed " << seed;
+            EXPECT_LE(obstacle.base_center.z + obstacle.height, config.bounds().height);
+        }
+        for (const Ramp& ramp : level.world.ramps()) {
+            EXPECT_TRUE(inside(config.bounds(), ramp.footprint())) << "seed " << seed;
         }
     }
 }
@@ -104,18 +193,24 @@ TEST(DebugLayoutTest, DifferentSeedsGiveDifferentLevels) {
     EXPECT_NE(first.world.obstacles()[0].base_center, second.world.obstacles()[0].base_center);
 }
 
-TEST(DebugLayoutTest, PlanListsObstacles) {
+TEST(DebugLayoutTest, PlanListsObstaclesCeilingBlocksAndRamps) {
     const Level level = generate(make_config(), 1);
     std::size_t lines = 0;
     for (const char c : level.plan) {
         lines += c == '\n' ? 1 : 0;
     }
-    EXPECT_EQ(lines, level.world.obstacles().size());
+    EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size());
+    EXPECT_NE(level.plan.find("Ceiling block"), std::string::npos);
+    EXPECT_NE(level.plan.find("Ramp"), std::string::npos);
 }
 
 TEST(DebugLayoutTest, ThrowsWhenThereIsNoRoom) {
     // The start area covers the whole level.
     EXPECT_THROW(generate(make_config(), 1, 100.0f), std::runtime_error);
+    // The ramps can't all fit between the other blocks.
+    DebugLayoutConfig config = make_config();
+    config.ramp_count = 200;
+    EXPECT_THROW(generate(config, 1), std::runtime_error);
 }
 
 }  // namespace

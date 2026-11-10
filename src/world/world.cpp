@@ -12,8 +12,12 @@ bool WorldBounds::contains(const glm::vec3& point) const {
            point.z <= height;
 }
 
-RotatedSquare Obstacle::footprint() const {
-    return {.center = glm::vec2(base_center), .half_size = half_size, .yaw = yaw};
+RotatedRectangle Obstacle::footprint() const {
+    return {.center = glm::vec2(base_center), .half_size = glm::vec2(half_size), .yaw = yaw};
+}
+
+RotatedRectangle Ramp::footprint() const {
+    return {.center = glm::vec2(base_center), .half_size = {half_length, half_width}, .yaw = yaw};
 }
 
 World::World(const WorldBounds& bounds) : bounds_(bounds) {}
