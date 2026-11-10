@@ -1,5 +1,6 @@
 #include "game.hpp"
 
+#include <algorithm>
 #include <numbers>
 #include <utility>
 
@@ -121,9 +122,9 @@ TEST(GameTest, LevelHasEarthGravityByDefault) {
     EXPECT_FLOAT_EQ(game.level().gravity, kEarthGravity);
 }
 
-TEST(GameTest, RisingWorksOnlyWithNoclip) {
+TEST(GameTest, FlyingUpAndDownNeedsNoclip) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    game.update({.rise = 1.0f}, 0.5f);
+    game.update({.rise = -1.0f}, 0.5f);
     EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
     game.toggle_noclip();
     game.update({.rise = 1.0f}, 0.5f);
@@ -218,6 +219,63 @@ TEST(GameTest, WalkingOffLedgeFalls) {
     }
     EXPECT_LT(game.player().vertical_speed(), 0.0f);
     EXPECT_FALSE(game.player().on_ground());
+}
+
+/// Jumps from the floor of an empty level and returns the highest position of the feet.
+float jump_peak(float dt) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({}, dt);  // Find the ground.
+    EXPECT_TRUE(game.player().on_ground());
+    game.update({.rise = 1.0f}, dt);
+    float peak = game.player().position().z;
+    for (int frame = 0; frame < static_cast<int>(2.0f / dt); ++frame) {
+        game.update({}, dt);
+        peak = std::max(peak, game.player().position().z);
+    }
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);  // Landed again.
+    EXPECT_TRUE(game.player().on_ground());
+    return peak;
+}
+
+TEST(GameTest, JumpReachesJumpHeightAtAnyFrameRate) {
+    EXPECT_NEAR(jump_peak(1.0f / 60.0f), 0.5f, 0.01f);
+    EXPECT_NEAR(jump_peak(1.0f / 144.0f), 0.5f, 0.01f);
+    EXPECT_NEAR(jump_peak(1.0f / 20.0f), 0.5f, 0.02f);
+}
+
+TEST(GameTest, CannotJumpInTheAir) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({}, 0.01f);
+    game.update({.rise = 1.0f}, 0.01f);
+    const float speed = game.player().vertical_speed();
+    EXPECT_GT(speed, 0.0f);
+    game.update({.rise = 1.0f}, 0.01f);
+    EXPECT_LT(game.player().vertical_speed(), speed);  // Only gravity acts now.
+}
+
+/// Walks towards a 0.4 m high block for 2 seconds, jumping at `jump_frame` if given, and returns the end.
+glm::vec3 walk_to_low_block(int jump_frame) {
+    Level level = make_ramp_level();
+    level.world.add_obstacle({.base_center = {-4.0f, 4.0f, 0.0f}, .half_size = 1.0f, .height = 0.4f, .yaw = 0.0f});
+    GameConfig config = make_config();
+    config.player.yaw = kPi / 2.0f;  // Facing the block at +y.
+    Game game(config, std::move(level));
+    game.update({}, 1.0f / 60.0f);
+    for (int frame = 0; frame < 120; ++frame) {
+        game.update({.forward = 1.0f, .rise = frame == jump_frame ? 1.0f : 0.0f}, 1.0f / 60.0f);
+    }
+    return game.player().position();
+}
+
+TEST(GameTest, JumpingOntoLowBlock) {
+    // Walking alone stops at the block, which starts at y = 3.
+    const glm::vec3 walked = walk_to_low_block(-1);
+    EXPECT_FLOAT_EQ(walked.z, 0.0f);
+    EXPECT_NEAR(walked.y, 3.0f - PlayerParams{}.radius, 1e-4f);
+    // A jump just before the block lands on it.
+    const glm::vec3 jumped = walk_to_low_block(60);
+    EXPECT_NEAR(jumped.z, 0.4f, 1e-4f);
+    EXPECT_GT(jumped.y, 3.0f);
 }
 
 }  // namespace
