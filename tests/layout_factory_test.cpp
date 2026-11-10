@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <set>
+#include <stdexcept>
 
 #include <gtest/gtest.h>
 
@@ -31,13 +32,45 @@ TEST(LayoutFactoryTest, NamesRoundTrip) {
     EXPECT_FALSE(parse_layout_name("caves").has_value());
 }
 
-TEST(LayoutFactoryTest, RandomChoiceUsesAllLayouts) {
+/// Which layouts are chosen at random for seeds 0 to 99.
+std::set<LayoutKind> choose_many(const LevelConfig& config) {
     std::set<LayoutKind> chosen;
-    for (std::uint64_t seed = 0; seed < 20; ++seed) {
+    for (std::uint64_t seed = 0; seed < 100; ++seed) {
         LevelRng rng(seed);
-        chosen.insert(choose_layout(rng));
+        chosen.insert(choose_layout(config, rng));
     }
-    EXPECT_EQ(chosen.size(), 2U);
+    return chosen;
+}
+
+TEST(LayoutFactoryTest, RandomChoiceIsRoomsByDefault) {
+    EXPECT_EQ(choose_many(LevelConfig{}), std::set<LayoutKind>{LayoutKind::kRooms});
+}
+
+TEST(LayoutFactoryTest, RandomChoiceFollowsProbabilities) {
+    LevelConfig config;
+    config.debug_probability = 1.0f;
+    config.rooms_probability = 0.0f;
+    EXPECT_EQ(choose_many(config), std::set<LayoutKind>{LayoutKind::kDebug});
+    config.debug_probability = 0.5f;
+    config.rooms_probability = 0.5f;
+    EXPECT_EQ(choose_many(config).size(), 2U);
+}
+
+TEST(LayoutFactoryTest, RandomChoiceScalesProbabilities) {
+    LevelConfig config;
+    config.debug_probability = 3.0f;
+    config.rooms_probability = 0.0f;
+    EXPECT_EQ(choose_many(config), std::set<LayoutKind>{LayoutKind::kDebug});
+}
+
+TEST(LayoutFactoryTest, RandomChoiceRejectsInvalidProbabilities) {
+    LevelRng rng(1);
+    LevelConfig config;
+    config.rooms_probability = 0.0f;
+    EXPECT_THROW(choose_layout(config, rng), std::invalid_argument);
+    config.debug_probability = -1.0f;
+    config.rooms_probability = 2.0f;
+    EXPECT_THROW(choose_layout(config, rng), std::invalid_argument);
 }
 
 TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {

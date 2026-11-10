@@ -41,7 +41,7 @@ public:
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation. The same seed gives the same level.
-    /// \param layout The level layout. If not given, a random one is chosen.
+    /// \param layout The level layout. If not given, one is chosen at random, see LevelConfig.
     /// \throws std::runtime_error if the level can't be generated.
     Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout = std::nullopt);
 

@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <random>
+#include <stdexcept>
 #include <string_view>
 #include <utility>
 
@@ -23,6 +24,17 @@ constexpr std::array<std::pair<LayoutKind, std::string_view>, 2> kLayoutNames{{
     {LayoutKind::kRooms, "rooms"},
 }};
 
+/// The probability of choosing a layout of the given kind at random.
+float layout_probability(LayoutKind kind, const LevelConfig& config) {
+    switch (kind) {
+        case LayoutKind::kDebug:
+            return config.debug_probability;
+        case LayoutKind::kRooms:
+            return config.rooms_probability;
+    }
+    return 0.0f;
+}
+
 }  // namespace
 
 std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& config) {
@@ -35,8 +47,20 @@ std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& con
     return nullptr;
 }
 
-LayoutKind choose_layout(LevelRng& rng) {
-    std::uniform_int_distribution<std::size_t> distribution(0, kLayoutNames.size() - 1);
+LayoutKind choose_layout(const LevelConfig& config, LevelRng& rng) {
+    std::array<float, kLayoutNames.size()> probabilities{};
+    float total = 0.0f;
+    for (std::size_t i = 0; i < kLayoutNames.size(); ++i) {
+        probabilities.at(i) = layout_probability(kLayoutNames.at(i).first, config);
+        if (probabilities.at(i) < 0.0f) {
+            throw std::invalid_argument("layout probabilities can't be negative");
+        }
+        total += probabilities.at(i);
+    }
+    if (total <= 0.0f) {
+        throw std::invalid_argument("at least one layout probability must be positive");
+    }
+    std::discrete_distribution<std::size_t> distribution(probabilities.begin(), probabilities.end());
     return kLayoutNames.at(distribution(rng)).first;
 }
 
@@ -60,7 +84,7 @@ std::optional<LayoutKind> parse_layout_name(std::string_view name) {
 
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed) {
     LevelRng rng(seed);
-    const LayoutKind kind = layout ? *layout : choose_layout(rng);
+    const LayoutKind kind = layout ? *layout : choose_layout(config, rng);
     return make_layout(kind, config)->generate(clearance, rng);
 }
 

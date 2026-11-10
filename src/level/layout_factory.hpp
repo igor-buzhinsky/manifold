@@ -12,16 +12,23 @@
 namespace manifold {
 
 /// Settings for all layouts. Only the settings of the chosen layout are used.
+///
+/// The probabilities say how often each layout is chosen when no layout is given. They should add up to 1;
+/// if they don't, they are scaled so that they do.
 struct LevelConfig {
     DebugLayoutConfig debug;
+    float debug_probability = 0.0f;  ///< Only for testing, so it is never chosen at random.
     RoomLayoutConfig rooms;
+    float rooms_probability = 1.0f;
 };
 
 /// Creates a layout of the given kind with its settings from `config`.
 std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& config);
 
-/// Picks one of the layout kinds, all with the same probability.
-LayoutKind choose_layout(LevelRng& rng);
+/// Picks one of the layout kinds at random, using the probabilities from `config`.
+///
+/// \throws std::invalid_argument if a probability is negative or all of them are zero.
+LayoutKind choose_layout(const LevelConfig& config, LevelRng& rng);
 
 /// Short name of a layout kind, as used on the command line: "debug" or "rooms".
 std::string_view layout_name(LayoutKind kind);
@@ -37,6 +44,7 @@ std::optional<LayoutKind> parse_layout_name(std::string_view name);
 /// \param layout    The layout to use. If not given, a random one is chosen.
 /// \param clearance Radius around the player start that must stay free of obstacles, in metres.
 /// \param seed      Seed for all random choices. The same seed gives the same level.
+/// \throws std::invalid_argument if `layout` is not given and the layout probabilities are invalid.
 /// \throws std::runtime_error if the level can't be generated.
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed);
 
