@@ -4,7 +4,8 @@ A hobby first-person fantasy game about playing as a mage. See [docs/ROADMAP.md]
 
 ## Building (Linux)
 
-Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.25+, and optionally Ninja.
+Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.25+, optionally Ninja, and a GPU with OpenGL 4.1
+or newer (any GPU from about 2012 on).
 On Ubuntu 24.04, everything needed to build and lint the project is installed with:
 
 ```sh

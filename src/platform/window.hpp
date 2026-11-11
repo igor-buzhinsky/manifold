@@ -8,7 +8,13 @@
 
 namespace manifold {
 
-/// An SDL window with an OpenGL 3.3 core context.
+/// OpenGL version that the window's context provides, and that the renderer needs.
+constexpr int kGlMajorVersion = 4;
+constexpr int kGlMinorVersion = 1;
+
+/// An SDL window with an OpenGL 4.1 core context (kGlMajorVersion.kGlMinorVersion).
+///
+/// 4.1 is the newest OpenGL version on macOS, so the game can run there too.
 ///
 /// Initializes SDL video on creation and shuts it down on destruction, so there must be only one window
 /// at a time.

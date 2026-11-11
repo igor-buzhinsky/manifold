@@ -19,7 +19,7 @@ namespace {
 
 /// Passes world positions, normals and colors to the fragment shader.
 constexpr const char* kVertexShader = R"glsl(
-#version 330 core
+#version 410 core
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec3 a_color;
@@ -42,7 +42,7 @@ void main() {
 ///
 /// Lighting is computed in linear RGB and then tonemapped and converted to sRGB for the display.
 constexpr const char* kFragmentShader = R"glsl(
-#version 330 core
+#version 410 core
 in vec3 v_position;
 in vec3 v_normal;
 in vec3 v_color;

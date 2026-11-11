@@ -27,7 +27,7 @@ struct Lighting {
 
 /// Draws the world with OpenGL.
 ///
-/// Needs a current OpenGL 3.3 core context for its whole lifetime.
+/// Needs a current OpenGL 4.1 core context, see Window for its whole lifetime.
 class Renderer {
 public:
     /// Compiles the shaders and uploads the world mesh to the GPU.

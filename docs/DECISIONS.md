@@ -10,7 +10,7 @@ Statuses:
 
 ## 2026-11-11: Use OpenGL 4.1 core instead of 3.3
 
-Status: **ACCEPTED**. Planned for v0.2.
+Status: **ACCEPTED**. Done in v0.2.
 
 Decision: move the renderer from OpenGL 3.3 core to 4.1 core.
 
