@@ -130,6 +130,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - Items and inventory.
 - Audio: ambient sound, footsteps, spell sounds.
 - Visibility culling (rooms and portals) if levels get large.
+- **Windows support**: replace libepoxy with a loader that builds everywhere (for example glad, or
+  libepoxy from vcpkg), add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb and
+  the C++ code are already portable.
 - Party support: 3 characters that are bound to a magical orb and can transport themselves to a pocket dimension.
 - Character stats: health, stamina, sanity, shared mana.
 - Story and lore.
