@@ -1,7 +1,7 @@
 # Instructions for coding agents
 
 Manifold is a hobby first-person fantasy game in C++20, built with CMake. See [README.md](README.md) for
-building and running, [docs/roadmap.md](docs/roadmap.md) for plans and technical decisions, and
+building and running, [ROADMAP.md](ROADMAP.md) for plans and technical decisions, and
 [GAME_MANUAL.md](GAME_MANUAL.md) for controls.
 
 ## Conventions

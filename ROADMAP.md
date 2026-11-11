@@ -1,0 +1,135 @@
+# Manifold — Roadmap
+
+*Manifold* is a working title. It is a hobby first-person fantasy game where the player is a mage.
+It looks and feels like *Daggerfall*, but is structured as a linear series of
+rogue-like, procedurally generated 3D levels. There is no story or lore yet.
+
+## Goals and constraints
+
+- Runs on Linux, with full-screen support.
+- Low performance requirements, no fancy graphics: a low-fi, retro look.
+- Textures and models come from free sources or are AI-generated.
+- Believable lighting is a core feature: dark levels lit by the player's light spell
+  and by multiple other light sources.
+- Open and non-commercial, if it is ever released at all; it may stay a personal experiment.
+- Personal goal: get more experience with modern C++.
+
+## Technical decisions
+
+### Language and build
+
+- **C++20**.
+- **CMake** with Ninja, pulling dependencies with FetchContent. Only libepoxy comes from the system.
+- **clang-format** and **clang-tidy** enforce the style (see [docs/CODING_STYLE.md](docs/CODING_STYLE.md)).
+- **GoogleTest** for unit tests. Game logic lives in the `manifold_core` library, which has no window or
+  OpenGL code, so it can be tested.
+
+### Libraries
+
+| Concern | Choice | Status | Notes |
+|---|---|---|---|
+| Window, input, full-screen, audio | **SDL3** | In use | Built from source as a static library. Works on Wayland and X11. |
+| Rendering API | **OpenGL 3.3 core** | In use | Move to 4.x only if a feature needs it. Vulkan is not worth the effort for this scope. |
+| GL loader | **libepoxy** | In use | Ubuntu package; nothing to generate, unlike glad. Works with GLX and EGL. |
+| Math | **GLM** | In use | |
+| Images | **stb_image**, **stb_image_write** | In use | stb_image_write saves screenshots. stb_image will load textures. |
+| Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
+| Collision | Own code | In use | See below. **Jolt Physics** is an option for later. |
+| Debug UI | **Dear ImGui** | Planned | Live tuning of lights, generator parameters, and so on. |
+| Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
+| Audio | SDL3 audio or **miniaudio** | Later | |
+
+Rejected alternatives:
+
+- **raylib**: the fastest start, but HDR and multi-light shadows would mean working around it.
+- **Godot**: gives most features for free, but most code would be GDScript instead of C++.
+
+### Architecture principles: keep 3D paths open
+
+The core is fully 3D, so that water, levitation and arbitrary 3D objects can be added later without
+rewrites.
+
+- All positions, velocities and transforms are `vec3`. Nothing in the game logic assumes `(x, y)`.
+- No grid or raycaster renderer. The renderer draws arbitrary triangle meshes.
+- **Collision is our own code**, not Jolt. The player is a vertical cylinder that moves and slides against
+  rotated boxes, ramps and the level bounds, in 3D. Gravity, jumping, landing, and sticking to ramps
+  when walking down them work on top of this. This was simpler than Jolt for the shapes needed so far,
+  and is good C++ practice. Jolt stays an option if we need many dynamic objects, buoyancy or complex
+  shapes. Collision tests every obstacle; a spatial grid can be added if this becomes slow.
+- A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start. Later also
+  lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
+  downstream depends on that.
+- Level generation is deterministic from a seed, so levels can be reproduced for debugging.
+- Each level can have its own gravity. The jump take-off speed is the same everywhere, so the player
+  jumps higher where gravity is weaker.
+
+### Rendering and lighting principles
+
+- **Linear-space lighting** from the start, converted to sRGB for the display.
+- **Tonemapping** (Reinhard, for now in the main shader). A level with zero ambient light is truly dark.
+  A separate HDR render target can come when post-processing needs it.
+- Point lights with inverse-square falloff and a smooth range cutoff.
+- Omnidirectional shadows from cubemap shadow maps, limited to the nearest N lights (about 4–8).
+- Forward rendering first. Move to clustered forward or deferred only if the light count requires it.
+- Retro look: low-res textures with nearest-neighbour filtering, optional low-res render target,
+  distance fog, billboard sprites for items and creatures.
+
+## v0.1 — Exploration prototype (current)
+
+Scope: walk around a randomly generated level in the dark with a light at the player. Done:
+
+- SDL3 window with an OpenGL 3.3 context. The view keeps a fixed aspect ratio inside the window.
+  `--screenshot FILE.png` saves the first frame and exits, which helps to check rendering.
+- First-person camera: keyboard turning and looking up and down (at most 30°), WASD movement.
+- **Gravity and jumping**: one jump per Page Up press; the height depends on the level's gravity.
+- **Collision** with sliding along walls, ramps that can be walked up and down, and a noclip cheat
+  for flying through everything.
+- **Level layouts**, chosen at random with configurable probabilities, or with `--layout`:
+  - **Rooms** (the default): rectangular rooms on a grid of 2 m tiles, connected by openings in their
+    walls, in three layers on top of each other. Holes of 1 × 2 tiles lead down to the next layer, and
+    some of them have a ramp under them that leads back up. A text plan of the level is printed.
+  - **Debug**: scattered rotated blocks on the floor and under the ceiling, plus ramps, in an open area.
+  - The player never starts inside an obstacle, and all rooms are reachable.
+- **Lighting**: one warm point light at the player's eyes plus a small ambient term. Linear-space
+  lighting, Reinhard tonemapping and sRGB output. A 1 m checker pattern on all surfaces stands in for
+  textures and shows scale.
+  - Shadows are not needed yet. A light at the camera position lights exactly the surfaces the camera
+    can see, so its shadows are never visible. This changes once the light is offset (for example held
+    in a hand) or other lights are added.
+- Logging to stderr with info, warning and error levels.
+- Unit tests for geometry, collision, level generation, game logic and logging.
+
+## v0.2 — Lighting and level structure
+
+- **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
+  reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
+  version of the linear series of levels.
+- **Doors between rooms**: some or all openings between rooms get doors that the player can open and
+  close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
+  geometry in the opening.
+- **Multiple point lights**: static light sources placed in the level (torches, braziers,
+  glowing crystals), with color and flicker.
+- **Shadows**: cubemap shadow maps for the nearest N lights.
+- The player's light becomes a spell that can be toggled, with an intensity or radius.
+- First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
+- Carried over from the first v0.1 plan:
+  - Full-screen mode, and mouse look.
+  - Textured walls, floor and ceiling instead of the checker pattern.
+  - Dear ImGui debug overlay.
+
+## Later (unordered)
+
+- **More 3D level structure**: stairs, pits and bridges in generated levels. Jumping, several floor
+  heights and ramps are done.
+- **Levitation spell**: turn off gravity for the player and allow vertical movement, as noclip does now
+  but with collision.
+- **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint,
+  **swimming and diving** (including breath), buoyancy for floating objects.
+- Monsters as billboard sprites, with Recast/Detour navigation.
+- Attack spells, spell effects, projectiles that emit light.
+- Items and inventory.
+- Audio: ambient sound, footsteps, spell sounds.
+- Visibility culling (rooms and portals) if levels get large.
+- Party support: 3 characters that are bound to a magical orb and can transport themselves to a pocket dimension.
+- Character stats: health, stamina, sanity, shared mana.
+- Story and lore.

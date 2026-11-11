@@ -1,6 +1,6 @@
 # Manifold
 
-A hobby first-person fantasy game about playing as a mage. See [docs/roadmap.md](docs/roadmap.md).
+A hobby first-person fantasy game about playing as a mage. See [ROADMAP.md](ROADMAP.md).
 
 ## Building (Linux)
 
