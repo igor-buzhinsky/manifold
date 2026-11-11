@@ -20,7 +20,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 
 - **C++20**.
 - **CMake** with Ninja, pulling dependencies with FetchContent. Only libepoxy comes from the system.
-- **clang-format** and **clang-tidy** enforce the style (see [docs/CODING_STYLE.md](docs/CODING_STYLE.md)).
+- **clang-format** and **clang-tidy** enforce the style (see [CODING_STYLE.md](CODING_STYLE.md)).
 - **GoogleTest** for unit tests. Game logic lives in the `manifold_core` library, which has no window or
   OpenGL code, so it can be tested.
 
@@ -74,7 +74,7 @@ rewrites.
 - Retro look: low-res textures with nearest-neighbour filtering, optional low-res render target,
   distance fog, billboard sprites for items and creatures.
 
-## v0.1 — Exploration prototype (current)
+## v0.1 — Exploration prototype (current: 2026-11-11, commit 3d75613)
 
 Scope: walk around a randomly generated level in the dark with a light at the player. Done:
 
