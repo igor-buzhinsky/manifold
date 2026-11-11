@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 
 #include "render/camera.hpp"
+#include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "render/world_mesh.hpp"
 
@@ -30,11 +31,12 @@ struct Lighting {
 /// Needs a current OpenGL 4.1 core context, see Window for its whole lifetime.
 class Renderer {
 public:
-    /// Compiles the shaders and uploads the world mesh to the GPU.
+    /// Compiles the shaders and uploads the world mesh and its texture to the GPU.
     ///
     /// \param world_mesh Triangles to draw, see build_world_mesh().
+    /// \param texture    The texture of all surfaces, repeated as the mesh's texture coordinates say.
     /// \throws std::runtime_error if a shader fails to compile or link.
-    explicit Renderer(std::span<const Vertex> world_mesh);
+    Renderer(std::span<const Vertex> world_mesh, const Image& texture);
     ~Renderer();
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
@@ -53,6 +55,7 @@ private:
     GLuint vertex_array_ = 0;
     GLuint vertex_buffer_ = 0;
     GLsizei vertex_count_ = 0;
+    GLuint texture_ = 0;
 };
 
 }  // namespace manifold

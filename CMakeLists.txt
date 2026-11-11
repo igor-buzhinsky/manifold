@@ -59,6 +59,9 @@ add_library(manifold_core STATIC
     src/level/room_layout.cpp
     src/physics/collision.cpp
     src/render/camera.cpp
+    src/render/stb_image.cpp
+    src/render/stb_image_write.cpp
+    src/render/texture_image.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
     src/util/log.cpp
@@ -67,7 +70,7 @@ add_library(manifold_core STATIC
     src/world/world.cpp
 )
 target_include_directories(manifold_core PUBLIC src)
-target_link_libraries(manifold_core PUBLIC glm::glm)
+target_link_libraries(manifold_core PUBLIC glm::glm stb)
 target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
 
 add_executable(manifold
@@ -75,10 +78,11 @@ add_executable(manifold
     src/platform/window.cpp
     src/render/renderer.cpp
     src/render/screenshot.cpp
-    src/render/stb_image_write.cpp
 )
-target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad stb)
+target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
+# Textures are read from the source tree, so the game finds them however it is started.
+target_compile_definitions(manifold PRIVATE MANIFOLD_TEXTURES_DIR="${CMAKE_SOURCE_DIR}/assets/textures")
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()
@@ -101,6 +105,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/layout_factory_test.cpp
         tests/log_test.cpp
         tests/room_layout_test.cpp
+        tests/texture_image_test.cpp
         tests/viewport_test.cpp
         tests/world_mesh_test.cpp
         tests/world_test.cpp

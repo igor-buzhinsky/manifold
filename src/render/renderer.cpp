@@ -10,6 +10,7 @@
 #include <glm/mat4x4.hpp>
 
 #include "render/camera.hpp"
+#include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "render/world_mesh.hpp"
 
@@ -17,23 +18,23 @@ namespace manifold {
 
 namespace {
 
-/// Passes world positions, normals and colors to the fragment shader.
+/// Passes world positions, normals and texture coordinates to the fragment shader.
 constexpr const char* kVertexShader = R"glsl(
 #version 410 core
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_normal;
-layout(location = 2) in vec3 a_color;
+layout(location = 2) in vec2 a_uv;
 
 uniform mat4 u_view_projection;
 
 out vec3 v_position;
 out vec3 v_normal;
-out vec3 v_color;
+out vec2 v_uv;
 
 void main() {
     v_position = a_position;
     v_normal = a_normal;
-    v_color = a_color;
+    v_uv = a_uv;
     gl_Position = u_view_projection * vec4(a_position, 1.0);
 }
 )glsl";
@@ -45,8 +46,9 @@ constexpr const char* kFragmentShader = R"glsl(
 #version 410 core
 in vec3 v_position;
 in vec3 v_normal;
-in vec3 v_color;
+in vec2 v_uv;
 
+uniform sampler2D u_texture;
 uniform vec3 u_ambient;
 uniform vec3 u_light_position;
 uniform vec3 u_light_color;
@@ -60,12 +62,8 @@ vec3 linear_to_srgb(vec3 color) {
 
 void main() {
     vec3 normal = normalize(v_normal);
-
-    // A 1 m checker pattern gives a sense of scale and depth until there are textures.
-    // The small offset along the normal keeps cells stable on surfaces that lie on cell borders.
-    vec3 cell = floor(v_position - 0.001 * normal);
-    float checker = mod(cell.x + cell.y + cell.z, 2.0);
-    vec3 albedo = v_color * mix(0.8, 1.0, checker);
+    // The texture has an sRGB format, so sampling returns linear RGB.
+    vec3 albedo = texture(u_texture, v_uv).rgb;
 
     vec3 to_light = u_light_position - v_position;
     float distance_squared = max(dot(to_light, to_light), 0.01);
@@ -121,36 +119,65 @@ GLuint link_program(const char* vertex_source, const char* fragment_source) {
     return program;
 }
 
-/// Describes a vec3 field of Vertex to the currently bound vertex array.
+/// Describes a float vector field of Vertex to the currently bound vertex array.
 ///
-/// \param location Attribute location in the vertex shader.
-/// \param offset   Offset of the field in Vertex, in bytes.
-void set_vertex_attribute(GLuint location, std::size_t offset) {
+/// \param location   Attribute location in the vertex shader.
+/// \param components Number of floats in the field, e.g. 3 for a vec3.
+/// \param offset     Offset of the field in Vertex, in bytes.
+void set_vertex_attribute(GLuint location, GLint components, std::size_t offset) {
     glEnableVertexAttribArray(location);
     // OpenGL takes the offset into the bound buffer as a pointer.
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    glVertexAttribPointer(location, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), reinterpret_cast<const void*>(offset));
+    const auto* pointer = reinterpret_cast<const void*>(offset);
+    glVertexAttribPointer(location, components, GL_FLOAT, GL_FALSE, sizeof(Vertex), pointer);
+}
+
+/// Uploads an image as a repeating texture with nearest-neighbour filtering and mipmaps.
+///
+/// \return The texture name. The texture stays bound to GL_TEXTURE_2D.
+GLuint upload_texture(const Image& image) {
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    // Image rows go from the top down, while OpenGL expects the bottom row first. This is undone by
+    // texture_coordinates() in world_mesh.cpp, where v grows downwards.
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8_ALPHA8, image.width, image.height, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                 image.pixels.data());
+    glGenerateMipmap(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    // Sharp texels up close for the retro look. Mipmaps keep distant surfaces from shimmering.
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+    return texture;
 }
 
 }  // namespace
 
-Renderer::Renderer(std::span<const Vertex> world_mesh)
-    : program_(link_program(kVertexShader, kFragmentShader)), vertex_count_(static_cast<GLsizei>(world_mesh.size())) {
+Renderer::Renderer(std::span<const Vertex> world_mesh, const Image& texture)
+    : program_(link_program(kVertexShader, kFragmentShader)),
+      vertex_count_(static_cast<GLsizei>(world_mesh.size())),
+      texture_(upload_texture(texture)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);
     glGenBuffers(1, &vertex_buffer_);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
     glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(world_mesh.size_bytes()), world_mesh.data(), GL_STATIC_DRAW);
-    set_vertex_attribute(0, offsetof(Vertex, position));
-    set_vertex_attribute(1, offsetof(Vertex, normal));
-    set_vertex_attribute(2, offsetof(Vertex, color));
+    set_vertex_attribute(0, 3, offsetof(Vertex, position));
+    set_vertex_attribute(1, 3, offsetof(Vertex, normal));
+    set_vertex_attribute(2, 2, offsetof(Vertex, uv));
     glBindVertexArray(0);
+
+    glUseProgram(program_);
+    glUniform1i(glGetUniformLocation(program_, "u_texture"), 0);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 }
 
 Renderer::~Renderer() {
+    glDeleteTextures(1, &texture_);
     glDeleteBuffers(1, &vertex_buffer_);
     glDeleteVertexArrays(1, &vertex_array_);
     glDeleteProgram(program_);
@@ -170,6 +197,8 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
     glUniform3fv(glGetUniformLocation(program_, "u_light_color"), 1, glm::value_ptr(lighting.light.color));
     glUniform1f(glGetUniformLocation(program_, "u_light_intensity"), lighting.light.intensity);
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture_);
     glBindVertexArray(vertex_array_);
     glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
     glBindVertexArray(0);

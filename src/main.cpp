@@ -5,12 +5,15 @@
 #include <cstdint>
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <optional>
 #include <random>
 #include <span>
 #include <stdexcept>
 #include <string>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_keyboard.h>
@@ -26,6 +29,7 @@
 #include "render/camera.hpp"
 #include "render/renderer.hpp"
 #include "render/screenshot.hpp"
+#include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "render/world_mesh.hpp"
 #include "util/log.hpp"
@@ -86,6 +90,26 @@ Options parse_options(std::span<char*> args) {
 std::uint64_t random_seed() {
     std::random_device device;
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
+}
+
+/// Directory searched for level textures, set by CMake to `assets/textures` in the source tree.
+constexpr const char* kTexturesDir = MANIFOLD_TEXTURES_DIR;
+
+/// Picks the texture of the level's surfaces at random, see manifold::pick_texture().
+///
+/// The choice depends only on the level seed, so a seed always gives the same look. If no texture can be
+/// used, a plain grey one is used instead.
+manifold::Image pick_level_texture(std::uint64_t level_seed) {
+    // Mixing the seed keeps the choice independent of the random numbers used by level generation.
+    constexpr std::uint64_t kTextureSeedSalt = 0x9e3779b97f4a7c15ULL;
+    const std::vector<std::filesystem::path> candidates = manifold::find_textures(kTexturesDir);
+    std::optional<manifold::PickedTexture> picked = manifold::pick_texture(candidates, level_seed ^ kTextureSeedSalt);
+    if (!picked) {
+        manifold::log_warning("No usable texture found among {} PNG files in {}, using plain grey", candidates.size(),
+                              kTexturesDir);
+        return manifold::fallback_texture();
+    }
+    return std::move(picked->image);
 }
 
 /// Logs the seed, the level and the player.
@@ -151,7 +175,7 @@ void run(const Options& options) {
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
-    const manifold::Renderer renderer(manifold::build_world_mesh(game.world()));
+    const manifold::Renderer renderer(manifold::build_world_mesh(game.world()), pick_level_texture(game.seed()));
 
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {

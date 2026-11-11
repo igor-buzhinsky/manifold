@@ -33,7 +33,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Rendering API | **OpenGL 4.1 core** | In use | The newest version on macOS. 4.5 is considered, see [DECISIONS.md](DECISIONS.md). Vulkan is not worth the effort for this scope. |
 | GL loader | **glad 2** | In use | Generated for OpenGL 4.1 core and kept in `external/glad/`, see [DECISIONS.md](DECISIONS.md). |
 | Math | **GLM** | In use | |
-| Images | **stb_image**, **stb_image_write** | In use | stb_image_write saves screenshots. stb_image will load textures. |
+| Images | **stb_image**, **stb_image_write** | In use | stb_image loads textures (PNG only), stb_image_write saves screenshots. |
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | Planned | Live tuning of lights, generator parameters, and so on. |
@@ -124,7 +124,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   debug output and shorter setup code.
 - Pixelation (of textures or the entire visible region as a whole).
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
-- Textured walls, floor and ceiling instead of the checker pattern.
+- ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random
+  texture (chosen from the level seed) from the PNG files under `assets/textures/`, at most 128 × 128
+  pixels, with nearest-neighbour filtering. Next: different textures for walls, floor and ceiling.
 - Dear ImGui debug overlay.
 
 ## v0.3 — Party and rudimentary spellcasting

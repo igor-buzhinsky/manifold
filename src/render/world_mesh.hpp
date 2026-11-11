@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "world/world.hpp"
@@ -12,8 +13,12 @@ namespace manifold {
 struct Vertex {
     glm::vec3 position;  ///< In world coordinates.
     glm::vec3 normal;    ///< Unit vector pointing out of the visible side of the surface.
-    glm::vec3 color;     ///< Surface albedo in linear RGB.
+    /// Texture coordinates. One unit is one copy of the texture, which repeats every kTextureTileSize.
+    glm::vec2 uv;
 };
+
+/// Width and height of one copy of the level texture on a surface, in metres.
+constexpr float kTextureTileSize = 2.0f;
 
 /// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles and the ramps of a world.
 ///
@@ -21,6 +26,9 @@ struct Vertex {
 /// Normals of the boundary walls point into the level, normals of obstacles point out of them.
 /// The top of an obstacle is only added if it doesn't reach the ceiling. Bottoms of obstacles and ramps
 /// are only added if they are above the floor.
+///
+/// Texture coordinates come from the position on the surface's plane, so the texture is never stretched,
+/// also on ramp slopes. On vertical surfaces the texture is upright: its top is up.
 std::vector<Vertex> build_world_mesh(const World& world);
 
 }  // namespace manifold

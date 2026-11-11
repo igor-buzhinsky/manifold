@@ -1,5 +1,6 @@
 #include "render/world_mesh.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <vector>
 
@@ -108,6 +109,42 @@ TEST(WorldMeshTest, RaisedRampGetsBottomFace) {
     const std::vector<Vertex> mesh = build_world_mesh(world);
     ASSERT_EQ(mesh.size(), ((6 + 3) * kVerticesPerQuad) + 6);
     EXPECT_LT(mesh.back().normal.z, -0.99f);
+}
+
+TEST(WorldMeshTest, TextureIsNotStretched) {
+    // Along every edge, the distance in texture coordinates times the tile size equals the distance in the
+    // world, also on rotated obstacles and ramp slopes.
+    World world = make_world();
+    world.add_ramp(
+        {.base_center = {0.0f, 2.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.0f, .yaw = 0.7f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    for (std::size_t i = 0; i < mesh.size(); i += 3) {
+        for (std::size_t j = 0; j < 3; ++j) {
+            const Vertex& from = mesh[i + j];
+            const Vertex& to = mesh[i + ((j + 1) % 3)];
+            EXPECT_NEAR(glm::length(to.uv - from.uv) * kTextureTileSize, glm::length(to.position - from.position),
+                        1e-4f)
+                << "triangle " << i / 3;
+        }
+    }
+}
+
+TEST(WorldMeshTest, TextureIsUprightOnWalls) {
+    // Image rows go from the top down, so v decreases going up a wall.
+    for (const Vertex& vertex : build_world_mesh(make_world())) {
+        if (std::abs(vertex.normal.z) < 0.01f) {
+            const float v_at_floor = vertex.uv.y + (vertex.position.z / kTextureTileSize);
+            EXPECT_NEAR(v_at_floor, 0.0f, 1e-4f);
+        }
+    }
+}
+
+TEST(WorldMeshTest, FloorTextureFollowsXAndY) {
+    const std::vector<Vertex> mesh = build_world_mesh(make_world());
+    for (std::size_t i = 0; i < kVerticesPerQuad; ++i) {
+        EXPECT_FLOAT_EQ(mesh[i].uv.x, mesh[i].position.x / kTextureTileSize);
+        EXPECT_FLOAT_EQ(mesh[i].uv.y, -mesh[i].position.y / kTextureTileSize);
+    }
 }
 
 }  // namespace
