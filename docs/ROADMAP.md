@@ -122,6 +122,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
+- Pixelation (of textures or the entire visible region as a whole).
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
 - Textured walls, floor and ceiling instead of the checker pattern.
 - Dear ImGui debug overlay.
