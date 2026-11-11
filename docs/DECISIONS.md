@@ -112,3 +112,35 @@ Drawbacks:
   works, but each platform needs its own setup, and the version is not checked at compile time.
 - Alternative: let CMake generate the loader during the build with glad's CMake support. Nothing
   generated is in the repo, but the build then needs Python with Jinja2.
+
+## 2026-11-11: Store assets in plain git, without Git LFS
+
+Status: **ACCEPTED**.
+
+Decision: textures, images and other assets are committed to the repo as normal git files, in their own
+directory (`assets/`). Only game-ready files are committed, for example textures already scaled down to
+64–128 px. Large originals (such as 2K/4K downloads and work files) stay outside the repo. A file next to
+the assets records where each one came from, its license and author (for attribution), and how it was
+processed, so that the committed files can be made again.
+
+Gains:
+
+- **Nothing extra to install or set up**: a normal clone has all the assets. With LFS, everyone who
+  clones needs `git-lfs`, and without it they get pointer files instead of images. CI and archives would
+  also need extra setup.
+- **No LFS limits**: hosts limit LFS storage and bandwidth on free plans, and every clone, CI runs
+  included, counts toward the bandwidth.
+- **The files are small**: a low-res PNG is a few KB to a few tens of KB, so even hundreds of textures add
+  only a few MB to the history.
+
+Drawbacks:
+
+- Git keeps every version of a binary file in full, so assets that change often or large files (high-res
+  textures, audio, music, 3D models over roughly 1 MB) would make the history grow quickly. If such files
+  are needed, or `.git` grows past a few hundred MB, we should move to LFS. Because the assets are in one
+  directory, one `.gitattributes` rule can then cover them.
+- Moving files that are already in the history to LFS (`git lfs migrate import`) rewrites the history,
+  and everyone must clone again. Tracking only new files with LFS doesn't rewrite anything, but the old
+  versions stay in the history.
+- The originals aren't kept in the repo, so they must be downloaded again (from the recorded source) to
+  process an asset differently.
