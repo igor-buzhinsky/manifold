@@ -122,31 +122,36 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
-- The player's light becomes a spell that can be toggled, with an intensity or radius.
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
-- Carried over from the first v0.1 plan:
-  - Full-screen mode, and mouse look.
-  - Textured walls, floor and ceiling instead of the checker pattern.
-  - Dear ImGui debug overlay.
+- Textured walls, floor and ceiling instead of the checker pattern.
+- Dear ImGui debug overlay.
+
+## v0.3 — Party and rudimentary spellcasting
+
+- **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
+  stamina, sanity. The party has shared mana.
+- **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
+  but with collision.
+- The party's light becomes a spell that can be toggled, with an intensity or radius.
+- Audio: footsteps.
 
 ## Later (unordered)
 
-- **More 3D level structure**: stairs, pits and bridges in generated levels. Jumping, several floor
-  heights and ramps are done.
-- **Levitation spell**: turn off gravity for the player and allow vertical movement, as noclip does now
-  but with collision.
+- **More 3D level structure**: stairs (?), pits and bridges in generated levels.
 - **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint,
-  **swimming and diving** (including breath), buoyancy for floating objects.
+- **Swimming and diving** (including breath), buoyancy for floating objects.
+- Full-screen mode, and mouse look.
 - Monsters as billboard sprites, with Recast/Detour navigation.
-- Attack spells, spell effects, projectiles that emit light.
+- Attack spells, spell effects, projectiles that emit light (?).
 - Items and inventory.
-- Audio: ambient sound, footsteps, spell sounds.
+- Audio: ambient sound, spell sounds.
 - Visibility culling (rooms and portals) if levels get large.
 - **macOS support**: possible as long as the renderer runs on OpenGL 4.1 (Apple's newest, and
   deprecated, version). Needs testing on a Mac. If we move to OpenGL 4.5, macOS needs a separate 4.1
   path or another renderer.
 - **Windows support**: add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb, glad
   and the C++ code are already portable.
-- Party support: 3 characters that are bound to a magical orb and can transport themselves to a pocket dimension.
-- Character stats: health, stamina, sanity, shared mana.
+- **Advanced party implementation**: The party is bound to a magical orb (?), and characters can transport
+  themselves to a pocket dimension.
+- New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.
 - Story and lore.
