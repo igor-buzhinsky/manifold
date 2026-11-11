@@ -29,12 +29,12 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Concern | Choice | Status | Notes |
 |---|---|---|---|
 | Window, input, full-screen, audio | **SDL3** | In use | Built from source as a static library. Works on Wayland and X11. |
-| Rendering API | **OpenGL 3.3 core** | In use | Move to 4.x only if a feature needs it. Vulkan is not worth the effort for this scope. |
+| Rendering API | **OpenGL 3.3 core**, 4.5 core from v0.2 | In use | See [DECISIONS.md](DECISIONS.md). Vulkan is not worth the effort for this scope. |
 | GL loader | **libepoxy** | In use | Ubuntu package; nothing to generate, unlike glad. Works with GLX and EGL. |
 | Math | **GLM** | In use | |
 | Images | **stb_image**, **stb_image_write** | In use | stb_image_write saves screenshots. stb_image will load textures. |
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
-| Collision | Own code | In use | See below. **Jolt Physics** is an option for later. |
+| Collision | Own code, **Jolt Physics** from v0.2 | In use | See below and [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | Planned | Live tuning of lights, generator parameters, and so on. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
 | Audio | SDL3 audio or **miniaudio** | Later | |
@@ -54,8 +54,8 @@ rewrites.
 - **Collision is our own code**, not Jolt. The player is a vertical cylinder that moves and slides against
   rotated boxes, ramps and the level bounds, in 3D. Gravity, jumping, landing, and sticking to ramps
   when walking down them work on top of this. This was simpler than Jolt for the shapes needed so far,
-  and is good C++ practice. Jolt stays an option if we need many dynamic objects, buoyancy or complex
-  shapes. Collision tests every obstacle; a spatial grid can be added if this becomes slow.
+  and is good C++ practice. It tests every obstacle on each move, which is slow in large levels. In v0.2
+  it is replaced by Jolt Physics, see [DECISIONS.md](DECISIONS.md).
 - A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start. Later also
   lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
   downstream depends on that.
@@ -101,6 +101,10 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 
 ## v0.2 — Lighting and level structure
 
+- **OpenGL 4.5**: move the renderer from 3.3 core to 4.5 core, with debug output through the logger and
+  Direct State Access. Consider replacing libepoxy with glad at the same time, which helps Windows support.
+- **Jolt Physics**: replace our collision code with Jolt, with the player as a `CharacterVirtual`. Keep
+  the current behavior: sliding, ramps, gravity, jumping and noclip.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
   version of the linear series of levels.
