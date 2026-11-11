@@ -3,35 +3,62 @@
 Important technical decisions, newest last. Each entry says what was decided, why, and what it costs.
 Plans that follow from a decision are in [ROADMAP.md](ROADMAP.md).
 
-## 2026-11-11: Use OpenGL 4.5 core instead of 3.3
+Statuses:
 
-Decision: move the renderer from OpenGL 3.3 core to 4.5 core at the start of v0.2.
+- **ACCEPTED**: decided; the work is planned or done.
+- **CONSIDERED**: looks useful, but not decided yet. It may be accepted or rejected later.
+
+## 2026-11-11: Use OpenGL 4.1 core instead of 3.3
+
+Status: **ACCEPTED**. Planned for v0.2.
+
+Decision: move the renderer from OpenGL 3.3 core to 4.1 core.
 
 Gains:
 
-- **Debug output** (`glDebugMessageCallback`): GL errors and misuse are reported at once, with a message,
-  through our logger.
-- **Direct State Access**: buffers, textures and framebuffers can be changed without binding them first.
-  The renderer code is shorter and has fewer bugs from hidden GL state.
-- **Cubemap arrays**: shadow maps for several point lights fit in one texture, which suits the planned
-  shadows.
-- **Shader storage buffers and compute shaders**: a long light list and clustered forward lighting become
-  possible, if we ever need many lights.
+- **Cubemap arrays** (core since 4.0): shadow maps for several point lights fit in one texture, which suits
+  the planned shadows.
+- **Separate shader objects**, **program binaries** and more texture units and uniform space than 3.3
+  guarantees.
+- 4.1 is the newest version that macOS supports, so this upgrade keeps the macOS path open.
+
+Drawbacks:
+
+- GPUs that only support 3.3 can't run the game, for example Intel Sandy Bridge (2011) on Linux. Every
+  GPU from about 2012 on supports 4.1.
+- The shaders move to `#version 410`, which is a small change.
+
+## 2026-11-11: Use OpenGL 4.5 core instead of 4.1
+
+Status: **CONSIDERED**.
+
+Decision: move the renderer from OpenGL 4.1 core to 4.5 core.
+
+Gains:
+
+- **Debug output** (`glDebugMessageCallback`, 4.3): GL errors and misuse are reported at once, with a
+  message, through our logger.
+- **Direct State Access** (4.5): buffers, textures and framebuffers can be changed without binding them
+  first. The renderer code is shorter and has fewer bugs from hidden GL state.
+- **Shader storage buffers and compute shaders** (4.3): a light list of any length, and clustered forward
+  lighting, where a compute shader finds the lights that reach each part of the screen. This matters only
+  if we have many lights.
 
 Why 4.5 and not 4.6: 4.6 adds little we would use (SPIR-V shaders, anisotropic filtering in core), while
 4.5 also runs on Mesa's software renderer (llvmpipe), which VMs and headless CI use.
 
 Drawbacks:
 
-- **macOS can't be supported in the near future.** Apple stopped at OpenGL 4.1. Supporting it would need a
-  Vulkan (MoltenVK) or Metal renderer.
-- Very old GPUs, virtual machine GPUs (virgl) and ARM boards such as the Raspberry Pi can't run the game.
-- The setup code in the renderer must be rewritten for DSA, and the shaders moved to `#version 450`.
+- **macOS can't be supported** while we need 4.5, because Apple stopped at OpenGL 4.1. Supporting it would
+  need a separate 4.1 render path, or a Vulkan (MoltenVK) or Metal renderer.
+- Virtual machine GPUs (virgl) and some older GPUs with open drivers can't run the game.
+- The setup code in the renderer must be rewritten for DSA.
 
 ## 2026-11-11: Use Jolt Physics for collision
 
-Decision: replace our own collision code with Jolt Physics at the start of v0.2. The player becomes a
-Jolt `CharacterVirtual`.
+Status: **CONSIDERED**.
+
+Decision: replace our own collision code with Jolt Physics. The player becomes a Jolt `CharacterVirtual`.
 
 Gains:
 
@@ -53,5 +80,5 @@ Drawbacks:
 - Jolt has its own math types, so values are converted to and from GLM where the two meet. Jolt is
   y-up by default, but its up direction can be set, so our z-up convention stays.
 - Less of the collision algorithm is our own code, which matters for the goal of practicing C++.
-- Alternative that was considered: keep our own code and add a spatial grid for speed. This is cheaper
-  now, but stairs, props, doors and water would each need more of our own physics later.
+- Alternative: keep our own code and add a spatial grid for speed. This is cheaper now, but stairs, props,
+  doors and water would each need more of our own physics later.
