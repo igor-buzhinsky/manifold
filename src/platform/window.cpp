@@ -62,12 +62,18 @@ Window::Window(const std::string& title, int width, int height) {
         throw std::runtime_error(error);
     }
     // OpenGL functions can only be loaded once a context exists. Until then, all of them are null.
-    if (gladLoadGL([](const char* name) -> GLADapiproc { return SDL_GL_GetProcAddress(name); }) == 0) {
+    // gladLoadGL returns the context's version, or 0 if it can't be read. A context older than requested
+    // would load only part of the functions, so it is rejected too.
+    const int version = gladLoadGL([](const char* name) -> GLADapiproc { return SDL_GL_GetProcAddress(name); });
+    const int major = GLAD_VERSION_MAJOR(version);
+    const int minor = GLAD_VERSION_MINOR(version);
+    if (version == 0 || major < kGlMajorVersion || (major == kGlMajorVersion && minor < kGlMinorVersion)) {
         SDL_GL_DestroyContext(context_);
         SDL_DestroyWindow(window_);
         SDL_Quit();
-        throw std::runtime_error(std::format("Loading OpenGL functions failed (OpenGL {}.{} core is needed)",
-                                             kGlMajorVersion, kGlMinorVersion));
+        throw std::runtime_error(
+            std::format("Loading OpenGL functions failed: got OpenGL {}.{}, but {}.{} core is needed", major, minor,
+                        kGlMajorVersion, kGlMinorVersion));
     }
     SDL_GL_SetSwapInterval(1);  // Vsync.
     log_info("OpenGL {}, {}", gl_string(GL_VERSION), gl_string(GL_RENDERER));

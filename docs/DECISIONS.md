@@ -94,12 +94,12 @@ files kept in the repo in `external/glad/`. After the context is created, the wi
 Gains:
 
 - **No system dependency**: libepoxy-dev drops out of the install command. (pkg-config stays, because
-  SDL3 uses it to find Wayland, PipeWire and PulseAudio.) The same code
-  builds on Linux, Windows and macOS, which helps both of those "later" items.
+  SDL3 uses it to find Wayland, PipeWire and PulseAudio.) The same code builds on Linux, Windows and
+  macOS, which helps both of those "later" items.
 - **The version is checked at compile time**: the header only declares functions of OpenGL 4.1 core, so
   using a newer function by mistake (for example one from 4.5) doesn't compile. With libepoxy, such code
   compiles and fails only on a GPU or OS without that function, such as macOS.
-- Small and simple: one header and one source file, with no library to link.
+- Small and simple: one header and one source file, with no system library to find and link.
 
 Drawbacks:
 

@@ -15,7 +15,8 @@ sudo apt install build-essential cmake ninja-build git clang-format clang-tidy p
     libasound2-dev libpulse-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
 ```
 
-The first line is the toolchain. The rest are system development packages that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
+The first line is the toolchain (pkg-config is used by SDL3's build). The rest are system development packages
+that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
 The full list of SDL's optional dependencies is in its
 [README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
 (GLM, stb, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in

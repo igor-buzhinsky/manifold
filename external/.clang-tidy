@@ -1,0 +1,2 @@
+# Generated code is not linted. This only quiets editors (clangd) when a file here is opened.
+Checks: '-*'
