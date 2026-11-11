@@ -2,7 +2,7 @@
 
 #include <span>
 
-#include <epoxy/gl.h>
+#include <glad/gl.h>
 #include <glm/vec3.hpp>
 
 #include "render/camera.hpp"

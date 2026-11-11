@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include <epoxy/gl.h>
+#include <glad/gl.h>
 #include <stb_image_write.h>
 
 namespace manifold {

@@ -20,12 +20,14 @@ constexpr int kGlMinorVersion = 1;
 /// at a time.
 class Window {
 public:
-    /// Opens a window that can't be resized, and makes its OpenGL context current with vsync on.
+    /// Opens a window that can't be resized, makes its OpenGL context current with vsync on, and loads
+    /// the OpenGL functions.
     ///
     /// \param title  Text in the title bar.
     /// \param width  Width in screen units, which may differ from pixels on high-DPI screens.
     /// \param height Height in screen units.
-    /// \throws std::runtime_error if SDL, the window or the OpenGL context can't be created.
+    /// \throws std::runtime_error if SDL, the window or the OpenGL context can't be created, or OpenGL
+    ///         functions can't be loaded.
     Window(const std::string& title, int width, int height);
     ~Window();
     Window(const Window&) = delete;

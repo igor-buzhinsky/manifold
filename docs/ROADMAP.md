@@ -19,7 +19,8 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 ### Language and build
 
 - **C++20**.
-- **CMake** with Ninja, pulling dependencies with FetchContent. Only libepoxy comes from the system.
+- **CMake** with Ninja, pulling dependencies with FetchContent. Only the development packages that SDL3 needs come
+  from the system.
 - **clang-format** and **clang-tidy** enforce the style (see [CODING_STYLE.md](CODING_STYLE.md)).
 - **GoogleTest** for unit tests. Game logic lives in the `manifold_core` library, which has no window or
   OpenGL code, so it can be tested.
@@ -30,7 +31,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 |---|---|---|---|
 | Window, input, full-screen, audio | **SDL3** | In use | Built from source as a static library. Works on Wayland and X11. |
 | Rendering API | **OpenGL 4.1 core** | In use | The newest version on macOS. 4.5 is considered, see [DECISIONS.md](DECISIONS.md). Vulkan is not worth the effort for this scope. |
-| GL loader | **libepoxy** | In use | Ubuntu package; nothing to generate. Moving to glad is considered, see [DECISIONS.md](DECISIONS.md). |
+| GL loader | **glad 2** | In use | Generated for OpenGL 4.1 core and kept in `external/glad/`, see [DECISIONS.md](DECISIONS.md). |
 | Math | **GLM** | In use | |
 | Images | **stb_image**, **stb_image_write** | In use | stb_image_write saves screenshots. stb_image will load textures. |
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
@@ -102,7 +103,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 ## v0.2 — Lighting and level structure
 
 - ~~**OpenGL 4.1**: move the renderer from 3.3 core to 4.1 core, which is as far as macOS goes.~~ Done.
-- To consider: replace libepoxy with glad, which helps Windows and macOS support. See [DECISIONS.md](DECISIONS.md).
+- ~~Replace libepoxy with glad, which helps Windows and macOS support.~~ Done.
 - To consider (see [DECISIONS.md](DECISIONS.md)):
   - **OpenGL 4.5**: debug output through the logger, Direct State Access, shader storage buffers and
     compute shaders. This closes the macOS path unless we keep a 4.1 render path.
@@ -142,11 +143,10 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - Audio: ambient sound, footsteps, spell sounds.
 - Visibility culling (rooms and portals) if levels get large.
 - **macOS support**: possible as long as the renderer runs on OpenGL 4.1 (Apple's newest, and
-  deprecated, version). Needs a loader other than the system libepoxy (glad, or libepoxy from Homebrew),
-  and testing on a Mac. If we move to OpenGL 4.5, macOS needs a separate 4.1 path or another renderer.
-- **Windows support**: replace libepoxy with a loader that builds everywhere (for example glad, or
-  libepoxy from vcpkg), add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb and
-  the C++ code are already portable.
+  deprecated, version). Needs testing on a Mac. If we move to OpenGL 4.5, macOS needs a separate 4.1
+  path or another renderer.
+- **Windows support**: add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb, glad
+  and the C++ code are already portable.
 - Party support: 3 characters that are bound to a magical orb and can transport themselves to a pocket dimension.
 - Character stats: health, stamina, sanity, shared mana.
 - Story and lore.

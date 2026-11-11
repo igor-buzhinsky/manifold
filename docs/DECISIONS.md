@@ -85,15 +85,16 @@ Drawbacks:
 
 ## 2026-11-11: Use glad instead of libepoxy to load OpenGL functions
 
-Status: **CONSIDERED**.
+Status: **ACCEPTED**. Done in v0.2.
 
 Decision: replace the system package libepoxy with a glad 2 loader generated for OpenGL 4.1 core, with its
-files kept in the repo (for example in `external/glad/`). After the context is created, the window calls
+files kept in the repo in `external/glad/`. After the context is created, the window calls
 `gladLoadGL` with `SDL_GL_GetProcAddress` and stops with an error if loading fails.
 
 Gains:
 
-- **No system dependency**: libepoxy-dev and pkg-config drop out of the install command. The same code
+- **No system dependency**: libepoxy-dev drops out of the install command. (pkg-config stays, because
+  SDL3 uses it to find Wayland, PipeWire and PulseAudio.) The same code
   builds on Linux, Windows and macOS, which helps both of those "later" items.
 - **The version is checked at compile time**: the header only declares functions of OpenGL 4.1 core, so
   using a newer function by mistake (for example one from 4.5) doesn't compile. With libepoxy, such code

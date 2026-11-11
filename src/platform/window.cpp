@@ -7,7 +7,7 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_video.h>
-#include <epoxy/gl.h>
+#include <glad/gl.h>
 
 #include "render/viewport.hpp"
 #include "util/log.hpp"
@@ -60,6 +60,14 @@ Window::Window(const std::string& title, int width, int height) {
         SDL_DestroyWindow(window_);
         SDL_Quit();
         throw std::runtime_error(error);
+    }
+    // OpenGL functions can only be loaded once a context exists. Until then, all of them are null.
+    if (gladLoadGL([](const char* name) -> GLADapiproc { return SDL_GL_GetProcAddress(name); }) == 0) {
+        SDL_GL_DestroyContext(context_);
+        SDL_DestroyWindow(window_);
+        SDL_Quit();
+        throw std::runtime_error(std::format("Loading OpenGL functions failed (OpenGL {}.{} core is needed)",
+                                             kGlMajorVersion, kGlMinorVersion));
     }
     SDL_GL_SetSwapInterval(1);  // Vsync.
     log_info("OpenGL {}, {}", gl_string(GL_VERSION), gl_string(GL_RENDERER));

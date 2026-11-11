@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(Manifold VERSION 0.0.1 LANGUAGES CXX)
+# C is only needed for the generated glad loader.
+project(Manifold VERSION 0.0.1 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -43,9 +44,9 @@ FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
 
-# libepoxy loads OpenGL functions, from the system package libepoxy-dev.
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(EPOXY REQUIRED IMPORTED_TARGET epoxy)
+# glad loads OpenGL functions. It is generated code kept in the repo, see external/glad/README.md.
+add_library(glad STATIC external/glad/src/gl.c)
+target_include_directories(glad SYSTEM PUBLIC external/glad/include)
 
 set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 
@@ -76,7 +77,7 @@ add_executable(manifold
     src/render/screenshot.cpp
     src/render/stb_image_write.cpp
 )
-target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 PkgConfig::EPOXY stb)
+target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad stb)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 
 if(MANIFOLD_BUILD_TESTS)

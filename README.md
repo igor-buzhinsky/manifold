@@ -9,17 +9,17 @@ or newer (any GPU from about 2012 on).
 On Ubuntu 24.04, everything needed to build and lint the project is installed with:
 
 ```sh
-sudo apt install build-essential cmake ninja-build git clang-format clang-tidy pkg-config libepoxy-dev \
+sudo apt install build-essential cmake ninja-build git clang-format clang-tidy pkg-config \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
     libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev \
     libasound2-dev libpulse-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
 ```
 
-The first line is the toolchain and libepoxy, which loads OpenGL functions. The rest are system development
-packages that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
+The first line is the toolchain. The rest are system development packages that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
 The full list of SDL's optional dependencies is in its
 [README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
-(GLM, stb, GoogleTest) are downloaded and built by CMake.
+(GLM, stb, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
+`external/glad/`.
 
 Build and run:
 

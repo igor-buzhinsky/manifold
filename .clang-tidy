@@ -22,8 +22,8 @@ HeaderFilterRegex: '/(src|tests)/'
 CheckOptions:
   # Pairs like (x, y) or (yaw, pitch) are conventional; flag only three or more similar parameters in a row.
   bugprone-easily-swappable-parameters.MinimumLength: 3
-  # GLM and libepoxy declare their symbols in internal headers, which confuses the include checker.
-  misc-include-cleaner.IgnoreHeaders: 'glm/.*;epoxy/.*'
+  # GLM and glad declare their symbols in internal headers, which confuses the include checker.
+  misc-include-cleaner.IgnoreHeaders: 'glm/.*;glad/.*;KHR/.*'
   readability-identifier-naming.ClassCase: CamelCase
   readability-identifier-naming.StructCase: CamelCase
   readability-identifier-naming.EnumCase: CamelCase
