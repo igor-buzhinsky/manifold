@@ -30,7 +30,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 |---|---|---|---|
 | Window, input, full-screen, audio | **SDL3** | In use | Built from source as a static library. Works on Wayland and X11. |
 | Rendering API | **OpenGL 4.1 core** | In use | The newest version on macOS. 4.5 is considered, see [DECISIONS.md](DECISIONS.md). Vulkan is not worth the effort for this scope. |
-| GL loader | **libepoxy** | In use | Ubuntu package; nothing to generate, unlike glad. Works with GLX and EGL. |
+| GL loader | **libepoxy** | In use | Ubuntu package; nothing to generate. Moving to glad is considered, see [DECISIONS.md](DECISIONS.md). |
 | Math | **GLM** | In use | |
 | Images | **stb_image**, **stb_image_write** | In use | stb_image_write saves screenshots. stb_image will load textures. |
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
@@ -102,7 +102,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 ## v0.2 — Lighting and level structure
 
 - ~~**OpenGL 4.1**: move the renderer from 3.3 core to 4.1 core, which is as far as macOS goes.~~ Done.
-- Consider replacing libepoxy with glad, which helps Windows and macOS support.
+- To consider: replace libepoxy with glad, which helps Windows and macOS support. See [DECISIONS.md](DECISIONS.md).
 - To consider (see [DECISIONS.md](DECISIONS.md)):
   - **OpenGL 4.5**: debug output through the logger, Direct State Access, shader storage buffers and
     compute shaders. This closes the macOS path unless we keep a 4.1 render path.

@@ -82,3 +82,32 @@ Drawbacks:
 - Less of the collision algorithm is our own code, which matters for the goal of practicing C++.
 - Alternative: keep our own code and add a spatial grid for speed. This is cheaper now, but stairs, props,
   doors and water would each need more of our own physics later.
+
+## 2026-11-11: Use glad instead of libepoxy to load OpenGL functions
+
+Status: **CONSIDERED**.
+
+Decision: replace the system package libepoxy with a glad 2 loader generated for OpenGL 4.1 core, with its
+files kept in the repo (for example in `external/glad/`). After the context is created, the window calls
+`gladLoadGL` with `SDL_GL_GetProcAddress` and stops with an error if loading fails.
+
+Gains:
+
+- **No system dependency**: libepoxy-dev and pkg-config drop out of the install command. The same code
+  builds on Linux, Windows and macOS, which helps both of those "later" items.
+- **The version is checked at compile time**: the header only declares functions of OpenGL 4.1 core, so
+  using a newer function by mistake (for example one from 4.5) doesn't compile. With libepoxy, such code
+  compiles and fails only on a GPU or OS without that function, such as macOS.
+- Small and simple: one header and one source file, with no library to link.
+
+Drawbacks:
+
+- Generated code (a few thousand lines) lives in the repo. It must be left out of formatting and lint.
+- The loader must be generated again (with the glad web service or its Python tool) when the version or
+  the extensions change, for example if we move to OpenGL 4.5 or need an extension.
+- The loading call is our code: libepoxy finds functions by itself, on first use, and handles GLX and
+  EGL. With glad, a missing call or a call before the context exists gives null function pointers.
+- Alternative: keep libepoxy and get it from vcpkg or MSYS2 on Windows and from Homebrew on macOS. This
+  works, but each platform needs its own setup, and the version is not checked at compile time.
+- Alternative: let CMake generate the loader during the build with glad's CMake support. Nothing
+  generated is in the repo, but the build then needs Python with Jinja2.
