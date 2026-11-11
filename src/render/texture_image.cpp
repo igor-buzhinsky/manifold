@@ -52,10 +52,16 @@ std::optional<Image> load_image(const std::filesystem::path& path) {
 std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root) {
     std::vector<std::filesystem::path> paths;
     std::error_code error;
-    for (std::filesystem::recursive_directory_iterator it(root, error), end; !error && it != end; it.increment(error)) {
+    std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied,
+                                                     error);
+    for (const std::filesystem::recursive_directory_iterator end; !error && it != end; it.increment(error)) {
         if (it->is_regular_file(error) && has_png_extension(it->path())) {
             paths.push_back(it->path());
         }
+    }
+    // A missing root is normal (no textures), but other errors end the search early.
+    if (error && error != std::errc::no_such_file_or_directory) {
+        log_warning("Searching for textures in {} stopped early: {}", root.string(), error.message());
     }
     std::ranges::sort(paths);
     return paths;
@@ -66,13 +72,19 @@ std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path>
     std::mt19937_64 random(seed);
     std::ranges::shuffle(order, random);
     for (const std::filesystem::path& path : order) {
-        std::optional<Image> image = load_image(path);
-        if (!image) {
+        // Reading only the header first avoids decoding a large image just to skip it. Files whose header
+        // can't be read are left to load_image(), which logs why.
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+        if (stbi_info(path.string().c_str(), &width, &height, &channels) != 0 &&
+            (width > kMaxTextureSize || height > kMaxTextureSize)) {
+            log_warning("Texture {} is {}x{}, larger than {}x{}, trying another one", path.string(), width, height,
+                        kMaxTextureSize, kMaxTextureSize);
             continue;
         }
-        if (image->width > kMaxTextureSize || image->height > kMaxTextureSize) {
-            log_warning("Texture {} is {}x{}, larger than {}x{}, trying another one", path.string(), image->width,
-                        image->height, kMaxTextureSize, kMaxTextureSize);
+        std::optional<Image> image = load_image(path);
+        if (!image) {
             continue;
         }
         log_info("Texture: {} ({}x{})", path.string(), image->width, image->height);

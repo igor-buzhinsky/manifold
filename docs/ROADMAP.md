@@ -93,7 +93,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   - The player never starts inside an obstacle, and all rooms are reachable.
 - **Lighting**: one warm point light at the player's eyes plus a small ambient term. Linear-space
   lighting, Reinhard tonemapping and sRGB output. A 1 m checker pattern on all surfaces stands in for
-  textures and shows scale.
+  textures and shows scale (replaced by textures in v0.2).
   - Shadows are not needed yet. A light at the camera position lights exactly the surfaces the camera
     can see, so its shadows are never visible. This changes once the light is offset (for example held
     in a hand) or other lights are added.

@@ -109,10 +109,10 @@ TEST_F(TextureImageTest, SameSeedPicksSameTextureAndSeedsVary) {
         candidates.push_back(write_png("t" + std::to_string(i) + ".png", 2, 2));
     }
     testing::internal::CaptureStderr();
-    EXPECT_EQ(pick_texture(candidates, 5)->path, pick_texture(candidates, 5)->path);
+    EXPECT_EQ(pick_texture(candidates, 5).value().path, pick_texture(candidates, 5).value().path);
     bool varies = false;
     for (std::uint64_t seed = 1; seed < 20; ++seed) {
-        varies = varies || pick_texture(candidates, seed)->path != pick_texture(candidates, 0)->path;
+        varies = varies || pick_texture(candidates, seed).value().path != pick_texture(candidates, 0).value().path;
     }
     testing::internal::GetCapturedStderr();
     EXPECT_TRUE(varies);

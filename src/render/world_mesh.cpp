@@ -23,10 +23,11 @@ namespace {
 /// \param position A point on the plane, in world coordinates.
 /// \param normal   Unit normal of the plane, pointing to its visible side.
 glm::vec2 texture_coordinates(const glm::vec3& position, const glm::vec3& normal) {
-    constexpr float kVerticalNormal = 0.999f;
-    const glm::vec3 tangent = std::abs(normal.z) > kVerticalNormal
-                                  ? glm::vec3(1.0f, 0.0f, 0.0f)
-                                  : glm::normalize(glm::cross(glm::vec3(0.0f, 0.0f, 1.0f), normal));
+    // The horizontal direction in the plane. It is undefined only for exactly horizontal planes.
+    constexpr float kMinLength = 1e-6f;
+    const glm::vec3 horizontal = glm::cross(glm::vec3(0.0f, 0.0f, 1.0f), normal);
+    const float length = glm::length(horizontal);
+    const glm::vec3 tangent = length > kMinLength ? horizontal / length : glm::vec3(1.0f, 0.0f, 0.0f);
     const glm::vec3 bitangent = glm::cross(normal, tangent);
     // Image rows go from the top down, so v grows downwards to keep the image upright.
     return glm::vec2(glm::dot(position, tangent), -glm::dot(position, bitangent)) / kTextureTileSize;

@@ -33,6 +33,9 @@ cmake --build build
 ./build/manifold 42 --screenshot view.png   # save the first frame as a PNG and exit
 ```
 
+The game reads its textures from `assets/textures/` in the source tree, whose path is built into the
+executable, so keep the checkout where it was built. If no texture is found, surfaces are plain grey.
+
 Controls are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the window to quit.
 
 ## Tests
