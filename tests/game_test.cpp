@@ -263,6 +263,21 @@ TEST(GameTest, CannotJumpInTheAir) {
     EXPECT_LT(game.player().vertical_speed(), speed);  // Only gravity acts now.
 }
 
+TEST(GameTest, HoldingRiseJumpsOnlyOnce) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({}, 0.01f);
+    // Hold for 2 seconds: one jump, then the player stays on the ground.
+    for (int frame = 0; frame < 200; ++frame) {
+        game.update({.rise = 1.0f}, 0.01f);
+    }
+    EXPECT_TRUE(game.player().on_ground());
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+    // Release and press again: a second jump.
+    game.update({}, 0.01f);
+    game.update({.rise = 1.0f}, 0.01f);
+    EXPECT_GT(game.player().vertical_speed(), 0.0f);
+}
+
 /// Walks towards a 0.4 m high block for 2 seconds, jumping at `jump_frame` if given, and returns the end.
 glm::vec3 walk_to_low_block(int jump_frame) {
     Level level = make_ramp_level();

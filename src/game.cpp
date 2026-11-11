@@ -40,6 +40,8 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       player_(with_position(config.player, level_.player_start)) {}
 
 void Game::update(const PlayerInput& input, float dt) {
+    const bool rise_pressed = input.rise > 0.0f && !rise_held_;
+    rise_held_ = input.rise > 0.0f;
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
 
     // Walking is horizontal, in the direction the player faces, whatever the pitch.
@@ -62,7 +64,7 @@ void Game::update(const PlayerInput& input, float dt) {
     }
 
     float start_speed = player_.vertical_speed();
-    if (input.rise > 0.0f && player_.on_ground()) {
+    if (rise_pressed && player_.on_ground()) {
         // The extra half step of gravity makes up for the position lagging behind the speed in the update
         // below, so the peak is the same at any frame rate.
         start_speed = jump_speed_ + (level_.gravity * dt / 2.0f);

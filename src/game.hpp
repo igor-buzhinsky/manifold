@@ -33,7 +33,9 @@ struct PlayerInput {
     float look = 0.0f;     ///< Positive looks up.
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     float strafe = 0.0f;   ///< Positive steps right, negative left.
-    float rise = 0.0f;     ///< Positive jumps, or flies up with noclip. Negative flies down with noclip.
+    /// Positive jumps, or flies up with noclip. Negative flies down with noclip. A jump needs a new press:
+    /// rise must have been <= 0 in the previous frame.
+    float rise = 0.0f;
 };
 
 /// Owns the game state.
@@ -61,9 +63,9 @@ public:
     ///
     /// Turns the player first, then walks in the new direction. Without noclip, the player falls by the
     /// level's gravity and is stopped by obstacles and level walls. Walking into a ramp goes up it, and a
-    /// player who walks down a ramp sticks to it instead of falling in small hops. Positive `input.rise`
-    /// makes a player who stands on something jump. With noclip, the player flies: moves up and down by
-    /// `input.rise`, doesn't fall, and goes through everything.
+    /// player who walks down a ramp sticks to it instead of falling in small hops. When `input.rise` becomes
+    /// positive, a player who stands on something jumps. Holding it doesn't jump again. With noclip, the player flies:
+    /// moves up and down by `input.rise`, doesn't fall, and goes through everything.
     ///
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
@@ -87,6 +89,7 @@ private:
     float max_snap_slope_;
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     bool noclip_ = false;
+    bool rise_held_ = false;  ///< Whether input.rise was positive in the previous frame.
     std::uint64_t seed_;
     Level level_;
     Player player_;
