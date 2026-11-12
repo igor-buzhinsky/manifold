@@ -15,6 +15,7 @@
 
 #include "level/level.hpp"
 #include "world/geometry.hpp"
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -172,6 +173,38 @@ TEST(DebugLayoutTest, EverythingStaysInsideBounds) {
         }
         for (const Ramp& ramp : level.world.ramps()) {
             EXPECT_TRUE(inside(config.bounds(), ramp.footprint())) << "seed " << seed;
+        }
+    }
+}
+
+TEST(DebugLayoutTest, TorchesHangOnLevelWallsFacingInwards) {
+    const DebugLayoutConfig config = make_config();
+    const WorldBounds bounds = config.bounds();
+    // With nothing in the way, the 40 m by 30 m level gets 5 torches on its long walls and 3 on its short ones.
+    DebugLayoutConfig empty = config;
+    empty.obstacle_count = 0;
+    empty.ramp_count = 0;
+    EXPECT_EQ(generate(empty, 1).world.torches().size(), 16U);
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(config, seed);
+        EXPECT_FALSE(level.world.torches().empty()) << "seed " << seed;
+        for (const Torch& torch : level.world.torches()) {
+            const glm::vec3 mount = torch.mount;
+            const bool on_wall = mount.x == bounds.x_min || mount.x == bounds.x_max || mount.y == bounds.y_min ||
+                                 mount.y == bounds.y_max;
+            EXPECT_TRUE(on_wall) << "seed " << seed;
+            EXPECT_FLOAT_EQ(mount.z, config.torch_height);
+            EXPECT_TRUE(bounds.contains(torch.tip())) << "seed " << seed;
+            // Nothing stands where the handle and the flame are.
+            const Circle around{.center = glm::vec2(torch.tip()), .radius = 0.1f};
+            for (const Obstacle& obstacle : level.world.obstacles()) {
+                if (obstacle.base_center.z < torch.tip().z) {
+                    EXPECT_FALSE(intersects(obstacle.footprint(), around)) << "seed " << seed;
+                }
+            }
+            for (const Ramp& ramp : level.world.ramps()) {
+                EXPECT_FALSE(intersects(ramp.footprint(), around)) << "seed " << seed;
+            }
         }
     }
 }

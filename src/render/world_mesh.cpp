@@ -3,12 +3,14 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <vector>
 
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -33,25 +35,89 @@ glm::vec2 texture_coordinates(const glm::vec3& position, const glm::vec3& normal
     return glm::vec2(glm::dot(position, tangent), -glm::dot(position, bitangent)) / kTextureTileSize;
 }
 
+/// How a surface looks, see Vertex.
+struct Material {
+    glm::vec3 color{1.0f};
+    float texture_weight = 1.0f;
+};
+
+/// The material of walls, floors, ceilings, obstacles and ramps: the level texture as it is.
+constexpr Material kLevelMaterial{};
+
+/// Adds a vertex with texture coordinates from its position.
+void add_vertex(std::vector<Vertex>& vertices, const glm::vec3& position, const glm::vec3& normal,
+                const Material& material) {
+    vertices.push_back({.position = position,
+                        .normal = normal,
+                        .uv = texture_coordinates(position, normal),
+                        .color = material.color,
+                        .texture_weight = material.texture_weight});
+}
+
 /// Adds a triangle. The normal is computed from the corner order.
 ///
 /// \param corners Corners in counter-clockwise order, as seen from the front side.
-void add_triangle(std::vector<Vertex>& vertices, const std::array<glm::vec3, 3>& corners) {
+void add_triangle(std::vector<Vertex>& vertices, const std::array<glm::vec3, 3>& corners,
+                  const Material& material = kLevelMaterial) {
     const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
     for (const glm::vec3& corner : corners) {
-        vertices.push_back({.position = corner, .normal = normal, .uv = texture_coordinates(corner, normal)});
+        add_vertex(vertices, corner, normal, material);
     }
 }
 
 /// Adds a quad as two triangles. The normal is computed from the corner order.
 ///
 /// \param corners Corners in counter-clockwise order, as seen from the front side.
-void add_quad(std::vector<Vertex>& vertices, const std::array<glm::vec3, 4>& corners) {
+void add_quad(std::vector<Vertex>& vertices, const std::array<glm::vec3, 4>& corners,
+              const Material& material = kLevelMaterial) {
     const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
     for (const int index : {0, 1, 2, 0, 2, 3}) {
-        const glm::vec3& corner = corners.at(index);
-        vertices.push_back({.position = corner, .normal = normal, .uv = texture_coordinates(corner, normal)});
+        add_vertex(vertices, corners.at(index), normal, material);
     }
+}
+
+/// Number of sides of the prisms that torch handles are made of.
+constexpr int kPrismSides = 6;
+
+/// Adds a prism with a regular polygon as its cross-section, with both ends closed.
+///
+/// \param base   Center of the first end.
+/// \param axis   Unit vector from the first end to the second.
+/// \param radius Distance from the axis to the corners of the cross-section, in metres.
+/// \param length Distance between the two ends, in metres.
+void add_prism(std::vector<Vertex>& vertices, const glm::vec3& base, const glm::vec3& axis, float radius, float length,
+               const Material& material) {
+    // Two unit vectors that are perpendicular to the axis and to each other, with u x v = axis.
+    const glm::vec3 helper = std::abs(axis.z) < 0.9f ? glm::vec3(0.0f, 0.0f, 1.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    const glm::vec3 u = glm::normalize(glm::cross(helper, axis));
+    const glm::vec3 v = glm::cross(axis, u);
+    std::array<glm::vec3, kPrismSides> bottom{};
+    std::array<glm::vec3, kPrismSides> top{};
+    for (std::size_t i = 0; i < bottom.size(); ++i) {
+        const float angle = 2.0f * std::numbers::pi_v<float> * static_cast<float>(i) / kPrismSides;
+        bottom.at(i) = base + (radius * ((std::cos(angle) * u) + (std::sin(angle) * v)));
+        top.at(i) = bottom.at(i) + (length * axis);
+    }
+    // The corners go counter-clockwise around the axis, as seen from the second end.
+    for (std::size_t i = 0; i < bottom.size(); ++i) {
+        const std::size_t next = (i + 1) % bottom.size();
+        add_quad(vertices, {bottom.at(i), bottom.at(next), top.at(next), top.at(i)}, material);
+    }
+    for (std::size_t i = 1; i + 1 < bottom.size(); ++i) {
+        add_triangle(vertices, {top[0], top.at(i), top.at(i + 1)}, material);
+        add_triangle(vertices, {bottom[0], bottom.at(i + 1), bottom.at(i)}, material);
+    }
+}
+
+/// Adds the handle of a torch and its wider, burning end.
+void add_torch(std::vector<Vertex>& vertices, const Torch& torch) {
+    constexpr float kHeadLength = 0.1f;
+    constexpr float kHeadRadius = 1.5f * kTorchRadius;
+    constexpr Material kHandle{.color = kTorchHandleColor, .texture_weight = 0.0f};
+    constexpr Material kHead{.color = kTorchHeadColor, .texture_weight = 0.0f};
+    const glm::vec3 axis = torch.axis();
+    add_prism(vertices, torch.mount, axis, kTorchRadius, kTorchLength - kHeadLength, kHandle);
+    add_prism(vertices, torch.tip() - (kHeadLength * axis), axis, kHeadRadius, kHeadLength, kHead);
 }
 
 /// Adds the slope, the high end, the two sides and, if the ramp doesn't stand on the floor, the bottom.
@@ -134,6 +200,9 @@ std::vector<Vertex> build_world_mesh(const World& world) {
     }
     for (const Ramp& ramp : world.ramps()) {
         add_ramp(vertices, ramp);
+    }
+    for (const Torch& torch : world.torches()) {
+        add_torch(vertices, torch);
     }
     return vertices;
 }

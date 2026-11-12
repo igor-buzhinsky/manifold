@@ -1,6 +1,8 @@
 #include "level/room_layout.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <cstddef>
 #include <map>
 #include <numbers>
@@ -566,6 +568,38 @@ void build_ramps(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
+/// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
+void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
+                 LevelRng& rng) {
+    std::bernoulli_distribution has_torch(config.torch_chance);
+    const std::array<TilePosition, 4> directions{
+        {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
+    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
+        const RoomPlan& layer = plan.layers[index];
+        for (int y = 0; y < layer.height; ++y) {
+            for (int x = 0; x < layer.width; ++x) {
+                if (layer.tile(x, y) != Tile::kWall) {
+                    continue;
+                }
+                for (const TilePosition& direction : directions) {
+                    const int front_x = x + direction.x;
+                    const int front_y = y + direction.y;
+                    const std::optional<Hole> hole = plan.hole_at(static_cast<int>(index), front_x, front_y);
+                    const bool ramp_in_front = hole && hole->ramp != RampRise::kNone;
+                    if (layer.room_at(front_x, front_y) < 0 || ramp_in_front || !has_torch(rng)) {
+                        continue;
+                    }
+                    const glm::vec3 outward{static_cast<float>(direction.x), static_cast<float>(direction.y), 0.0f};
+                    const glm::vec3 floor_center = grid.tile_center(x, y, grid.floor_z[index]);
+                    world.add_torch({.mount = floor_center + (outward * (grid.tile / 2.0f)) +
+                                              glm::vec3(0.0f, 0.0f, config.torch_height),
+                                     .yaw = std::atan2(outward.y, outward.x)});
+                }
+            }
+        }
+    }
+}
+
 }  // namespace
 
 Level RoomLayout::generate(float clearance, LevelRng& rng) const {
@@ -594,6 +628,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_walls(world, plan, grid, config_.height);
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
+    add_torches(world, plan, grid, config_, rng);
 
     const GridRoom& room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
     const glm::vec3 start = grid.at(static_cast<float>(room.x) + (static_cast<float>(room.width) / 2.0f),

@@ -29,6 +29,9 @@ struct RoomLayoutConfig {
     int min_ramps = 2;            ///< Fewest holes with a ramp under them, between every two neighboring layers.
     int max_ramps = 4;            ///< Most holes with a ramp under them, between every two neighboring layers.
     int max_plan_attempts = 100;  ///< How often to plan the level again when the holes don't fit.
+    /// Chance that a side of a wall tile next to the floor of a room gets a torch, in [0, 1].
+    float torch_chance = 0.1f;
+    float torch_height = 1.6f;  ///< Height of a torch's mount above the floor of its layer, in metres.
 };
 
 /// What a tile of the room grid contains.
@@ -161,6 +164,8 @@ std::string draw_plan(const LayeredPlan& plan);
 /// Each wall tile becomes a non-rotated block from the floor to the ceiling of its layer. The floors
 /// between layers are made of thin blocks, one per tile, except at holes and where both layers are empty.
 /// Ramps are wedges under their holes.
+/// Torches hang in the middle of wall tile sides that face the floor of a room, each with a chance of
+/// `torch_chance`, but not where a ramp runs along the wall.
 /// The player starts in the center of a random room, see plan_layers(). The plan is drawn as text, see
 /// draw_plan().
 class RoomLayout final : public LevelLayout {

@@ -119,6 +119,13 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   glowing crystals), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
   shader in a uniform buffer, chosen on the CPU each frame. With 4.5, a shader storage buffer can hold all
   lights of the level, and a compute shader can choose the lights for each part of the screen.
+  Done for torches: room levels get torches on random wall sides facing a room, debug levels on their outer
+  walls. A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
+  sprite: an upright quad facing the camera, painted by a shader as a pixelated, flickering teardrop. Each
+  frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
+  shader in a uniform buffer. Torch lights flicker and sway slightly, and fade out smoothly at 6 m. Until
+  shadows exist, torch light goes through walls and floors. Next: braziers and crystals, and a fade for
+  lights that enter or leave the nearest 31, so they don't pop.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.

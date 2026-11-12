@@ -19,6 +19,8 @@ struct DebugLayoutConfig {
     float ramp_length = 4.0f;           ///< Length of a ramp along its slope, in metres.
     float ramp_width = 2.0f;            ///< Width of a ramp across its slope, in metres.
     int max_attempts_per_block = 1000;  ///< How often to try placing an obstacle or a ramp before giving up.
+    float torch_spacing = 8.0f;         ///< Distance between torches along the level walls, in metres.
+    float torch_height = 1.6f;          ///< Height of a torch's mount above the floor, in metres.
 
     /// The box that encloses the level. It is 5 obstacle heights plus 4 ceiling thicknesses high, like 5
     /// layers of a room level, although only the lowest one is used.
@@ -32,6 +34,8 @@ struct DebugLayoutConfig {
 ///   overlap each other and touch the obstacles below.
 /// - Ramps go up from the floor to the top of the ceiling blocks, in a random direction. They don't overlap
 ///   obstacles, ceiling blocks or other ramps.
+///
+/// - Torches hang on the level walls, `torch_spacing` apart, except where an obstacle or a ramp is in the way.
 ///
 /// Everything lies fully inside the bounds, and the start in the center of the level stays free. The plan
 /// lists all obstacles, ceiling blocks and ramps.

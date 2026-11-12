@@ -6,6 +6,7 @@
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
+#include "world/torch.hpp"
 
 namespace manifold {
 
@@ -52,9 +53,10 @@ struct Ramp {
     RotatedRectangle footprint() const;
 };
 
-/// The static part of a level: its boundaries and the geometry inside them.
+/// The static part of a level: its boundaries, the geometry inside them and the torches on the walls.
 ///
-/// Dynamic entities, such as the player, are kept outside of the world model.
+/// Only obstacles, ramps and the boundaries collide. Dynamic entities, such as the player, are kept outside of the
+/// world model.
 class World {
 public:
     /// Creates an empty level.
@@ -63,14 +65,17 @@ public:
     const WorldBounds& bounds() const { return bounds_; }
     std::span<const Obstacle> obstacles() const { return obstacles_; }
     std::span<const Ramp> ramps() const { return ramps_; }
+    std::span<const Torch> torches() const { return torches_; }
 
     void add_obstacle(const Obstacle& obstacle);
     void add_ramp(const Ramp& ramp);
+    void add_torch(const Torch& torch);
 
 private:
     WorldBounds bounds_;
     std::vector<Obstacle> obstacles_;
     std::vector<Ramp> ramps_;
+    std::vector<Torch> torches_;
 };
 
 }  // namespace manifold

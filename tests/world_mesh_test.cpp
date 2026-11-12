@@ -2,12 +2,14 @@
 
 #include <cmath>
 #include <cstddef>
+#include <numbers>
 #include <vector>
 
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -137,6 +139,53 @@ TEST(WorldMeshTest, TextureIsUprightOnWalls) {
             EXPECT_NEAR(v_at_floor, 0.0f, 1e-4f);
         }
     }
+}
+
+TEST(WorldMeshTest, LevelSurfacesUseTextureAndTorchesTheirColors) {
+    World world = make_world();
+    const std::size_t level_vertices = build_world_mesh(world).size();
+    world.add_torch({.mount = {0.0f, 4.0f, 1.6f}, .yaw = -std::numbers::pi_v<float> / 2.0f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    // Two closed six-sided prisms: 6 side quads and 2 caps of 4 triangles each.
+    constexpr std::size_t kVerticesPerTriangle = 3;
+    constexpr std::size_t kPrismVertices = (6 * kVerticesPerQuad) + (8 * kVerticesPerTriangle);
+    ASSERT_EQ(mesh.size(), level_vertices + (2 * kPrismVertices));
+    for (std::size_t i = 0; i < mesh.size(); ++i) {
+        if (i < level_vertices) {
+            EXPECT_EQ(mesh[i].color, glm::vec3(1.0f));
+            EXPECT_FLOAT_EQ(mesh[i].texture_weight, 1.0f);
+        } else {
+            EXPECT_EQ(mesh[i].color, i < level_vertices + kPrismVertices ? kTorchHandleColor : kTorchHeadColor);
+            EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
+        }
+    }
+}
+
+TEST(WorldMeshTest, TorchIsAClosedPrismAlongItsHandle) {
+    World world(kBounds);
+    const Torch torch{.mount = {kBounds.x_min, 0.0f, 1.6f}, .yaw = 0.0f};
+    world.add_torch(torch);
+    const std::vector<Vertex> all = build_world_mesh(world);
+    const std::vector<Vertex> mesh(all.begin() + static_cast<std::ptrdiff_t>(6 * kVerticesPerQuad), all.end());
+    ASSERT_FALSE(mesh.empty());
+    const glm::vec3 axis = torch.axis();
+    for (std::size_t i = 0; i < mesh.size(); i += 3) {
+        // Normals point away from the handle's axis or along it, at the ends.
+        const glm::vec3 center = (mesh[i].position + mesh[i + 1].position + mesh[i + 2].position) / 3.0f;
+        const float along = glm::dot(center - torch.mount, axis);
+        const glm::vec3 from_axis = center - torch.mount - (along * axis);
+        const float outward = glm::dot(from_axis, mesh[i].normal);
+        const float end = std::abs(glm::dot(axis, mesh[i].normal));
+        EXPECT_TRUE(outward > 0.0f || end > 0.99f) << "triangle " << i / 3;
+        EXPECT_GE(along, -1e-5f);
+        EXPECT_LE(along, kTorchLength + 1e-5f);
+    }
+    // The triangles enclose a volume: the sum of their area vectors is zero.
+    glm::vec3 total{0.0f};
+    for (std::size_t i = 0; i < mesh.size(); i += 3) {
+        total += glm::cross(mesh[i + 1].position - mesh[i].position, mesh[i + 2].position - mesh[i].position);
+    }
+    EXPECT_NEAR(glm::length(total), 0.0f, 1e-5f);
 }
 
 TEST(WorldMeshTest, FloorTextureFollowsXAndY) {

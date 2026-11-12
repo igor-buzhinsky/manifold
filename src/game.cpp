@@ -40,6 +40,7 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       player_(with_position(config.player, level_.player_start)) {}
 
 void Game::update(const PlayerInput& input, float dt) {
+    time_ += dt;
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
     rise_held_ = input.rise > 0.0f;
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);

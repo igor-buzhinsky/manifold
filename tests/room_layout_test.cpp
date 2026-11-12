@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
@@ -20,6 +21,7 @@
 #include "level/level.hpp"
 #include "physics/collision.hpp"
 #include "world/geometry.hpp"
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -591,6 +593,51 @@ TEST(RoomLayoutTest, PlayerWalksUpGeneratedRamps) {
         EXPECT_TRUE(game.player().on_ground());
     }
     EXPECT_GT(ramps, 0);
+}
+
+/// Checks whether a point is inside an obstacle of a world.
+bool inside_obstacle(const World& world, const glm::vec3& point) {
+    const VerticalCylinder speck{.base = point, .radius = 0.01f, .height = 0.01f};
+    return std::any_of(world.obstacles().begin(), world.obstacles().end(),
+                       [&](const Obstacle& obstacle) { return find_contact(speck, obstacle).has_value(); });
+}
+
+TEST(RoomLayoutTest, TorchesHangOnWallsFacingRooms) {
+    const RoomLayoutConfig config = make_config();
+    const float layer_step = config.height + config.slab_thickness;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(seed);
+        const World& world = level.world;
+        EXPECT_FALSE(world.torches().empty()) << "seed " << seed;
+        for (const Torch& torch : world.torches()) {
+            const float layer = std::round(torch.mount.z / layer_step);
+            EXPECT_NEAR(torch.mount.z - (layer * layer_step), config.torch_height, 1e-4f) << "seed " << seed;
+            // A wall is right behind the mount, and the handle and flame are in the open.
+            EXPECT_TRUE(inside_obstacle(world, torch.mount - (0.1f * torch.outward()))) << "seed " << seed;
+            EXPECT_FALSE(inside_obstacle(world, torch.mount + (0.05f * torch.axis()))) << "seed " << seed;
+            EXPECT_FALSE(inside_obstacle(world, torch.tip())) << "seed " << seed;
+            EXPECT_FALSE(inside_obstacle(world, torch.flame_bottom() + glm::vec3(0.0f, 0.0f, kFlameHeight)))
+                << "seed " << seed;
+            // No ramp runs along the wall below the torch.
+            const Circle around{.center = glm::vec2(torch.tip()), .radius = 0.1f};
+            for (const Ramp& ramp : world.ramps()) {
+                const bool same_layer = std::abs(ramp.base_center.z - (layer * layer_step)) < 1e-3f;
+                EXPECT_FALSE(same_layer && intersects(ramp.footprint(), around)) << "seed " << seed;
+            }
+        }
+    }
+}
+
+TEST(RoomLayoutTest, TorchChanceControlsTorchCount) {
+    RoomLayoutConfig config = make_config();
+    config.torch_chance = 0.0f;
+    EXPECT_TRUE(generate(3, config).world.torches().empty());
+    config.torch_chance = 1.0f;
+    const std::size_t all = generate(3, config).world.torches().size();
+    config.torch_chance = 0.1f;
+    const std::size_t some = generate(3, config).world.torches().size();
+    EXPECT_GT(some, all / 20);
+    EXPECT_LT(some, all / 5);
 }
 
 TEST(RoomLayoutTest, ThrowsWhenTilesAreTooSmallForClearance) {

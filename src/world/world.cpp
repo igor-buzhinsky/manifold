@@ -4,6 +4,7 @@
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
+#include "world/torch.hpp"
 
 namespace manifold {
 
@@ -25,5 +26,7 @@ World::World(const WorldBounds& bounds) : bounds_(bounds) {}
 void World::add_obstacle(const Obstacle& obstacle) { obstacles_.push_back(obstacle); }
 
 void World::add_ramp(const Ramp& ramp) { ramps_.push_back(ramp); }
+
+void World::add_torch(const Torch& torch) { torches_.push_back(torch); }
 
 }  // namespace manifold

@@ -27,6 +27,7 @@
 #include "level/level.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
+#include "render/lighting.hpp"
 #include "render/renderer.hpp"
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
@@ -117,9 +118,10 @@ void log_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
     manifold::log_info("Manifold, level seed {}, layout {}", game.seed(), manifold::layout_name(game.level().layout));
-    manifold::log_info("World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles, {} ramps",
-                       bounds.x_min, bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
-                       game.world().obstacles().size(), game.world().ramps().size());
+    manifold::log_info(
+        "World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles, {} ramps, {} torches",
+        bounds.x_min, bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
+        game.world().obstacles().size(), game.world().ramps().size(), game.world().torches().size());
     manifold::log_info("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m", player.position().x,
                        player.position().y, player.position().z, player.radius(), player.height());
     manifold::log_info("Level plan:\n{}", game.level().plan);
@@ -175,7 +177,8 @@ void run(const Options& options) {
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
-    const manifold::Renderer renderer(manifold::build_world_mesh(game.world()), pick_level_texture(game.seed()));
+    const manifold::Renderer renderer(manifold::build_world_mesh(game.world()), pick_level_texture(game.seed()),
+                                      game.world().torches());
 
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
@@ -184,15 +187,19 @@ void run(const Options& options) {
         previous_ticks = ticks;
         game.update(read_input(), dt);
 
-        // The light spell: a warm light at the player's eyes, plus a little ambient light.
+        // The light spell: a warm light at the player's eyes, plus a little ambient light. The torches
+        // nearest to the player fill up the remaining lights.
         const manifold::Camera camera = manifold::make_player_camera(game.player());
-        const manifold::Lighting lighting{
+        manifold::Lighting lighting{
             .ambient = glm::vec3(0.01f),
-            .light = {.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f},
+            .lights = {{.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f, .range = 15.0f}},
         };
+        const std::vector<manifold::PointLight> torch_lights = manifold::select_lights(
+            manifold::torch_lights(game.world().torches(), game.time()), camera.position, manifold::kMaxLights - 1);
+        lighting.lights.insert(lighting.lights.end(), torch_lights.begin(), torch_lights.end());
 
         const manifold::PixelSize framebuffer = window.framebuffer_size();
-        renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio));
+        renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.time());
         if (options.screenshot_path) {
             manifold::save_screenshot(*options.screenshot_path, framebuffer.width, framebuffer.height);
             manifold::log_info("Saved {}", *options.screenshot_path);

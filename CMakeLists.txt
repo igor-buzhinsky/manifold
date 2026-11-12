@@ -59,6 +59,7 @@ add_library(manifold_core STATIC
     src/level/room_layout.cpp
     src/physics/collision.cpp
     src/render/camera.cpp
+    src/render/lighting.cpp
     src/render/stb_image.cpp
     src/render/stb_image_write.cpp
     src/render/texture_image.cpp
@@ -67,6 +68,7 @@ add_library(manifold_core STATIC
     src/util/log.cpp
     src/world/geometry.cpp
     src/world/player.cpp
+    src/world/torch.cpp
     src/world/world.cpp
 )
 target_include_directories(manifold_core PUBLIC src)
@@ -103,9 +105,11 @@ if(MANIFOLD_BUILD_TESTS)
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
         tests/layout_factory_test.cpp
+        tests/lighting_test.cpp
         tests/log_test.cpp
         tests/room_layout_test.cpp
         tests/texture_image_test.cpp
+        tests/torch_test.cpp
         tests/viewport_test.cpp
         tests/world_mesh_test.cpp
         tests/world_test.cpp

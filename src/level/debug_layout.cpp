@@ -1,6 +1,8 @@
 #include "level/debug_layout.hpp"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <format>
 #include <numbers>
 #include <optional>
@@ -14,6 +16,7 @@
 
 #include "level/level.hpp"
 #include "world/geometry.hpp"
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -94,6 +97,56 @@ void place_ramps(const DebugLayoutConfig& config, const Circle& keep_clear, Worl
     }
 }
 
+/// Checks whether an obstacle or a ramp is in the way of a torch: too close to its handle or flame.
+bool torch_blocked(const World& world, const Torch& torch) {
+    // A box around the handle and the flame, from the mount up to the top of the flame.
+    constexpr float kClearance = 0.3f;
+    const glm::vec3 middle = (torch.mount + torch.tip()) / 2.0f;
+    const Circle around{.center = glm::vec2(middle), .radius = kClearance};
+    const float bottom = torch.mount.z;
+    const float top = torch.flame_bottom().z + kFlameHeight;
+    const auto blocks = [&](const Obstacle& obstacle) {
+        return obstacle.base_center.z < top && obstacle.base_center.z + obstacle.height > bottom &&
+               intersects(obstacle.footprint(), around);
+    };
+    const auto ramp_blocks = [&](const Ramp& ramp) { return intersects(ramp.footprint(), around); };
+    return std::ranges::any_of(world.obstacles(), blocks) || std::ranges::any_of(world.ramps(), ramp_blocks);
+}
+
+/// Hangs torches on the four level walls, see DebugLayout.
+void place_torches(const DebugLayoutConfig& config, World& world) {
+    const WorldBounds& bounds = world.bounds();
+    const float pi = std::numbers::pi_v<float>;
+    // Each wall: a start corner, the direction along the wall, its length and the direction into the level.
+    struct Wall {
+        glm::vec2 start;
+        glm::vec2 along;
+        float length;
+        float yaw;
+    };
+    const float width = bounds.x_max - bounds.x_min;
+    const float depth = bounds.y_max - bounds.y_min;
+    const std::array<Wall, 4> walls{{
+        {.start = {bounds.x_min, bounds.y_min}, .along = {1.0f, 0.0f}, .length = width, .yaw = pi / 2.0f},
+        {.start = {bounds.x_max, bounds.y_min}, .along = {0.0f, 1.0f}, .length = depth, .yaw = pi},
+        {.start = {bounds.x_max, bounds.y_max}, .along = {-1.0f, 0.0f}, .length = width, .yaw = -pi / 2.0f},
+        {.start = {bounds.x_min, bounds.y_max}, .along = {0.0f, -1.0f}, .length = depth, .yaw = 0.0f},
+    }};
+    for (const Wall& wall : walls) {
+        // The torches are centered on the wall, so the gaps at both ends are equal.
+        const auto count = static_cast<int>(std::floor(wall.length / config.torch_spacing));
+        const float first = (wall.length - (static_cast<float>(count - 1) * config.torch_spacing)) / 2.0f;
+        for (int i = 0; i < count; ++i) {
+            const glm::vec2 point =
+                wall.start + ((first + (static_cast<float>(i) * config.torch_spacing)) * wall.along);
+            const Torch torch{.mount = {point, config.torch_height}, .yaw = wall.yaw};
+            if (!torch_blocked(world, torch)) {
+                world.add_torch(torch);
+            }
+        }
+    }
+}
+
 /// Converts radians to degrees, for the plan.
 float degrees(float radians) { return radians * 180.0f / std::numbers::pi_v<float>; }
 
@@ -133,6 +186,7 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     // Ceiling blocks are above the obstacles, so they may be placed anywhere, whatever is below them.
     place_blocks(config_, keep_clear, config_.obstacle_height, config_.ceiling_thickness, world, rng);
     place_ramps(config_, keep_clear, world, rng);
+    place_torches(config_, world);
     std::string plan = describe(world);
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .plan = std::move(plan)};
 }

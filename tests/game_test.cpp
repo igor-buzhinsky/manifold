@@ -46,6 +46,14 @@ TEST(GameTest, LookingChangesPitchUpToLimit) {
     EXPECT_FLOAT_EQ(game.player().pitch(), -Player::kMaxPitch);
 }
 
+TEST(GameTest, TimeIsSumOfFrameDurations) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_FLOAT_EQ(game.time(), 0.0f);
+    game.update({}, 0.25f);
+    game.update({}, 0.5f);
+    EXPECT_FLOAT_EQ(game.time(), 0.75f);
+}
+
 TEST(GameTest, NoInputChangesNothing) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     game.update({}, 1.0f);

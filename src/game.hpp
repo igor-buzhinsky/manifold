@@ -81,6 +81,8 @@ public:
     const Player& player() const { return player_; }
     /// The seed the level was generated from.
     std::uint64_t seed() const { return seed_; }
+    /// Seconds of game time since the start: the sum of the durations passed to update().
+    float time() const { return time_; }
 
 private:
     float turn_speed_;
@@ -90,6 +92,7 @@ private:
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     bool noclip_ = false;
     bool rise_held_ = false;  ///< Whether input.rise was positive in the previous frame.
+    float time_ = 0.0f;
     std::uint64_t seed_;
     Level level_;
     Player player_;
