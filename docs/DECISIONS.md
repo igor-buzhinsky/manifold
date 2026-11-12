@@ -193,7 +193,8 @@ Drawbacks:
 - **Lights that are about to be left out are dimmed**: at first, a torch's light switched on or off at
   once when it entered or left the nearest 31. Now, when lights are left out, the chosen ones fade out
   over the last 2 m (of distance minus range) before the first light left out, so no light pops. The
-  cost: far torches can be dimmer than they should be, when many torches are near.
+  cost: when many torches are near (also on the layers above and below, since nearest is measured in 3D),
+  the chosen torches near the cut are dimmed, even ones whose light reaches the player.
 - **Nearest is measured in 3D**, so torches on the layer above or below can take light slots from those
   in the player's room.
 - Every pixel loops over all 32 lights. This is cheap at the current resolution, but the count can't grow

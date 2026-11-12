@@ -147,17 +147,46 @@ TEST(LightingTest, IntensitiesChangeSmoothlyWhenLightsSwap) {
     constexpr float kStep = 0.01f;
     std::vector<PointLight> previous = select_lights(lights, glm::vec3(0.0f), 5);
     constexpr int kSteps = 5700;  // 57 m, past the last light.
+    int swaps = 0;
     for (int step = 1; step <= kSteps; ++step) {
         const float x = static_cast<float>(step) * kStep;
         const std::vector<PointLight> selected = select_lights(lights, glm::vec3(x, 0.0f, 0.0f), 5);
         for (std::uint32_t id = 0; id < lights.size(); ++id) {
-            // The gap changes by at most kStep, so the intensity by at most kStep / kLightFadeDistance twice.
-            EXPECT_NEAR(selected_intensity(selected, id), selected_intensity(previous, id),
+            // The gap and the cut each change by at most kStep, so the intensity by at most
+            // 2 * kStep / kLightFadeDistance.
+            ASSERT_NEAR(selected_intensity(selected, id), selected_intensity(previous, id),
                         (2.0f * kStep / kLightFadeDistance) + 1e-5f)
                 << "light " << id << " at x = " << x;
         }
+        const auto chosen = [](const std::vector<PointLight>& set, const PointLight& light) {
+            return std::ranges::any_of(set,
+                                       [&](const PointLight& other) { return other.shadow_id == light.shadow_id; });
+        };
+        swaps += static_cast<int>(
+            std::ranges::count_if(previous, [&](const PointLight& light) { return !chosen(selected, light); }));
         previous = selected;
     }
+    // Most lights were chosen and then left out again on the way.
+    EXPECT_GE(swaps, 10);
+}
+
+TEST(LightingTest, LightTiedWithCutHasNoIntensity) {
+    // Gaps 0 and 4 m twice: the second light at 4 m is left out, so the first one is at the cut.
+    const std::vector<PointLight> lights{{.position = {1.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {5.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {-5.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f}};
+    const std::vector<PointLight> selected = select_lights(lights, glm::vec3(0.0f), 2);
+    ASSERT_EQ(selected.size(), 2U);
+    EXPECT_FLOAT_EQ(selected[0].intensity, 2.0f);
+    EXPECT_FLOAT_EQ(selected[1].intensity, 0.0f);
+}
+
+TEST(LightingTest, ZeroFadeDistanceGivesNoNan) {
+    const std::vector<PointLight> lights{{.position = {5.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {-5.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f}};
+    const std::vector<PointLight> selected = select_lights(lights, glm::vec3(0.0f), 1, 0.0f);
+    ASSERT_EQ(selected.size(), 1U);
+    EXPECT_FLOAT_EQ(selected[0].intensity, 0.0f);
 }
 
 }  // namespace

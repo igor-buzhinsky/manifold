@@ -55,10 +55,12 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
     if (selected.size() <= max_count) {
         return selected;
     }
+    constexpr float kMinFadeDistance = 0.001f;
+    const float fade = std::max(fade_distance, kMinFadeDistance);
     const float cut = gap(selected[max_count]);
     selected.resize(max_count);
     for (PointLight& light : selected) {
-        light.intensity *= std::clamp((cut - gap(light)) / fade_distance, 0.0f, 1.0f);
+        light.intensity *= std::clamp((cut - gap(light)) / fade, 0.0f, 1.0f);
     }
     return selected;
 }
