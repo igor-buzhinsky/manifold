@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <map>
 #include <optional>
 #include <queue>
@@ -654,9 +655,9 @@ TEST(RoomLayoutTest, TorchCountVariesBetweenLevelsWithinChances) {
         every_side.max_torch_chance = 1.0f;
         const auto sides = static_cast<float>(generate(seed, every_side).world.torches().size());
         const auto torches = static_cast<float>(generate(seed, config).world.torches().size());
-        // Far from the limits, so that chance rarely breaks the test.
-        EXPECT_GT(torches, 0.02f * sides) << "seed " << seed;
-        EXPECT_LT(torches, 0.15f * sides) << "seed " << seed;
+        // A bit outside of [5%, 10%], because the sides get torches at random.
+        EXPECT_GT(torches, 0.03f * sides) << "seed " << seed;
+        EXPECT_LT(torches, 0.13f * sides) << "seed " << seed;
         const auto share = static_cast<std::size_t>(1000.0f * torches / sides);
         lowest = std::min(lowest, share);
         highest = std::max(highest, share);
@@ -686,6 +687,11 @@ TEST(RoomLayoutTest, ThrowsOnInvalidTorchChances) {
     EXPECT_THROW(generate(1, config), std::invalid_argument);
     config.min_torch_chance = 0.5f;
     config.max_torch_chance = 1.5f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.min_torch_chance = -0.1f;
+    config.max_torch_chance = 0.1f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.min_torch_chance = std::numeric_limits<float>::quiet_NaN();
     EXPECT_THROW(generate(1, config), std::invalid_argument);
 }
 

@@ -187,7 +187,7 @@ constexpr const char* kFlameVertexShader = R"glsl(
 #version 410 core
 layout(location = 0) in vec3 a_bottom;
 layout(location = 1) in float a_phase;
-layout(location = 2) in float a_flame;
+layout(location = 2) in int a_flame;
 
 uniform mat4 u_view_projection;
 uniform vec3 u_right;  // Horizontal unit vector to the right of the camera.
@@ -198,7 +198,7 @@ flat out float v_phase;
 flat out int v_flame;
 
 void main() {
-    v_flame = int(a_flame);
+    v_flame = a_flame;
     // Bottom left, bottom right, top left, top right.
     vec2 corner = vec2(gl_VertexID & 1, gl_VertexID >> 1);
     v_uv = corner;
@@ -294,10 +294,15 @@ constexpr float kShellThickness = 0.1f;
 
 /// One flame, as uploaded to the GPU for kFlameVertexShader.
 struct FlameInstance {
-    glm::vec3 bottom;  ///< Center of the flame's bottom edge, see Torch::flame_bottom().
-    float phase;       ///< See torch_phase().
-    float flame;       ///< The TorchFlame, as a number.
+    glm::vec3 bottom;    ///< Center of the flame's bottom edge, see Torch::flame_bottom().
+    float phase;         ///< See torch_phase().
+    std::int32_t flame;  ///< The TorchFlame, as an index into the color arrays of kFlameFragmentShader.
 };
+
+// kFlameFragmentShader has the colors of each TorchFlame at the index of its value.
+static_assert(static_cast<int>(TorchFlame::kOrange) == 0 && static_cast<int>(TorchFlame::kBlue) == 1 &&
+                  static_cast<int>(TorchFlame::kGreen) == 2,
+              "update the flame colors in kFlameFragmentShader");
 
 /// Compiles one shader stage.
 ///
@@ -342,6 +347,12 @@ GLuint link_program(const char* vertex_source, const char* fragment_source) {
     return program;
 }
 
+/// Converts an offset into the bound array buffer to the pointer that OpenGL takes for it.
+const void* buffer_offset(std::size_t offset) {
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
+    return reinterpret_cast<const void*>(offset);
+}
+
 /// Describes a float vector field of the bound array buffer to the currently bound vertex array.
 ///
 /// \param location   Attribute location in the vertex shader.
@@ -350,10 +361,8 @@ GLuint link_program(const char* vertex_source, const char* fragment_source) {
 /// \param offset     Offset of the field in an element, in bytes.
 void set_vertex_attribute(GLuint location, GLint components, std::size_t stride, std::size_t offset) {
     glEnableVertexAttribArray(location);
-    // OpenGL takes the offset into the bound buffer as a pointer.
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    const auto* pointer = reinterpret_cast<const void*>(offset);
-    glVertexAttribPointer(location, components, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(stride), pointer);
+    glVertexAttribPointer(location, components, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(stride),
+                          buffer_offset(offset));
 }
 
 /// The flames of the torches, in the same order.
@@ -363,7 +372,7 @@ std::vector<FlameInstance> make_flames(std::span<const Torch> torches) {
     for (std::size_t i = 0; i < torches.size(); ++i) {
         flames.push_back({.bottom = torches[i].flame_bottom(),
                           .phase = torch_phase(i),
-                          .flame = static_cast<float>(torches[i].flame)});
+                          .flame = static_cast<std::int32_t>(torches[i].flame)});
     }
     return flames;
 }
@@ -491,7 +500,9 @@ Renderer::Renderer(const World& world, const Image& texture)
                  GL_STATIC_DRAW);
     set_vertex_attribute(0, 3, sizeof(FlameInstance), offsetof(FlameInstance, bottom));
     set_vertex_attribute(1, 1, sizeof(FlameInstance), offsetof(FlameInstance, phase));
-    set_vertex_attribute(2, 1, sizeof(FlameInstance), offsetof(FlameInstance, flame));
+    // An integer attribute needs glVertexAttribIPointer, which keeps it from being converted to float.
+    glEnableVertexAttribArray(2);
+    glVertexAttribIPointer(2, 1, GL_INT, sizeof(FlameInstance), buffer_offset(offsetof(FlameInstance, flame)));
     glVertexAttribDivisor(0, 1);
     glVertexAttribDivisor(1, 1);
     glVertexAttribDivisor(2, 1);

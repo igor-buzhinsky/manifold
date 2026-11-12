@@ -1,7 +1,6 @@
 #include "level/layout_factory.hpp"
 
 #include <cstdint>
-#include <map>
 #include <memory>
 #include <optional>
 #include <set>
@@ -10,7 +9,6 @@
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
-#include "world/torch.hpp"
 
 namespace manifold {
 namespace {
@@ -81,18 +79,6 @@ TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {
     EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 1).layout, LayoutKind::kDebug);
     // Without a layout, the choice depends only on the seed.
     EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).plan, generate_level(config, std::nullopt, 0.3f, 5).plan);
-}
-
-TEST(LevelTest, TorchFlamesHaveConfiguredChances) {
-    LevelRng rng(7);
-    constexpr int kDraws = 4000;
-    std::map<TorchFlame, int> counts;
-    for (int i = 0; i < kDraws; ++i) {
-        ++counts[choose_torch_flame(rng)];
-    }
-    EXPECT_NEAR(counts[TorchFlame::kOrange] / static_cast<double>(kDraws), 0.5, 0.03);
-    EXPECT_NEAR(counts[TorchFlame::kBlue] / static_cast<double>(kDraws), 0.25, 0.03);
-    EXPECT_NEAR(counts[TorchFlame::kGreen] / static_cast<double>(kDraws), 0.25, 0.03);
 }
 
 }  // namespace

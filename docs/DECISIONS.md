@@ -171,7 +171,9 @@ point lights that the CPU chooses each frame.
   collision.
 - **Flame colors**: all torches of a level burn with the same flame, chosen at random: orange (50%), or a
   colder, unsettling blue or green (25% each). The flame sets the light's color and the colors of the
-  flame sprite.
+  flame sprite. All flames have the same intensity, so the levels differ in brightness on purpose: by
+  perceived brightness, a blue level is lit about 45% as brightly as an orange one, and a green level
+  about a third more brightly.
 - **No torch or player shadows at this point**: torch lights cast shadows of the level, but torch
   handles and the player cast none, and this won't be implemented now. Under a point light just above
   the stick, a handle would throw a hard, long shadow down the wall, and the player has no body yet.

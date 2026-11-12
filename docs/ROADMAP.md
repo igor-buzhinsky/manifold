@@ -117,20 +117,20 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
   geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must
   make the renderer draw the shadow maps of nearby lights again.
-- **Multiple point lights**: static light sources placed in the level (torches for now; braziers and
-  glowing crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
-  shader in a uniform buffer, chosen on the CPU each frame. With 4.5, a shader storage buffer can hold all
-  lights of the level, and a compute shader can choose the lights for each part of the screen.
-  Done for torches: room levels get torches on random wall sides facing a room (5–10% of them, random for
-  each level), debug levels on their outer walls. All torches of a level have one flame color: orange
-  (50%), blue or green (25% each). A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
-  sprite: an upright quad facing the camera, painted by a shader as a pixelated, flickering teardrop. Each
-  frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
-  shader in a uniform buffer. Torch lights flicker and fade out smoothly at 6 m. The
-  player's light now also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m
-  away, so the wall behind a flame doesn't turn white. Lights don't pop when they enter or leave the
-  nearest 31: when lights are left out, the gap (distance minus range) of the first one left out is the
-  cut, and chosen lights fade out over the last 2 m before it. A light that is replaced has faded out
+- **Multiple point lights**: static light sources placed in the level (torches for now; braziers and glowing
+  crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1,
+  the lights near the player (a few dozen) go to the shader in a uniform buffer, chosen on the CPU each frame.
+  With 4.5, a shader storage buffer can hold all lights of the level, and a compute shader can choose the
+  lights for each part of the screen. Done for torches: room levels get torches on random wall sides facing a
+  room (5–10% of them, random for each level), debug levels on their outer walls. All torches of a level have
+  one flame color: orange (50%), blue or green (25% each). A torch is a six-sided handle in the world mesh
+  (untextured, with a per-vertex color) and a flame sprite: an upright quad facing the camera, painted by a
+  shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torches nearest to the
+  player (by distance minus range) go to the shader in a uniform buffer. Torch lights flicker and fade out
+  smoothly at 6 m. The player's light now also has a range (15 m), and every light treats surfaces closer than
+  0.3 m as 0.3 m away, so the wall behind a flame doesn't turn white. Lights don't pop when they enter or
+  leave the nearest 31: when lights are left out, the gap (distance minus range) of the first one left out is
+  the cut, and chosen lights fade out over the last 2 m before it. A light that is replaced has faded out
   fully, and the one that takes its place comes in from zero. This needs no state between frames.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from

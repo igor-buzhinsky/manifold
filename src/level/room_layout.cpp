@@ -571,13 +571,9 @@ void build_ramps(World& world, const LayeredPlan& plan, const GridPlacement& gri
 
 /// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
 ///
-/// \throws std::invalid_argument if the torch chances are invalid.
+/// The torch chances must be valid, see RoomLayout::generate().
 void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
                  LevelRng& rng) {
-    if (config.min_torch_chance < 0.0f || config.max_torch_chance > 1.0f ||
-        config.min_torch_chance > config.max_torch_chance) {
-        throw std::invalid_argument("torch chances must be in [0, 1], the smallest first");
-    }
     const TorchFlame flame = choose_torch_flame(rng);
     // uniform_real_distribution needs min < max, so equal chances are taken as they are.
     const float chance =
@@ -620,6 +616,12 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     // The player starts in the center of a room, which is at least half a tile away from any wall.
     if (config_.tile_size / 2.0f <= clearance) {
         throw std::runtime_error("level generation failed: tiles are too small for the player");
+    }
+    // NaN fails every comparison, so it is checked for separately.
+    if (std::isnan(config_.min_torch_chance) || std::isnan(config_.max_torch_chance) ||
+        config_.min_torch_chance < 0.0f || config_.max_torch_chance > 1.0f ||
+        config_.min_torch_chance > config_.max_torch_chance) {
+        throw std::invalid_argument("torch chances must be in [0, 1], the smallest first");
     }
     const LayeredPlan plan = plan_layers(config_, rng);
     const RoomPlan& bottom = plan.layers.at(0);

@@ -32,9 +32,9 @@ std::string_view torch_flame_name(TorchFlame flame);
 ///
 /// Torches are only decoration and light: they don't collide with anything.
 struct Torch {
-    glm::vec3 mount{0.0f};  ///< Where the handle touches the wall, in world coordinates.
-    float yaw = 0.0f;       ///< Direction away from the wall: radians counter-clockwise from +x.
-    TorchFlame flame = TorchFlame::kOrange;
+    glm::vec3 mount{0.0f};                   ///< Where the handle touches the wall, in world coordinates.
+    float yaw = 0.0f;                        ///< Direction away from the wall: radians counter-clockwise from +x.
+    TorchFlame flame = TorchFlame::kOrange;  ///< The color of the flame and its light.
 
     /// Horizontal unit vector away from the wall.
     glm::vec3 outward() const;

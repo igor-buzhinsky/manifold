@@ -107,6 +107,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
         tests/layout_factory_test.cpp
+        tests/level_test.cpp
         tests/lighting_test.cpp
         tests/log_test.cpp
         tests/room_layout_test.cpp
