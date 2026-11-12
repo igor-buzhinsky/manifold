@@ -117,8 +117,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
   geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must
   make the renderer draw the shadow maps of nearby lights again.
-- **Multiple point lights**: static light sources placed in the level (torches, braziers,
-  glowing crystals), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
+- **Multiple point lights**: static light sources placed in the level (torches for now; braziers and
+  glowing crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
   shader in a uniform buffer, chosen on the CPU each frame. With 4.5, a shader storage buffer can hold all
   lights of the level, and a compute shader can choose the lights for each part of the screen.
   Done for torches: room levels get torches on random wall sides facing a room, debug levels on their outer
@@ -127,8 +127,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
   shader in a uniform buffer. Torch lights flicker and fade out smoothly at 6 m. The
   player's light now also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m
-  away, so the wall behind a flame doesn't turn white. Next: braziers and crystals, and a fade for
-  lights that enter or leave the nearest 31, so they don't pop.
+  away, so the wall behind a flame doesn't turn white. Next: a fade for lights that enter or leave the
+  nearest 31, so they don't pop.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
@@ -140,10 +140,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   point away from the light (back faces), divided by the range, so lit surfaces never shadow themselves
   and a 5 mm bias is enough. For this, the shadow pass also draws faces that the visible mesh leaves out:
   a shell behind the one-sided floor, ceiling and boundary walls, and the hidden tops and bottoms of
-  blocks and ramps. Lookups use hardware comparison with 2 × 2 linear filtering. Torch handles cast no
-  shadows: under a point light, they would throw a hard, long shadow down the wall. Next: a shadow for
-  the player's body once it has one, and a limit on how many shadow maps are drawn in one frame, so that
-  many torches at once don't cause a stutter.
+  blocks and ramps. Lookups use hardware comparison with 2 × 2 linear filtering. Torch handles and the
+  player cast no shadows (see "Later (unordered, low priority, might not be done)"). Next: a limit on how
+  many shadow maps are drawn in one frame, so that many torches at once don't cause a stutter.
 - Pixelation (of textures or the entire visible region as a whole).
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
 - ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random
@@ -180,3 +179,13 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   themselves to a pocket dimension.
 - New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.
 - Story and lore.
+
+## Later (unordered, low priority, might not be done)
+
+- **More static light sources**: braziers and glowing crystals, next to the torches.
+- **Shadows of torches**: torch handles cast no shadows now. Under a point light just above the stick,
+  a handle throws a hard, long shadow down the wall that a real torch, with its large flame, doesn't.
+  A good-looking version needs a softer or larger light source.
+- **Shadows of the player**: the player's light is at the camera, so its own shadows can't be seen, and
+  the player has no body to cast shadows from other lights. Once there is a body (or a party), it could
+  cast shadows from torches, which needs shadow maps that are drawn again whenever it moves.

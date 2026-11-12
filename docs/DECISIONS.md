@@ -168,6 +168,10 @@ point lights that the CPU chooses each frame.
 - **Placement**: in room levels, each wall side that faces a room's floor gets a torch with a chance of
   10%, except where a ramp runs along it. In debug levels, torches hang on the outer walls 8 m apart.
   Torches have no collision.
+- **No torch or player shadows at this point**: torch lights cast shadows of the level, but torch
+  handles and the player cast none, and this won't be implemented now. Under a point light just above
+  the stick, a handle would throw a hard, long shadow down the wall, and the player has no body yet.
+  Both are under "Later (unordered, low priority, might not be done)" in [ROADMAP.md](ROADMAP.md).
 
 Gains:
 
