@@ -102,6 +102,10 @@ const float kMinDistanceSquared = 0.09;
 // The shadow map holds, for each direction, the distance from the light to the back faces of what is in
 // the way, divided by the range. Linear filtering mixes the results of the 2 x 2 nearest texels, which
 // softens the edges of shadows.
+//
+// This is called in non-uniform control flow, where implicit derivatives are undefined. That is harmless
+// only because the shadow maps have no mipmaps, so texture() doesn't use the level of detail. Adding
+// mipmaps would need the lookup to move out of the branches.
 float light_reaching(int i) {
     float layer = u_lights[i].shadow.x;
     if (layer < 0.0) {

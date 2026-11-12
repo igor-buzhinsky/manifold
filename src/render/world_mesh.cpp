@@ -130,7 +130,8 @@ void add_ramp_bottom(std::vector<Vertex>& vertices, const Ramp& ramp) {
     const auto corner = [&](float u, float v) {
         return ramp.base_center + glm::vec3((cos_yaw * u) - (sin_yaw * v), (sin_yaw * u) + (cos_yaw * v), 0.0f);
     };
-    // Low end (l) and high end (h); 0 is on the right side, 1 on the left.
+    // Corners at (u, v) in the ramp's frame: low end right, low end left, high end left, high end right.
+    // In this order, the quad faces down.
     add_quad(vertices, {corner(-ramp.half_length, -ramp.half_width), corner(-ramp.half_length, ramp.half_width),
                         corner(ramp.half_length, ramp.half_width), corner(ramp.half_length, -ramp.half_width)});
 }

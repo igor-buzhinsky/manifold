@@ -12,8 +12,6 @@
 #include "render/shadow_map.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
-#include "render/world_mesh.hpp"
-#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -54,7 +52,8 @@ public:
 private:
     /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
     ///
-    /// Changes the bound framebuffer and the viewport.
+    /// Changes the viewport, the current program, the bound vertex array and, if any map is drawn, the
+    /// depth attachment of the shadow framebuffer. The default framebuffer is bound again at the end.
     ///
     /// \return The shadow map slot of each of the first kMaxLights lights, if it has one.
     std::vector<std::optional<std::size_t>> update_shadow_maps(std::span<const PointLight> lights);

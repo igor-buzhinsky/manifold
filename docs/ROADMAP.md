@@ -70,7 +70,8 @@ rewrites.
 - **Tonemapping** (Reinhard, for now in the main shader). A level with zero ambient light is truly dark.
   A separate HDR render target can come when post-processing needs it.
 - Point lights with inverse-square falloff and a smooth range cutoff.
-- Omnidirectional shadows from cubemap shadow maps, limited to the nearest N lights (about 4–8).
+- Omnidirectional shadows from cubemap shadow maps, limited to the nearest N lights. (The first plan was
+  about 4–8. Static lights made more affordable: all 31 torch lights in use cast shadows, see v0.2.)
 - Forward rendering first. Move to clustered forward or deferred only if the light count requires it.
 - Retro look: low-res textures with nearest-neighbour filtering, optional low-res render target,
   distance fog, billboard sprites for items and creatures.
@@ -114,7 +115,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   version of the linear series of levels.
 - **Doors between rooms**: some or all openings between rooms get doors that the player can open and
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
-  geometry in the opening.
+  geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must
+  make the renderer draw the shadow maps of nearby lights again.
 - **Multiple point lights**: static light sources placed in the level (torches, braziers,
   glowing crystals), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
   shader in a uniform buffer, chosen on the CPU each frame. With 4.5, a shader storage buffer can hold all
@@ -130,7 +132,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
-  Done for torches, which are all 31 torch lights in use: the player's light casts none, because it is at
+  Done for torch lights, up to 31 at once. The player's light casts none, because it is at
   the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
   move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept in
   one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.
