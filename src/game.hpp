@@ -82,7 +82,15 @@ public:
     /// The seed the level was generated from.
     std::uint64_t seed() const { return seed_; }
     /// Seconds of game time since the start: the sum of the durations passed to update().
-    float time() const { return time_; }
+    double time() const { return time_; }
+    /// Game time for animations, such as the flicker of torches: time() wrapped into [0, kAnimationPeriod).
+    ///
+    /// Floats lose precision as they grow, which makes fast animations stutter after long play. Wrapping
+    /// keeps them smooth, at the cost of one jump per period.
+    float animation_time() const;
+
+    /// Length of the cycle of animation_time(), in seconds: one hour.
+    static constexpr double kAnimationPeriod = 3600.0;
 
 private:
     float turn_speed_;
@@ -92,7 +100,7 @@ private:
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     bool noclip_ = false;
     bool rise_held_ = false;  ///< Whether input.rise was positive in the previous frame.
-    float time_ = 0.0f;
+    double time_ = 0.0;
     std::uint64_t seed_;
     Level level_;
     Player player_;

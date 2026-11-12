@@ -81,10 +81,12 @@ constexpr int kPrismSides = 6;
 
 /// Adds a prism with a regular polygon as its cross-section, with both ends closed.
 ///
-/// \param base   Center of the first end.
-/// \param axis   Unit vector from the first end to the second.
-/// \param radius Distance from the axis to the corners of the cross-section, in metres.
-/// \param length Distance between the two ends, in metres.
+/// \param[out] vertices The triangles are appended here.
+/// \param base     Center of the first end.
+/// \param axis     Unit vector from the first end to the second.
+/// \param radius   Distance from the axis to the corners of the cross-section, in metres.
+/// \param length   Distance between the two ends, in metres.
+/// \param material How all faces look.
 void add_prism(std::vector<Vertex>& vertices, const glm::vec3& base, const glm::vec3& axis, float radius, float length,
                const Material& material) {
     // Two unit vectors that are perpendicular to the axis and to each other, with u x v = axis.

@@ -55,13 +55,15 @@ float torch_flicker(float time, float phase);
 
 /// The light of a torch at a moment, with flicker and a slight movement of the flame.
 ///
+/// \param torch The torch, whose light is at Torch::light_position() when the flame is at rest.
 /// \param time  Seconds since the start of the game.
 /// \param phase Radians, see torch_phase().
 PointLight torch_light(const Torch& torch, float time, float phase);
 
 /// The lights of all torches at a moment, in the same order as the torches.
 ///
-/// \param time Seconds since the start of the game.
+/// \param torches The torches. Torch i flickers with torch_phase(i).
+/// \param time    Seconds since the start of the game.
 std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time);
 
 /// Chooses the lights that matter most to a viewer: those whose range comes closest to it.

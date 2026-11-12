@@ -194,12 +194,14 @@ void run(const Options& options) {
             .ambient = glm::vec3(0.01f),
             .lights = {{.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f, .range = 15.0f}},
         };
-        const std::vector<manifold::PointLight> torch_lights = manifold::select_lights(
-            manifold::torch_lights(game.world().torches(), game.time()), camera.position, manifold::kMaxLights - 1);
+        const std::vector<manifold::PointLight> torch_lights =
+            manifold::select_lights(manifold::torch_lights(game.world().torches(), game.animation_time()),
+                                    camera.position, manifold::kMaxLights - 1);
         lighting.lights.insert(lighting.lights.end(), torch_lights.begin(), torch_lights.end());
 
         const manifold::PixelSize framebuffer = window.framebuffer_size();
-        renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.time());
+        renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio),
+                      game.animation_time());
         if (options.screenshot_path) {
             manifold::save_screenshot(*options.screenshot_path, framebuffer.width, framebuffer.height);
             manifold::log_info("Saved {}", *options.screenshot_path);

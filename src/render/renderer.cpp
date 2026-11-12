@@ -174,7 +174,9 @@ void main() {
     float x = abs(p.x - 0.5 - sway) * 2.0;
     // Round at the bottom, pointed at the top.
     float half_width = sin(kPi * sqrt(h));
-    float noise = hash(cell + vec2(floor(u_time * 12.0), v_phase));
+    // The noise changes 12 times a second. Wrapping the step keeps the argument of sin() in hash() small,
+    // where it is precise.
+    float noise = hash(cell + vec2(mod(floor(u_time * 12.0), 256.0), v_phase));
     float heat = (1.0 - x / max(half_width, 1e-3)) * (1.0 - 0.4 * h) + 0.25 * (noise - 0.5);
     if (heat < 0.1) {
         discard;

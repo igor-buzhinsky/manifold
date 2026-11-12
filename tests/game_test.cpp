@@ -48,10 +48,19 @@ TEST(GameTest, LookingChangesPitchUpToLimit) {
 
 TEST(GameTest, TimeIsSumOfFrameDurations) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    EXPECT_FLOAT_EQ(game.time(), 0.0f);
+    EXPECT_DOUBLE_EQ(game.time(), 0.0);
     game.update({}, 0.25f);
     game.update({}, 0.5f);
-    EXPECT_FLOAT_EQ(game.time(), 0.75f);
+    EXPECT_DOUBLE_EQ(game.time(), 0.75);
+    EXPECT_FLOAT_EQ(game.animation_time(), 0.75f);
+}
+
+TEST(GameTest, AnimationTimeWrapsAround) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    // With noclip and no input, a long frame changes nothing but the time.
+    game.toggle_noclip();
+    game.update({}, static_cast<float>(Game::kAnimationPeriod) + 0.5f);
+    EXPECT_NEAR(game.animation_time(), 0.5f, 1e-3f);
 }
 
 TEST(GameTest, NoInputChangesNothing) {

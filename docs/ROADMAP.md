@@ -123,7 +123,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   walls. A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
   sprite: an upright quad facing the camera, painted by a shader as a pixelated, flickering teardrop. Each
   frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
-  shader in a uniform buffer. Torch lights flicker and sway slightly, and fade out smoothly at 6 m. Until
+  shader in a uniform buffer. Torch lights flicker and sway slightly, and fade out smoothly at 6 m. The
+  player's light now also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m
+  away, so the wall behind a flame doesn't turn white. Until
   shadows exist, torch light goes through walls and floors. Next: braziers and crystals, and a fade for
   lights that enter or leave the nearest 31, so they don't pop.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap

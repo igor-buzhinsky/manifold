@@ -39,6 +39,8 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       level_(std::move(level)),
       player_(with_position(config.player, level_.player_start)) {}
 
+float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
+
 void Game::update(const PlayerInput& input, float dt) {
     time_ += dt;
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
