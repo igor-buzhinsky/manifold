@@ -144,3 +144,54 @@ Drawbacks:
   versions stay in the history.
 - The originals aren't kept in the repo, so they must be downloaded again (from the recorded source) to
   process an asset differently.
+
+## 2026-11-12: Torches as a mesh handle and a shader flame, with the nearest lights in a uniform buffer
+
+Status: **ACCEPTED**. Done in v0.2, without shadows (they come next, as a separate change).
+
+Decision: a torch is a static wall decoration made of two parts, and its light is one of a few dozen
+point lights that the CPU chooses each frame.
+
+- **Handle**: two six-sided prisms (the stick and a wider, charred end), added to the world mesh. They are
+  untextured: each vertex has a color and a texture weight (0 for the color alone, 1 for the texture).
+- **Flame**: a quad that turns around the vertical to face the camera (so it stays upright when looking up
+  or down), drawn in a second, instanced pass. A fragment shader paints a pixelated, swaying teardrop in
+  three color bands and discards the pixels outside it. The flame is unlit and needs no texture asset.
+- **Lights**: the player's light plus the 31 torches whose range comes closest to the player (distance
+  minus range) go to the shader in a std140 uniform buffer of 32 lights. Falloff is inverse-square with a
+  smooth fade to zero at the range, `(1 - (d / range)^4)^2`, and a minimum distance of 0.3 m.
+- **Flicker**: computed on the CPU from the game time and a per-torch phase, as a sum of sines that
+  changes the brightness (75–100%) and moves the light by up to 2 cm. Animations use the game time wrapped
+  into one hour, so floats stay precise during long play.
+- **Placement**: in room levels, each wall side that faces a room's floor gets a torch with a chance of
+  10%, except where a ramp runs along it. In debug levels, torches hang on the outer walls 8 m apart.
+  Torches have no collision.
+
+Gains:
+
+- **Simple shapes come from code**: prisms (and spheres later) are a few lines in `world_mesh.cpp`, and
+  static ones cost nothing extra to draw, because they are part of the one world mesh.
+- **The flame never looks dark**: a lit mesh around its own light would face away from it and get no
+  light. A sprite drawn without lighting avoids this, and the shader animates it without a sprite sheet.
+- **Discarding instead of blending**: flames are opaque where they are drawn, so they need no sorting by
+  depth and work with the depth buffer as it is.
+- **OpenGL 4.1 is enough**: a uniform buffer of a fixed size works without shader storage buffers or
+  compute shaders.
+- **Testable**: torch geometry, flicker, the choice of lights and the placement are plain code in
+  `manifold_core`, with unit tests.
+
+Drawbacks:
+
+- **Light goes through walls and floors** until shadows exist: a torch lights the room behind a wall, and
+  the ceiling of the layer above.
+- **Lights pop**: a torch's light switches on or off at once when it enters or leaves the nearest 31.
+  A fade for those lights would fix this.
+- **Nearest is measured in 3D**, so torches on the layer above or below can take light slots from those
+  in the player's room.
+- Every pixel loops over all 32 lights. This is cheap at the current resolution, but the count can't grow
+  much without clustered lighting (see the OpenGL 4.5 decision).
+- The handle is drawn with flat colors, while the walls are textured. Later, a glTF prop could replace
+  it.
+- Alternatives: an emissive low-poly flame (a solid shape, which has to be animated by changing its
+  shape on the CPU or GPU, or looks static), or a flame sprite sheet from a CC0 pack (an asset to find and
+  credit, and frames to play through).
