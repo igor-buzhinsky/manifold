@@ -48,11 +48,18 @@ std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time)
 }
 
 std::vector<PointLight> select_lights(std::span<const PointLight> lights, const glm::vec3& viewer,
-                                      std::size_t max_count) {
+                                      std::size_t max_count, float fade_distance) {
     const auto gap = [&viewer](const PointLight& light) { return glm::distance(light.position, viewer) - light.range; };
     std::vector<PointLight> selected(lights.begin(), lights.end());
     std::ranges::stable_sort(selected, {}, gap);
-    selected.resize(std::min(selected.size(), max_count));
+    if (selected.size() <= max_count) {
+        return selected;
+    }
+    const float cut = gap(selected[max_count]);
+    selected.resize(max_count);
+    for (PointLight& light : selected) {
+        light.intensity *= std::clamp((cut - gap(light)) / fade_distance, 0.0f, 1.0f);
+    }
     return selected;
 }
 

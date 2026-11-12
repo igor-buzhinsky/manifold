@@ -76,16 +76,25 @@ PointLight torch_light(const Torch& torch, float time, float phase);
 /// \param time    Seconds since the start of the game.
 std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time);
 
-/// Chooses the lights that matter most to a viewer: those whose range comes closest to it.
+/// Distance over which lights fade out before they are left out by select_lights(), in metres.
+inline constexpr float kLightFadeDistance = 2.0f;
+
+/// Chooses the lights that matter most to a viewer, and fades out those that are about to be left out.
 ///
-/// Lights are ordered by their distance from the viewer minus their range, so the nearest come first.
-/// Lights at the same such distance keep their order.
+/// Lights are ordered by their gap: their distance from the viewer minus their range, so the nearest come
+/// first. Lights with the same gap keep their order. The first `max_count` lights are chosen.
 ///
-/// \param lights    All lights to choose from.
-/// \param viewer    Where the scene is seen from.
-/// \param max_count The most lights to return.
+/// If some lights are left out, the gap of the first of them is the cut. A chosen light's intensity is
+/// multiplied by (cut - gap) / fade_distance, clamped to [0, 1]. So a light fades out as it moves towards
+/// the cut, and has none of its intensity left when another light takes its place, which comes in from
+/// zero. As the viewer moves, the intensity of every light changes smoothly, without popping.
+///
+/// \param lights        All lights to choose from.
+/// \param viewer        Where the scene is seen from.
+/// \param max_count     The most lights to return.
+/// \param fade_distance How far from the cut lights start to fade out, in metres. Must be positive.
 /// \return At most `max_count` lights, nearest first.
 std::vector<PointLight> select_lights(std::span<const PointLight> lights, const glm::vec3& viewer,
-                                      std::size_t max_count);
+                                      std::size_t max_count, float fade_distance = kLightFadeDistance);
 
 }  // namespace manifold

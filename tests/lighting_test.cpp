@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <numbers>
 #include <vector>
 
@@ -92,13 +93,71 @@ TEST(LightingTest, SelectsAllLightsWhenThereAreFewer) {
 }
 
 TEST(LightingTest, LightsAtSameDistanceKeepTheirOrder) {
-    const std::vector<PointLight> lights{{.position = {1.0f, 0.0f, 0.0f}, .intensity = 1.0f},
-                                         {.position = {0.0f, 1.0f, 0.0f}, .intensity = 2.0f},
-                                         {.position = {-1.0f, 0.0f, 0.0f}, .intensity = 3.0f}};
+    const std::vector<PointLight> lights{{.position = {1.0f, 0.0f, 0.0f}, .shadow_id = 1},
+                                         {.position = {0.0f, 1.0f, 0.0f}, .shadow_id = 2},
+                                         {.position = {-1.0f, 0.0f, 0.0f}, .shadow_id = 3}};
     const std::vector<PointLight> selected = select_lights(lights, glm::vec3(0.0f), 2);
     ASSERT_EQ(selected.size(), 2U);
-    EXPECT_FLOAT_EQ(selected[0].intensity, 1.0f);
-    EXPECT_FLOAT_EQ(selected[1].intensity, 2.0f);
+    EXPECT_EQ(selected[0].shadow_id, 1U);
+    EXPECT_EQ(selected[1].shadow_id, 2U);
+}
+
+TEST(LightingTest, AllLightsKeepIntensityWhenNoneIsLeftOut) {
+    const std::vector<PointLight> lights{{.position = {1.0f, 0.0f, 0.0f}, .intensity = 2.0f},
+                                         {.position = {30.0f, 0.0f, 0.0f}, .intensity = 3.0f}};
+    const std::vector<PointLight> selected = select_lights(lights, glm::vec3(0.0f), 2);
+    ASSERT_EQ(selected.size(), 2U);
+    EXPECT_FLOAT_EQ(selected[0].intensity, 2.0f);
+    EXPECT_FLOAT_EQ(selected[1].intensity, 3.0f);
+}
+
+TEST(LightingTest, LightsNearTheCutFadeOut) {
+    // Gaps 1, 4, 5 and 7 m. The cut is the gap of the light that is left out: 7 m.
+    const std::vector<PointLight> lights{{.position = {2.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {5.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {6.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f},
+                                         {.position = {8.0f, 0.0f, 0.0f}, .intensity = 2.0f, .range = 1.0f}};
+    const std::vector<PointLight> selected = select_lights(lights, glm::vec3(0.0f), 3, 4.0f);
+    ASSERT_EQ(selected.size(), 3U);
+    EXPECT_FLOAT_EQ(selected[0].intensity, 2.0f);          // 6 m from the cut: more than the fade distance.
+    EXPECT_FLOAT_EQ(selected[1].intensity, 2.0f * 0.75f);  // 3 m from the cut.
+    EXPECT_FLOAT_EQ(selected[2].intensity, 2.0f * 0.5f);   // 2 m from the cut.
+}
+
+/// The intensity that select_lights() gives to the light with `id`, or 0 if it is left out.
+float selected_intensity(const std::vector<PointLight>& selected, std::uint32_t id) {
+    for (const PointLight& light : selected) {
+        if (light.shadow_id == id) {
+            return light.intensity;
+        }
+    }
+    return 0.0f;
+}
+
+TEST(LightingTest, IntensitiesChangeSmoothlyWhenLightsSwap) {
+    // Lights on both sides of a corridor. Walking along it, lights behind the viewer are replaced by lights
+    // ahead of it, one at a time.
+    std::vector<PointLight> lights;
+    for (std::uint32_t i = 0; i < 20; ++i) {
+        lights.push_back({.position = {static_cast<float>(i) * 3.0f, (i % 2 == 0) ? 2.0f : -2.0f, 0.0f},
+                          .intensity = 1.0f,
+                          .range = 6.0f,
+                          .shadow_id = i});
+    }
+    constexpr float kStep = 0.01f;
+    std::vector<PointLight> previous = select_lights(lights, glm::vec3(0.0f), 5);
+    constexpr int kSteps = 5700;  // 57 m, past the last light.
+    for (int step = 1; step <= kSteps; ++step) {
+        const float x = static_cast<float>(step) * kStep;
+        const std::vector<PointLight> selected = select_lights(lights, glm::vec3(x, 0.0f, 0.0f), 5);
+        for (std::uint32_t id = 0; id < lights.size(); ++id) {
+            // The gap changes by at most kStep, so the intensity by at most kStep / kLightFadeDistance twice.
+            EXPECT_NEAR(selected_intensity(selected, id), selected_intensity(previous, id),
+                        (2.0f * kStep / kLightFadeDistance) + 1e-5f)
+                << "light " << id << " at x = " << x;
+        }
+        previous = selected;
+    }
 }
 
 }  // namespace

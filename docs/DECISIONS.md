@@ -190,8 +190,10 @@ Drawbacks:
 
 - **Light went through walls and floors** until shadows came: a torch lit the room behind a wall, and
   the ceiling of the layer above.
-- **Lights pop**: a torch's light switches on or off at once when it enters or leaves the nearest 31.
-  A fade for those lights would fix this.
+- **Lights that are about to be left out are dimmed**: at first, a torch's light switched on or off at
+  once when it entered or left the nearest 31. Now, when lights are left out, the chosen ones fade out
+  over the last 2 m (of distance minus range) before the first light left out, so no light pops. The
+  cost: far torches can be dimmer than they should be, when many torches are near.
 - **Nearest is measured in 3D**, so torches on the layer above or below can take light slots from those
   in the player's room.
 - Every pixel loops over all 32 lights. This is cheap at the current resolution, but the count can't grow

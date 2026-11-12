@@ -127,8 +127,10 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
   shader in a uniform buffer. Torch lights flicker and fade out smoothly at 6 m. The
   player's light now also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m
-  away, so the wall behind a flame doesn't turn white. Next: a fade for lights that enter or leave the
-  nearest 31, so they don't pop.
+  away, so the wall behind a flame doesn't turn white. Lights don't pop when they enter or leave the
+  nearest 31: when lights are left out, the gap (distance minus range) of the first one left out is the
+  cut, and chosen lights fade out over the last 2 m before it. A light that is replaced has faded out
+  fully, and the one that takes its place comes in from zero. This needs no state between frames.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
