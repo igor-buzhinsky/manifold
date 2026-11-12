@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <numbers>
 #include <span>
 #include <vector>
@@ -13,13 +14,6 @@
 #include "world/torch.hpp"
 
 namespace manifold {
-
-namespace {
-
-/// How far the light of a torch moves from its rest position, in metres.
-constexpr float kTorchSway = 0.02f;
-
-}  // namespace
 
 float torch_phase(std::size_t index) {
     // Multiples of 1 / phi = phi - 1, the inverse of the golden ratio, spread out evenly over the circle,
@@ -36,8 +30,7 @@ float torch_flicker(float time, float phase) {
 }
 
 PointLight torch_light(const Torch& torch, float time, float phase) {
-    const glm::vec3 sway{std::sin((7.3f * time) + phase), std::sin((8.9f * time) + (2.0f * phase)), 0.0f};
-    return {.position = torch.light_position() + (kTorchSway * sway),
+    return {.position = torch.light_position(),
             .color = kTorchColor,
             .intensity = kTorchIntensity * torch_flicker(time, phase),
             .range = kTorchRange};
@@ -47,7 +40,9 @@ std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time)
     std::vector<PointLight> lights;
     lights.reserve(torches.size());
     for (std::size_t i = 0; i < torches.size(); ++i) {
-        lights.push_back(torch_light(torches[i], time, torch_phase(i)));
+        PointLight light = torch_light(torches[i], time, torch_phase(i));
+        light.shadow_id = static_cast<std::uint32_t>(i);
+        lights.push_back(light);
     }
     return lights;
 }

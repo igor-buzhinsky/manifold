@@ -147,7 +147,8 @@ Drawbacks:
 
 ## 2026-11-12: Torches as a mesh handle and a shader flame, with the nearest lights in a uniform buffer
 
-Status: **ACCEPTED**. Done in v0.2, without shadows (they come next, as a separate change).
+Status: **ACCEPTED**. Done in v0.2. Shadows followed in a separate change, which also stopped the light
+from moving with the flicker.
 
 Decision: a torch is a static wall decoration made of two parts, and its light is one of a few dozen
 point lights that the CPU chooses each frame.
@@ -161,7 +162,8 @@ point lights that the CPU chooses each frame.
   minus range) go to the shader in a std140 uniform buffer of 32 lights. Falloff is inverse-square with a
   smooth fade to zero at the range, `(1 - (d / range)^4)^2`, and a minimum distance of 0.3 m.
 - **Flicker**: computed on the CPU from the game time and a per-torch phase, as a sum of sines that
-  changes the brightness (75–100%) and moves the light by up to 2 cm. Animations use the game time wrapped
+  changes the brightness (75–100%). (At first it also moved the light by up to 2 cm. That was dropped
+  with shadows, because a torch's shadow map is drawn once.) Animations use the game time wrapped
   into one hour, so floats stay precise during long play.
 - **Placement**: in room levels, each wall side that faces a room's floor gets a torch with a chance of
   10%, except where a ramp runs along it. In debug levels, torches hang on the outer walls 8 m apart.
@@ -182,7 +184,7 @@ Gains:
 
 Drawbacks:
 
-- **Light goes through walls and floors** until shadows exist: a torch lights the room behind a wall, and
+- **Light went through walls and floors** until shadows came: a torch lit the room behind a wall, and
   the ceiling of the layer above.
 - **Lights pop**: a torch's light switches on or off at once when it enters or leaves the nearest 31.
   A fade for those lights would fix this.

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <numbers>
+#include <span>
 #include <vector>
 
 #include <glm/geometric.hpp>
@@ -122,6 +123,18 @@ void add_torch(std::vector<Vertex>& vertices, const Torch& torch) {
     add_prism(vertices, torch.tip() - (kHeadLength * axis), axis, kHeadRadius, kHeadLength, kHead);
 }
 
+/// Adds the bottom of a ramp, facing down.
+void add_ramp_bottom(std::vector<Vertex>& vertices, const Ramp& ramp) {
+    const float cos_yaw = std::cos(ramp.yaw);
+    const float sin_yaw = std::sin(ramp.yaw);
+    const auto corner = [&](float u, float v) {
+        return ramp.base_center + glm::vec3((cos_yaw * u) - (sin_yaw * v), (sin_yaw * u) + (cos_yaw * v), 0.0f);
+    };
+    // Low end (l) and high end (h); 0 is on the right side, 1 on the left.
+    add_quad(vertices, {corner(-ramp.half_length, -ramp.half_width), corner(-ramp.half_length, ramp.half_width),
+                        corner(ramp.half_length, ramp.half_width), corner(ramp.half_length, -ramp.half_width)});
+}
+
 /// Adds the slope, the high end, the two sides and, if the ramp doesn't stand on the floor, the bottom.
 void add_ramp(std::vector<Vertex>& vertices, const Ramp& ramp) {
     const float cos_yaw = std::cos(ramp.yaw);
@@ -141,8 +154,37 @@ void add_ramp(std::vector<Vertex>& vertices, const Ramp& ramp) {
     add_triangle(vertices, {l0, h0, t0});
     add_triangle(vertices, {l1, t1, h1});
     if (ramp.base_center.z > 0.0f) {
-        add_quad(vertices, {l0, l1, h1, h0});
+        add_ramp_bottom(vertices, ramp);
     }
+}
+
+/// The corners of an obstacle's footprint at the height of its base, counter-clockwise when seen from above.
+std::array<glm::vec3, 4> obstacle_corners(const Obstacle& obstacle) {
+    std::array<glm::vec3, 4> corners{};
+    const float cos_yaw = std::cos(obstacle.yaw);
+    const float sin_yaw = std::sin(obstacle.yaw);
+    const std::array<float, 4> local_x{-1.0f, 1.0f, 1.0f, -1.0f};
+    const std::array<float, 4> local_y{-1.0f, -1.0f, 1.0f, 1.0f};
+    for (std::size_t i = 0; i < corners.size(); ++i) {
+        const float x = local_x.at(i) * obstacle.half_size;
+        const float y = local_y.at(i) * obstacle.half_size;
+        corners.at(i) =
+            obstacle.base_center + glm::vec3((cos_yaw * x) - (sin_yaw * y), (sin_yaw * x) + (cos_yaw * y), 0.0f);
+    }
+    return corners;
+}
+
+/// Adds the top of an obstacle, facing up.
+void add_obstacle_top(std::vector<Vertex>& vertices, const Obstacle& obstacle) {
+    const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
+    const glm::vec3 top{0.0f, 0.0f, obstacle.height};
+    add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top});
+}
+
+/// Adds the bottom of an obstacle, facing down.
+void add_obstacle_bottom(std::vector<Vertex>& vertices, const Obstacle& obstacle) {
+    const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
+    add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]});
 }
 
 /// Adds a vertical wall standing on the line from `from` to `to`.
@@ -176,34 +218,64 @@ std::vector<Vertex> build_world_mesh(const World& world) {
     add_wall(vertices, d, a, h);
 
     for (const Obstacle& obstacle : world.obstacles()) {
-        // Footprint corners, counter-clockwise. Walls go through them clockwise to face outwards.
-        std::array<glm::vec3, 4> corners{};
-        const float cos_yaw = std::cos(obstacle.yaw);
-        const float sin_yaw = std::sin(obstacle.yaw);
-        const std::array<float, 4> local_x{-1.0f, 1.0f, 1.0f, -1.0f};
-        const std::array<float, 4> local_y{-1.0f, -1.0f, 1.0f, 1.0f};
-        for (std::size_t i = 0; i < corners.size(); ++i) {
-            const float x = local_x.at(i) * obstacle.half_size;
-            const float y = local_y.at(i) * obstacle.half_size;
-            corners.at(i) =
-                obstacle.base_center + glm::vec3((cos_yaw * x) - (sin_yaw * y), (sin_yaw * x) + (cos_yaw * y), 0.0f);
-        }
+        // The corners are counter-clockwise, so the walls go through them clockwise to face outwards.
+        const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
         for (std::size_t i = 0; i < corners.size(); ++i) {
             add_wall(vertices, corners.at((i + 1) % corners.size()), corners.at(i), obstacle.height);
         }
         // The top is hidden when the obstacle reaches the ceiling, and the bottom when it stands on the floor.
         if (obstacle.base_center.z + obstacle.height < h) {
-            const glm::vec3 top{0.0f, 0.0f, obstacle.height};
-            add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top});
+            add_obstacle_top(vertices, obstacle);
         }
         if (obstacle.base_center.z > 0.0f) {
-            add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]});
+            add_obstacle_bottom(vertices, obstacle);
         }
     }
     for (const Ramp& ramp : world.ramps()) {
         add_ramp(vertices, ramp);
     }
-    for (const Torch& torch : world.torches()) {
+    return vertices;
+}
+
+std::vector<Vertex> build_shadow_faces(const World& world, float thickness) {
+    std::vector<Vertex> vertices;
+    const WorldBounds& bounds = world.bounds();
+    // Corners of the bottom of the shell, counter-clockwise when seen from above.
+    const glm::vec3 a{bounds.x_min - thickness, bounds.y_min - thickness, -thickness};
+    const glm::vec3 b{bounds.x_max + thickness, bounds.y_min - thickness, -thickness};
+    const glm::vec3 c{bounds.x_max + thickness, bounds.y_max + thickness, -thickness};
+    const glm::vec3 d{bounds.x_min - thickness, bounds.y_max + thickness, -thickness};
+    const float height = bounds.height + (2.0f * thickness);
+    const glm::vec3 up{0.0f, 0.0f, height};
+
+    // The reverse of the boundary in build_world_mesh(): everything faces outwards.
+    add_quad(vertices, {d, c, b, a});
+    add_quad(vertices, {a + up, b + up, c + up, d + up});
+    add_wall(vertices, b, a, height);
+    add_wall(vertices, c, b, height);
+    add_wall(vertices, d, c, height);
+    add_wall(vertices, a, d, height);
+
+    // The faces that build_world_mesh() leaves out because they touch the floor or the ceiling.
+    for (const Obstacle& obstacle : world.obstacles()) {
+        if (obstacle.base_center.z + obstacle.height >= bounds.height) {
+            add_obstacle_top(vertices, obstacle);
+        }
+        if (obstacle.base_center.z <= 0.0f) {
+            add_obstacle_bottom(vertices, obstacle);
+        }
+    }
+    for (const Ramp& ramp : world.ramps()) {
+        if (ramp.base_center.z <= 0.0f) {
+            add_ramp_bottom(vertices, ramp);
+        }
+    }
+    return vertices;
+}
+
+std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches) {
+    std::vector<Vertex> vertices;
+    for (const Torch& torch : torches) {
         add_torch(vertices, torch);
     }
     return vertices;

@@ -123,14 +123,25 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   walls. A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
   sprite: an upright quad facing the camera, painted by a shader as a pixelated, flickering teardrop. Each
   frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
-  shader in a uniform buffer. Torch lights flicker and sway slightly, and fade out smoothly at 6 m. The
+  shader in a uniform buffer. Torch lights flicker and fade out smoothly at 6 m. The
   player's light now also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m
-  away, so the wall behind a flame doesn't turn white. Until
-  shadows exist, torch light goes through walls and floors. Next: braziers and crystals, and a fade for
+  away, so the wall behind a flame doesn't turn white. Next: braziers and crystals, and a fade for
   lights that enter or leave the nearest 31, so they don't pop.
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
+  Done for torches, which are all 31 torch lights in use: the player's light casts none, because it is at
+  the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
+  move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept in
+  one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.
+  Drawing all 31 maps on the first frame takes about 0.2 s. A map stores the distance to the faces that
+  point away from the light (back faces), divided by the range, so lit surfaces never shadow themselves
+  and a 5 mm bias is enough. For this, the shadow pass also draws faces that the visible mesh leaves out:
+  a shell behind the one-sided floor, ceiling and boundary walls, and the hidden tops and bottoms of
+  blocks and ramps. Lookups use hardware comparison with 2 × 2 linear filtering. Torch handles cast no
+  shadows: under a point light, they would throw a hard, long shadow down the wall. Next: a shadow for
+  the player's body once it has one, and a limit on how many shadow maps are drawn in one frame, so that
+  many torches at once don't cause a stutter.
 - Pixelation (of textures or the entire visible region as a whole).
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
 - ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random

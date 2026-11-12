@@ -1,10 +1,12 @@
 #pragma once
 
+#include <span>
 #include <vector>
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -28,8 +30,7 @@ inline constexpr glm::vec3 kTorchHandleColor{0.2f, 0.1f, 0.04f};
 /// Color of the charred, burning end of a torch, linear RGB.
 inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 
-/// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles, the ramps and the torch
-/// handles of a world.
+/// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles and the ramps of a world.
 ///
 /// Every three vertices form a triangle, counter-clockwise when seen from the side the normal points to.
 /// Normals of the boundary walls point into the level, normals of obstacles point out of them.
@@ -39,8 +40,29 @@ inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 /// Texture coordinates come from the position on the surface's plane, so the texture is never stretched,
 /// also on ramp slopes. On vertical surfaces the texture is upright: its top is up.
 ///
-/// Torch handles are untextured six-sided prisms in kTorchHandleColor, with a wider end in kTorchHeadColor.
-/// Their flames are not part of the mesh: the renderer draws them as sprites.
+/// The torches are left out, see build_torch_mesh().
 std::vector<Vertex> build_world_mesh(const World& world);
+
+/// Creates the faces that only shadow maps need, which build_world_mesh() leaves out.
+///
+/// Shadow maps keep only the faces that point away from the light (back faces), so every surface that
+/// blocks light needs one behind it. These faces close the gaps:
+/// - the outer side of a shell around the level boundary: six quads `thickness` outside it, facing
+///   outwards, behind the one-sided floor, ceiling and boundary walls;
+/// - the tops of obstacles that reach the ceiling;
+/// - the bottoms of obstacles and ramps that stand on the floor.
+///
+/// Triangles are counter-clockwise as in build_world_mesh().
+///
+/// \param world     The world.
+/// \param thickness Distance of the shell from the boundary, in metres.
+std::vector<Vertex> build_shadow_faces(const World& world, float thickness);
+
+/// Creates triangles for the handles of torches.
+///
+/// A handle is an untextured six-sided prism in kTorchHandleColor, with a wider end in kTorchHeadColor.
+/// Triangles are counter-clockwise as in build_world_mesh(). The flames are not part of the mesh: the
+/// renderer draws them as sprites.
+std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches);
 
 }  // namespace manifold

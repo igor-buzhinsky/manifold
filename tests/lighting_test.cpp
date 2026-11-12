@@ -45,12 +45,13 @@ TEST(LightingTest, TorchesWithDifferentPhasesFlickerDifferently) {
     EXPECT_NE(torch_flicker(2.0f, torch_phase(0)), torch_flicker(2.0f, torch_phase(1)));
 }
 
-TEST(LightingTest, TorchLightIsNearItsFlame) {
+TEST(LightingTest, TorchLightStaysAtItsFlame) {
     const Torch torch{.mount = {3.0f, -2.0f, 1.6f}, .yaw = 1.0f};
     for (int step = 0; step < 100; ++step) {
         const float time = static_cast<float>(step) * 0.1f;
         const PointLight light = torch_light(torch, time, 0.5f);
-        EXPECT_LT(glm::distance(light.position, torch.light_position()), 0.05f);
+        EXPECT_EQ(light.position, torch.light_position());
+        EXPECT_FALSE(light.shadow_id.has_value());
         EXPECT_EQ(light.color, kTorchColor);
         EXPECT_FLOAT_EQ(light.intensity, kTorchIntensity * torch_flicker(time, 0.5f));
         EXPECT_FLOAT_EQ(light.range, kTorchRange);
@@ -66,6 +67,7 @@ TEST(LightingTest, TorchLightsKeepTorchOrder) {
         const PointLight expected = torch_light(torches[i], 1.5f, torch_phase(i));
         EXPECT_EQ(lights[i].position, expected.position);
         EXPECT_FLOAT_EQ(lights[i].intensity, expected.intensity);
+        EXPECT_EQ(lights[i].shadow_id, i);
     }
 }
 

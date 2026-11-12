@@ -141,32 +141,37 @@ TEST(WorldMeshTest, TextureIsUprightOnWalls) {
     }
 }
 
-TEST(WorldMeshTest, LevelSurfacesUseTextureAndTorchesTheirColors) {
+TEST(WorldMeshTest, LevelSurfacesUseTextureAndLeaveOutTorches) {
     World world = make_world();
     const std::size_t level_vertices = build_world_mesh(world).size();
     world.add_torch({.mount = {0.0f, 4.0f, 1.6f}, .yaw = -std::numbers::pi_v<float> / 2.0f});
     const std::vector<Vertex> mesh = build_world_mesh(world);
-    // Two closed six-sided prisms: 6 side quads and 2 caps of 4 triangles each.
+    ASSERT_EQ(mesh.size(), level_vertices);
+    for (const Vertex& vertex : mesh) {
+        EXPECT_EQ(vertex.color, glm::vec3(1.0f));
+        EXPECT_FLOAT_EQ(vertex.texture_weight, 1.0f);
+    }
+}
+
+TEST(WorldMeshTest, TorchesHaveUntexturedHandleAndHead) {
+    const std::vector<Torch> torches{{.mount = {0.0f, 4.0f, 1.6f}, .yaw = -std::numbers::pi_v<float> / 2.0f},
+                                     {.mount = {1.0f, 4.0f, 1.6f}, .yaw = -std::numbers::pi_v<float> / 2.0f}};
+    const std::vector<Vertex> mesh = build_torch_mesh(torches);
+    // Two closed six-sided prisms per torch: 6 side quads and 2 caps of 4 triangles each.
     constexpr std::size_t kVerticesPerTriangle = 3;
     constexpr std::size_t kPrismVertices = (6 * kVerticesPerQuad) + (8 * kVerticesPerTriangle);
-    ASSERT_EQ(mesh.size(), level_vertices + (2 * kPrismVertices));
+    ASSERT_EQ(mesh.size(), 4 * kPrismVertices);
     for (std::size_t i = 0; i < mesh.size(); ++i) {
-        if (i < level_vertices) {
-            EXPECT_EQ(mesh[i].color, glm::vec3(1.0f));
-            EXPECT_FLOAT_EQ(mesh[i].texture_weight, 1.0f);
-        } else {
-            EXPECT_EQ(mesh[i].color, i < level_vertices + kPrismVertices ? kTorchHandleColor : kTorchHeadColor);
-            EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
-        }
+        const bool handle = (i / kPrismVertices) % 2 == 0;
+        EXPECT_EQ(mesh[i].color, handle ? kTorchHandleColor : kTorchHeadColor);
+        EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
     }
 }
 
 TEST(WorldMeshTest, TorchIsAClosedPrismAlongItsHandle) {
-    World world(kBounds);
-    const Torch torch{.mount = {kBounds.x_min, 0.0f, 1.6f}, .yaw = 0.0f};
-    world.add_torch(torch);
-    const std::vector<Vertex> all = build_world_mesh(world);
-    const std::vector<Vertex> mesh(all.begin() + static_cast<std::ptrdiff_t>(6 * kVerticesPerQuad), all.end());
+    const std::vector<Torch> torches{{.mount = {kBounds.x_min, 0.0f, 1.6f}, .yaw = 0.0f}};
+    const Torch& torch = torches[0];
+    const std::vector<Vertex> mesh = build_torch_mesh(torches);
     ASSERT_FALSE(mesh.empty());
     const glm::vec3 axis = torch.axis();
     for (std::size_t i = 0; i < mesh.size(); i += 3) {
@@ -186,6 +191,52 @@ TEST(WorldMeshTest, TorchIsAClosedPrismAlongItsHandle) {
         total += glm::cross(mesh[i + 1].position - mesh[i].position, mesh[i + 2].position - mesh[i].position);
     }
     EXPECT_NEAR(glm::length(total), 0.0f, 1e-5f);
+}
+
+TEST(WorldMeshTest, ShadowFacesHaveBoundaryShellOutsideFacingOutwards) {
+    constexpr float kThickness = 0.1f;
+    const std::vector<Vertex> faces = build_shadow_faces(World(kBounds), kThickness);
+    ASSERT_EQ(faces.size(), 6 * kVerticesPerQuad);
+    const std::vector<Vertex>& shell = faces;
+    const glm::vec3 level_center{0.0f, 0.0f, kBounds.height / 2.0f};
+    for (std::size_t i = 0; i < shell.size(); i += 3) {
+        const glm::vec3 winding_normal =
+            glm::cross(shell[i + 1].position - shell[i].position, shell[i + 2].position - shell[i].position);
+        EXPECT_GT(glm::dot(winding_normal, shell[i].normal), 0.0f) << "triangle " << i / 3;
+        EXPECT_LT(glm::dot(level_center - shell[i].position, shell[i].normal), 0.0f) << "triangle " << i / 3;
+    }
+    for (const Vertex& vertex : shell) {
+        // Every vertex is a corner of the box that is `kThickness` larger than the bounds on all sides.
+        EXPECT_NEAR(std::abs(vertex.position.x), kBounds.x_max + kThickness, 1e-5f);
+        EXPECT_NEAR(std::abs(vertex.position.y), kBounds.y_max + kThickness, 1e-5f);
+        EXPECT_NEAR(std::abs(vertex.position.z - (kBounds.height / 2.0f)), (kBounds.height / 2.0f) + kThickness, 1e-5f);
+    }
+}
+
+TEST(WorldMeshTest, ShadowFacesCloseObstaclesAndRampsAtFloorAndCeiling) {
+    World world(kBounds);
+    // Floor to ceiling: top and bottom are missing from the world mesh.
+    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.4f});
+    // Floating, not reaching the ceiling: nothing is missing.
+    world.add_obstacle({.base_center = {-2.0f, 1.0f, 1.0f}, .half_size = 0.5f, .height = 1.0f, .yaw = 0.0f});
+    // On the floor: only the bottom is missing.
+    world.add_ramp({.base_center = {0.0f, -2.0f, 0.0f}, .half_length = 1.0f, .half_width = 0.5f, .rise = 1.0f});
+    const std::vector<Vertex> faces = build_shadow_faces(world, 0.1f);
+    ASSERT_EQ(faces.size(), (6 + 3) * kVerticesPerQuad);
+    const std::size_t shell = 6 * kVerticesPerQuad;
+    for (std::size_t i = shell; i < shell + kVerticesPerQuad; ++i) {
+        EXPECT_FLOAT_EQ(faces[i].position.z, kBounds.height);
+        EXPECT_GT(faces[i].normal.z, 0.99f);
+    }
+    for (std::size_t i = shell + kVerticesPerQuad; i < faces.size(); ++i) {
+        EXPECT_FLOAT_EQ(faces[i].position.z, 0.0f);
+        EXPECT_LT(faces[i].normal.z, -0.99f);
+    }
+    for (std::size_t i = shell; i < faces.size(); i += 3) {
+        const glm::vec3 winding_normal =
+            glm::cross(faces[i + 1].position - faces[i].position, faces[i + 2].position - faces[i].position);
+        EXPECT_GT(glm::dot(winding_normal, faces[i].normal), 0.0f) << "triangle " << i / 3;
+    }
 }
 
 TEST(WorldMeshTest, FloorTextureFollowsXAndY) {

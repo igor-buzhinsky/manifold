@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -19,6 +21,10 @@ struct PointLight {
     /// Brightness at a distance of 1 m, before the fade towards `range`.
     float intensity = 1.0f;
     float range = 10.0f;  ///< Farther than this, in metres, the light has no effect.
+    /// If set, the light casts shadows, and this identifies its shadow map. The light must not move, and
+    /// different lights must have different ids, because the renderer keeps each shadow map for later
+    /// frames.
+    std::optional<std::uint32_t> shadow_id = std::nullopt;
 };
 
 /// The most point lights that are drawn at once.
@@ -53,14 +59,18 @@ float torch_phase(std::size_t index);
 /// \return A factor in [0.75, 1].
 float torch_flicker(float time, float phase);
 
-/// The light of a torch at a moment, with flicker and a slight movement of the flame.
+/// The light of a torch at a moment, with flicker, at Torch::light_position().
 ///
-/// \param torch The torch, whose light is at Torch::light_position() when the flame is at rest.
+/// The light stays in place, because its shadow map is drawn once. Its `shadow_id` is not set.
+///
+/// \param torch The torch.
 /// \param time  Seconds since the start of the game.
 /// \param phase Radians, see torch_phase().
 PointLight torch_light(const Torch& torch, float time, float phase);
 
 /// The lights of all torches at a moment, in the same order as the torches.
+///
+/// They cast shadows: the light of torch i has `shadow_id` i.
 ///
 /// \param torches The torches. Torch i flickers with torch_phase(i).
 /// \param time    Seconds since the start of the game.

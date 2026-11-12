@@ -60,6 +60,7 @@ add_library(manifold_core STATIC
     src/physics/collision.cpp
     src/render/camera.cpp
     src/render/lighting.cpp
+    src/render/shadow_map.cpp
     src/render/stb_image.cpp
     src/render/stb_image_write.cpp
     src/render/texture_image.cpp
@@ -108,6 +109,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/lighting_test.cpp
         tests/log_test.cpp
         tests/room_layout_test.cpp
+        tests/shadow_map_test.cpp
         tests/texture_image_test.cpp
         tests/torch_test.cpp
         tests/viewport_test.cpp

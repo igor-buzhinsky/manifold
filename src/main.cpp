@@ -32,7 +32,6 @@
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
-#include "render/world_mesh.hpp"
 #include "util/log.hpp"
 
 namespace {
@@ -177,8 +176,7 @@ void run(const Options& options) {
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
-    const manifold::Renderer renderer(manifold::build_world_mesh(game.world()), pick_level_texture(game.seed()),
-                                      game.world().torches());
+    manifold::Renderer renderer(game.world(), pick_level_texture(game.seed()));
 
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
