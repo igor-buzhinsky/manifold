@@ -121,8 +121,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   glowing crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1, the lights near the player (a few dozen) go to the
   shader in a uniform buffer, chosen on the CPU each frame. With 4.5, a shader storage buffer can hold all
   lights of the level, and a compute shader can choose the lights for each part of the screen.
-  Done for torches: room levels get torches on random wall sides facing a room, debug levels on their outer
-  walls. A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
+  Done for torches: room levels get torches on random wall sides facing a room (5–10% of them, random for
+  each level), debug levels on their outer walls. All torches of a level have one flame color: orange
+  (50%), blue or green (25% each). A torch is a six-sided handle in the world mesh (untextured, with a per-vertex color) and a flame
   sprite: an upright quad facing the camera, painted by a shader as a pixelated, flickering teardrop. Each
   frame, the player's light and the 31 torches nearest to the player (by distance minus range) go to the
   shader in a uniform buffer. Torch lights flicker and fade out smoothly at 6 m. The

@@ -56,6 +56,7 @@ add_library(manifold_core STATIC
     src/game.cpp
     src/level/debug_layout.cpp
     src/level/layout_factory.cpp
+    src/level/level.cpp
     src/level/room_layout.cpp
     src/physics/collision.cpp
     src/render/camera.cpp

@@ -15,6 +15,18 @@
 
 namespace manifold {
 
+glm::vec3 torch_light_color(TorchFlame flame) {
+    switch (flame) {
+        case TorchFlame::kOrange:
+            return {1.0f, 0.55f, 0.2f};
+        case TorchFlame::kBlue:
+            return {0.18f, 0.24f, 1.0f};
+        case TorchFlame::kGreen:
+            return {0.45f, 1.0f, 0.2f};
+    }
+    return glm::vec3(1.0f);
+}
+
 float torch_phase(std::size_t index) {
     // Multiples of 1 / phi = phi - 1, the inverse of the golden ratio, spread out evenly over the circle,
     // however many there are.
@@ -31,7 +43,7 @@ float torch_flicker(float time, float phase) {
 
 PointLight torch_light(const Torch& torch, float time, float phase) {
     return {.position = torch.light_position(),
-            .color = kTorchColor,
+            .color = torch_light_color(torch.flame),
             .intensity = kTorchIntensity * torch_flicker(time, phase),
             .range = kTorchRange};
 }

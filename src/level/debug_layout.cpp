@@ -113,8 +113,8 @@ bool torch_blocked(const World& world, const Torch& torch) {
     return std::ranges::any_of(world.obstacles(), blocks) || std::ranges::any_of(world.ramps(), ramp_blocks);
 }
 
-/// Hangs torches on the four level walls, see DebugLayout.
-void place_torches(const DebugLayoutConfig& config, World& world) {
+/// Hangs torches with the given flame on the four level walls, see DebugLayout.
+void place_torches(const DebugLayoutConfig& config, TorchFlame flame, World& world) {
     const WorldBounds& bounds = world.bounds();
     const float pi = std::numbers::pi_v<float>;
     // Each wall: a start corner, the direction along the wall, its length and the direction into the level.
@@ -139,7 +139,7 @@ void place_torches(const DebugLayoutConfig& config, World& world) {
         for (int i = 0; i < count; ++i) {
             const glm::vec2 point =
                 wall.start + ((first + (static_cast<float>(i) * config.torch_spacing)) * wall.along);
-            const Torch torch{.mount = {point, config.torch_height}, .yaw = wall.yaw};
+            const Torch torch{.mount = {point, config.torch_height}, .yaw = wall.yaw, .flame = flame};
             if (!torch_blocked(world, torch)) {
                 world.add_torch(torch);
             }
@@ -186,7 +186,7 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     // Ceiling blocks are above the obstacles, so they may be placed anywhere, whatever is below them.
     place_blocks(config_, keep_clear, config_.obstacle_height, config_.ceiling_thickness, world, rng);
     place_ramps(config_, keep_clear, world, rng);
-    place_torches(config_, world);
+    place_torches(config_, choose_torch_flame(rng), world);
     std::string plan = describe(world);
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .plan = std::move(plan)};
 }

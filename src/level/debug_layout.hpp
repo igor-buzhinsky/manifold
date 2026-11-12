@@ -36,6 +36,7 @@ struct DebugLayoutConfig {
 ///   obstacles, ceiling blocks or other ramps.
 ///
 /// - Torches hang on the level walls, `torch_spacing` apart, except where an obstacle or a ramp is in the way.
+///   All of them have the same flame, see choose_torch_flame().
 ///
 /// Everything lies fully inside the bounds, and the start in the center of the level stays free. The plan
 /// lists all obstacles, ceiling blocks and ramps.

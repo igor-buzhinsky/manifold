@@ -33,6 +33,7 @@
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "util/log.hpp"
+#include "world/torch.hpp"
 
 namespace {
 
@@ -121,6 +122,9 @@ void log_game(const manifold::Game& game) {
         "World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles, {} ramps, {} torches",
         bounds.x_min, bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
         game.world().obstacles().size(), game.world().ramps().size(), game.world().torches().size());
+    if (!game.world().torches().empty()) {
+        manifold::log_info("Torches: {} flames", manifold::torch_flame_name(game.world().torches()[0].flame));
+    }
     manifold::log_info("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m", player.position().x,
                        player.position().y, player.position().z, player.radius(), player.height());
     manifold::log_info("Level plan:\n{}", game.level().plan);

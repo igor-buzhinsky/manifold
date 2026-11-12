@@ -187,6 +187,7 @@ constexpr const char* kFlameVertexShader = R"glsl(
 #version 410 core
 layout(location = 0) in vec3 a_bottom;
 layout(location = 1) in float a_phase;
+layout(location = 2) in float a_flame;
 
 uniform mat4 u_view_projection;
 uniform vec3 u_right;  // Horizontal unit vector to the right of the camera.
@@ -194,8 +195,10 @@ uniform vec2 u_size;   // Width and height of a flame, in metres.
 
 out vec2 v_uv;
 flat out float v_phase;
+flat out int v_flame;
 
 void main() {
+    v_flame = int(a_flame);
     // Bottom left, bottom right, top left, top right.
     vec2 corner = vec2(gl_VertexID & 1, gl_VertexID >> 1);
     v_uv = corner;
@@ -208,11 +211,13 @@ void main() {
 /// Paints a flickering, pixelated flame, without lighting.
 ///
 /// The flame is a teardrop that sways and changes height over time, in three bands of color from the hot
-/// core to the edge. Pixels outside of it are discarded, so flames need no sorting by depth.
+/// core to the edge. The colors depend on the flame, in the order of TorchFlame. Pixels outside of it are
+/// discarded, so flames need no sorting by depth.
 constexpr const char* kFlameFragmentShader = R"glsl(
 #version 410 core
 in vec2 v_uv;  // x across the flame, y from the bottom up, both in [0, 1].
 flat in float v_phase;
+flat in int v_flame;  // TorchFlame: 0 orange, 1 blue, 2 green.
 
 uniform float u_time;
 
@@ -220,6 +225,11 @@ out vec4 frag_color;
 
 const vec2 kPixels = vec2(6.0, 11.0);  // Big pixels across and up the flame, for the retro look.
 const float kPi = 3.14159265;
+
+// Colors of the core, the middle and the edge of each kind of flame, already sRGB.
+const vec3 kCore[3] = vec3[](vec3(1.0, 0.95, 0.7), vec3(0.85, 0.95, 1.0), vec3(0.9, 1.0, 0.7));
+const vec3 kMiddle[3] = vec3[](vec3(1.0, 0.65, 0.15), vec3(0.3, 0.55, 1.0), vec3(0.45, 0.9, 0.2));
+const vec3 kEdge[3] = vec3[](vec3(0.85, 0.25, 0.05), vec3(0.4, 0.15, 0.75), vec3(0.15, 0.4, 0.1));
 
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
@@ -246,7 +256,7 @@ void main() {
         discard;
     }
     // Already sRGB: the flame is as bright as the display allows.
-    vec3 color = heat > 0.65 ? vec3(1.0, 0.95, 0.7) : heat > 0.35 ? vec3(1.0, 0.65, 0.15) : vec3(0.85, 0.25, 0.05);
+    vec3 color = heat > 0.65 ? kCore[v_flame] : heat > 0.35 ? kMiddle[v_flame] : kEdge[v_flame];
     frag_color = vec4(color, 1.0);
 }
 )glsl";
@@ -286,6 +296,7 @@ constexpr float kShellThickness = 0.1f;
 struct FlameInstance {
     glm::vec3 bottom;  ///< Center of the flame's bottom edge, see Torch::flame_bottom().
     float phase;       ///< See torch_phase().
+    float flame;       ///< The TorchFlame, as a number.
 };
 
 /// Compiles one shader stage.
@@ -350,7 +361,9 @@ std::vector<FlameInstance> make_flames(std::span<const Torch> torches) {
     std::vector<FlameInstance> flames;
     flames.reserve(torches.size());
     for (std::size_t i = 0; i < torches.size(); ++i) {
-        flames.push_back({.bottom = torches[i].flame_bottom(), .phase = torch_phase(i)});
+        flames.push_back({.bottom = torches[i].flame_bottom(),
+                          .phase = torch_phase(i),
+                          .flame = static_cast<float>(torches[i].flame)});
     }
     return flames;
 }
@@ -478,8 +491,10 @@ Renderer::Renderer(const World& world, const Image& texture)
                  GL_STATIC_DRAW);
     set_vertex_attribute(0, 3, sizeof(FlameInstance), offsetof(FlameInstance, bottom));
     set_vertex_attribute(1, 1, sizeof(FlameInstance), offsetof(FlameInstance, phase));
+    set_vertex_attribute(2, 1, sizeof(FlameInstance), offsetof(FlameInstance, flame));
     glVertexAttribDivisor(0, 1);
     glVertexAttribDivisor(1, 1);
+    glVertexAttribDivisor(2, 1);
     glBindVertexArray(0);
 
     glGenBuffers(1, &light_buffer_);

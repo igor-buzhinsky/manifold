@@ -165,9 +165,13 @@ point lights that the CPU chooses each frame.
   changes the brightness (75–100%). (At first it also moved the light by up to 2 cm. That was dropped
   with shadows, because a torch's shadow map is drawn once.) Animations use the game time wrapped
   into one hour, so floats stay precise during long play.
-- **Placement**: in room levels, each wall side that faces a room's floor gets a torch with a chance of
-  10%, except where a ramp runs along it. In debug levels, torches hang on the outer walls 8 m apart.
-  Torches have no collision.
+- **Placement**: in room levels, each wall side that faces a room's floor gets a torch with the same
+  chance, except where a ramp runs along it. The chance is random for each level, from 5% to 10%. (At
+  first it was always 10%.) In debug levels, torches hang on the outer walls 8 m apart. Torches have no
+  collision.
+- **Flame colors**: all torches of a level burn with the same flame, chosen at random: orange (50%), or a
+  colder, unsettling blue or green (25% each). The flame sets the light's color and the colors of the
+  flame sprite.
 - **No torch or player shadows at this point**: torch lights cast shadows of the level, but torch
   handles and the player cast none, and this won't be implemented now. Under a point light just above
   the stick, a handle would throw a hard, long shadow down the wall, and the player has no body yet.

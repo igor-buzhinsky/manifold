@@ -189,6 +189,7 @@ TEST(DebugLayoutTest, TorchesHangOnLevelWallsFacingInwards) {
         const Level level = generate(config, seed);
         EXPECT_FALSE(level.world.torches().empty()) << "seed " << seed;
         for (const Torch& torch : level.world.torches()) {
+            EXPECT_EQ(torch.flame, level.world.torches()[0].flame) << "seed " << seed;
             const glm::vec3 mount = torch.mount;
             const bool on_wall = mount.x == bounds.x_min || mount.x == bounds.x_max || mount.y == bounds.y_min ||
                                  mount.y == bounds.y_max;

@@ -8,6 +8,7 @@
 #include <optional>
 #include <queue>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -630,14 +631,62 @@ TEST(RoomLayoutTest, TorchesHangOnWallsFacingRooms) {
 
 TEST(RoomLayoutTest, TorchChanceControlsTorchCount) {
     RoomLayoutConfig config = make_config();
-    config.torch_chance = 0.0f;
+    config.min_torch_chance = 0.0f;
+    config.max_torch_chance = 0.0f;
     EXPECT_TRUE(generate(3, config).world.torches().empty());
-    config.torch_chance = 1.0f;
+    config.min_torch_chance = 1.0f;
+    config.max_torch_chance = 1.0f;
     const std::size_t all = generate(3, config).world.torches().size();
-    config.torch_chance = 0.1f;
+    config.min_torch_chance = 0.1f;
+    config.max_torch_chance = 0.1f;
     const std::size_t some = generate(3, config).world.torches().size();
     EXPECT_GT(some, all / 20);
     EXPECT_LT(some, all / 5);
+}
+
+TEST(RoomLayoutTest, TorchCountVariesBetweenLevelsWithinChances) {
+    const RoomLayoutConfig config = make_config();  // Default chances: 5% to 10%.
+    std::size_t lowest = 1000000;
+    std::size_t highest = 0;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        RoomLayoutConfig every_side = config;
+        every_side.min_torch_chance = 1.0f;
+        every_side.max_torch_chance = 1.0f;
+        const auto sides = static_cast<float>(generate(seed, every_side).world.torches().size());
+        const auto torches = static_cast<float>(generate(seed, config).world.torches().size());
+        // Far from the limits, so that chance rarely breaks the test.
+        EXPECT_GT(torches, 0.02f * sides) << "seed " << seed;
+        EXPECT_LT(torches, 0.15f * sides) << "seed " << seed;
+        const auto share = static_cast<std::size_t>(1000.0f * torches / sides);
+        lowest = std::min(lowest, share);
+        highest = std::max(highest, share);
+    }
+    // The share of sides with a torch differs between levels.
+    EXPECT_GT(highest - lowest, 20U);
+}
+
+TEST(RoomLayoutTest, AllTorchesOfALevelHaveTheSameFlameAndAllFlamesOccur) {
+    std::set<TorchFlame> flames;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(seed);
+        const std::span<const Torch> torches = level.world.torches();
+        ASSERT_FALSE(torches.empty());
+        for (const Torch& torch : torches) {
+            EXPECT_EQ(torch.flame, torches[0].flame) << "seed " << seed;
+        }
+        flames.insert(torches[0].flame);
+    }
+    EXPECT_EQ(flames.size(), 3U);
+}
+
+TEST(RoomLayoutTest, ThrowsOnInvalidTorchChances) {
+    RoomLayoutConfig config = make_config();
+    config.min_torch_chance = 0.2f;
+    config.max_torch_chance = 0.1f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.min_torch_chance = 0.5f;
+    config.max_torch_chance = 1.5f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
 }
 
 TEST(RoomLayoutTest, ThrowsWhenTilesAreTooSmallForClearance) {

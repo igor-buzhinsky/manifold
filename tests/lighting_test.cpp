@@ -53,10 +53,24 @@ TEST(LightingTest, TorchLightStaysAtItsFlame) {
         const PointLight light = torch_light(torch, time, 0.5f);
         EXPECT_EQ(light.position, torch.light_position());
         EXPECT_FALSE(light.shadow_id.has_value());
-        EXPECT_EQ(light.color, kTorchColor);
+        EXPECT_EQ(light.color, torch_light_color(TorchFlame::kOrange));
         EXPECT_FLOAT_EQ(light.intensity, kTorchIntensity * torch_flicker(time, 0.5f));
         EXPECT_FLOAT_EQ(light.range, kTorchRange);
     }
+}
+
+TEST(LightingTest, TorchLightHasColorOfItsFlame) {
+    for (const TorchFlame flame : {TorchFlame::kOrange, TorchFlame::kBlue, TorchFlame::kGreen}) {
+        const Torch torch{.mount = {0.0f, 0.0f, 1.6f}, .yaw = 0.0f, .flame = flame};
+        EXPECT_EQ(torch_light(torch, 1.0f, 0.0f).color, torch_light_color(flame));
+    }
+    // Orange is warm, blue and green are cold: their brightest channel is not red.
+    const glm::vec3 orange = torch_light_color(TorchFlame::kOrange);
+    const glm::vec3 blue = torch_light_color(TorchFlame::kBlue);
+    const glm::vec3 green = torch_light_color(TorchFlame::kGreen);
+    EXPECT_GT(orange.r, orange.b);
+    EXPECT_GT(blue.b, std::max(blue.r, blue.g));
+    EXPECT_GT(green.g, std::max(green.r, green.b));
 }
 
 TEST(LightingTest, TorchLightsKeepTorchOrder) {

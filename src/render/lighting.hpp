@@ -36,8 +36,11 @@ struct Lighting {
     std::vector<PointLight> lights;  ///< Only the first kMaxLights are used.
 };
 
-/// Color of torch light, linear RGB: a warm orange.
-inline constexpr glm::vec3 kTorchColor{1.0f, 0.55f, 0.2f};
+/// Color of the light of a torch's flame, linear RGB.
+///
+/// Orange is a warm fire. Blue and green are colder and feel wrong: a deep blue that leans to indigo, and
+/// a sickly green that leans to yellow.
+glm::vec3 torch_light_color(TorchFlame flame);
 /// Brightness of a torch at 1 m, before flicker.
 inline constexpr float kTorchIntensity = 3.5f;
 /// Range of a torch's light, in metres.
@@ -59,7 +62,7 @@ float torch_phase(std::size_t index);
 /// \return A factor in [0.75, 1].
 float torch_flicker(float time, float phase);
 
-/// The light of a torch at a moment, with flicker, at Torch::light_position().
+/// The light of a torch at a moment, with flicker, at Torch::light_position(), in the color of its flame.
 ///
 /// The light stays in place, because its shadow map is drawn once. Its `shadow_id` is not set.
 ///

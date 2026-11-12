@@ -6,6 +6,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -18,6 +19,9 @@ using LevelRng = std::mt19937_64;
 
 /// Gravity on Earth, in metres per second squared.
 constexpr float kEarthGravity = 9.81f;
+
+/// Chooses the flame of all torches of a level: orange with a chance of 50%, blue and green with 25% each.
+TorchFlame choose_torch_flame(LevelRng& rng);
 
 /// The kinds of level layouts.
 enum class LayoutKind : std::uint8_t {

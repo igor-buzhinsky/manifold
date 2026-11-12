@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <string_view>
+
 #include <glm/vec3.hpp>
 
 namespace manifold {
@@ -15,12 +18,23 @@ inline constexpr float kFlameWidth = 0.18f;
 /// Height of a torch's flame, in metres.
 inline constexpr float kFlameHeight = 0.32f;
 
+/// What burns in a torch, which sets the color of its flame and its light.
+enum class TorchFlame : std::uint8_t {
+    kOrange,  ///< An ordinary fire.
+    kBlue,    ///< A cold, unnatural blue with violet edges.
+    kGreen,   ///< A sickly, poisonous green.
+};
+
+/// Short name of a flame, for logs: "orange", "blue" or "green".
+std::string_view torch_flame_name(TorchFlame flame);
+
 /// A torch fixed to a wall: a handle that leans away from the wall, with a flame at its upper end.
 ///
 /// Torches are only decoration and light: they don't collide with anything.
 struct Torch {
     glm::vec3 mount{0.0f};  ///< Where the handle touches the wall, in world coordinates.
     float yaw = 0.0f;       ///< Direction away from the wall: radians counter-clockwise from +x.
+    TorchFlame flame = TorchFlame::kOrange;
 
     /// Horizontal unit vector away from the wall.
     glm::vec3 outward() const;

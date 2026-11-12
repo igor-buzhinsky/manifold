@@ -1,6 +1,7 @@
 #include "world/torch.hpp"
 
 #include <cmath>
+#include <string_view>
 
 #include <glm/vec3.hpp>
 
@@ -14,6 +15,18 @@ constexpr float kFlameSink = 0.04f;
 constexpr float kLightAboveTip = 0.1f;
 
 }  // namespace
+
+std::string_view torch_flame_name(TorchFlame flame) {
+    switch (flame) {
+        case TorchFlame::kOrange:
+            return "orange";
+        case TorchFlame::kBlue:
+            return "blue";
+        case TorchFlame::kGreen:
+            return "green";
+    }
+    return "unknown";
+}
 
 glm::vec3 Torch::outward() const { return {std::cos(yaw), std::sin(yaw), 0.0f}; }
 

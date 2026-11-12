@@ -18,6 +18,7 @@
 
 #include "level/level.hpp"
 #include "util/log.hpp"
+#include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -569,9 +570,21 @@ void build_ramps(World& world, const LayeredPlan& plan, const GridPlacement& gri
 }
 
 /// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
+///
+/// \throws std::invalid_argument if the torch chances are invalid.
 void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
                  LevelRng& rng) {
-    std::bernoulli_distribution has_torch(config.torch_chance);
+    if (config.min_torch_chance < 0.0f || config.max_torch_chance > 1.0f ||
+        config.min_torch_chance > config.max_torch_chance) {
+        throw std::invalid_argument("torch chances must be in [0, 1], the smallest first");
+    }
+    const TorchFlame flame = choose_torch_flame(rng);
+    // uniform_real_distribution needs min < max, so equal chances are taken as they are.
+    const float chance =
+        config.min_torch_chance == config.max_torch_chance
+            ? config.min_torch_chance
+            : std::uniform_real_distribution<float>(config.min_torch_chance, config.max_torch_chance)(rng);
+    std::bernoulli_distribution has_torch(chance);
     const std::array<TilePosition, 4> directions{
         {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
@@ -593,7 +606,8 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
                     const glm::vec3 floor_center = grid.tile_center(x, y, grid.floor_z[index]);
                     world.add_torch({.mount = floor_center + (outward * (grid.tile / 2.0f)) +
                                               glm::vec3(0.0f, 0.0f, config.torch_height),
-                                     .yaw = std::atan2(outward.y, outward.x)});
+                                     .yaw = std::atan2(outward.y, outward.x),
+                                     .flame = flame});
                 }
             }
         }
