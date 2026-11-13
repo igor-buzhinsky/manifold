@@ -385,8 +385,7 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
         const auto layer_number = static_cast<int>(index);
         for (int y = 0; y < layer.height; ++y) {
             for (int x = 0; x < layer.width; ++x) {
-                if (layer.tile(x, y) == Tile::kFloor && !plan.is_hole(layer_number, x, y) &&
-                    !plan.is_hole(layer_number - 1, x, y)) {
+                if (layer.tile(x, y) == Tile::kFloor && !find_hole(plan, layer_number, x, y)) {
                     starts.emplace_back(layer_number, TilePosition{.x = x, .y = y});
                 }
             }
@@ -409,8 +408,7 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
         const TilePosition& step = kNeighborSteps.at(static_cast<std::size_t>(direction));
         const int x = start.x + step.x;
         const int y = start.y + step.y;
-        if (start_plan.tile(x, y) != Tile::kWall && !plan.is_hole(start_layer, x, y) &&
-            !plan.is_hole(start_layer - 1, x, y)) {
+        if (start_plan.tile(x, y) != Tile::kWall && !find_hole(plan, start_layer, x, y)) {
             directions.push_back(direction);
         }
     }

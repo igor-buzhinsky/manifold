@@ -366,6 +366,7 @@ TEST(LayeredPlanTest, EveryRoomHasAtMostOneHole) {
 TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWallOrHole) {
     std::set<int> start_layers;
     std::set<int> directions;
+    int starts_next_to_hole = 0;
     // Starts next to a hole are rare, so this test needs more seeds than the others.
     for (std::uint64_t seed = 0; seed < 200; ++seed) {
         const LayeredPlan plan = make_layered_plan(seed);
@@ -379,13 +380,22 @@ TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWallOrHole) {
         ASSERT_GE(plan.start_direction, 0);
         ASSERT_LT(plan.start_direction, 4);
         constexpr std::array<std::pair<int, int>, 4> kSteps{{{1, 0}, {0, 1}, {-1, 0}, {0, -1}}};
+        const auto is_any_hole = [&](int x, int y) {
+            return plan.is_hole(plan.start_layer, x, y) || plan.is_hole(plan.start_layer - 1, x, y);
+        };
+        if (std::any_of(kSteps.begin(), kSteps.end(), [&](const std::pair<int, int>& step) {
+                return is_any_hole(plan.start_x + step.first, plan.start_y + step.second);
+            })) {
+            ++starts_next_to_hole;
+        }
         const auto [step_x, step_y] = kSteps.at(static_cast<std::size_t>(plan.start_direction));
         const int facing_x = plan.start_x + step_x;
         const int facing_y = plan.start_y + step_y;
         EXPECT_NE(layer.tile(facing_x, facing_y), Tile::kWall) << "seed " << seed;
-        EXPECT_FALSE(plan.is_hole(plan.start_layer, facing_x, facing_y)) << "seed " << seed;
-        EXPECT_FALSE(plan.is_hole(plan.start_layer - 1, facing_x, facing_y)) << "seed " << seed;
+        EXPECT_FALSE(is_any_hole(facing_x, facing_y)) << "seed " << seed;
     }
+    // Some starts are next to a hole, so facing holes is really avoided.
+    EXPECT_GT(starts_next_to_hole, 0);
     // The start layer and direction are random too.
     EXPECT_GT(start_layers.size(), 1U);
     EXPECT_GT(directions.size(), 1U);
