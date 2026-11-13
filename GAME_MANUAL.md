@@ -24,7 +24,8 @@ Console commands inspect the game, e.g. to test a level. Type them into the term
 from, one per line, or give them on the command line with `--exec`, separated by `;`:
 
 ```sh
-# From high above the middle of the level, looking down into the second layer, with the player as an arrow.
+# From high above the middle of the level, looking down into the second layer. The arrow shows where the
+# player is, also when the player is in another layer.
 ./build/manifold 42 --exec "arrow on; cutaway 6.2; camera 0 0 40 90 -90; screenshot top.png 800 450; quit"
 ```
 
@@ -43,7 +44,7 @@ Angles are in degrees.
 | `teleport X Y Z [YAW]` | Move the player's feet to (X, Y, Z), facing YAW if given. Obstacles are not checked, and the player falls from there unless noclip is on |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |
-| `arrow on\|off` | Show an arrow at the player's feet, pointing where the player faces. It is drawn on top of everything, so it is seen through floors and walls |
+| `arrow on\|off` | Show an arrow at the player's feet, pointing where the player faces. It is drawn on top of everything, so it is seen through floors and walls, and also when the player is above a `cutaway` |
 | `lighting on\|off` | Turn lights off to see the plain texture colors, or on again |
 | `shadows on\|off` | Turn shadows off or on |
 | `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window. Other sizes keep the 16:9 view, with black bars |

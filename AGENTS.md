@@ -32,7 +32,7 @@ asked or when unsure what a change affects.
 - If a new system package is needed, add it to the install command in [README.md](README.md).
 - To check rendering or levels, run the game with console commands (see the Console section of
   [GAME_MANUAL.md](GAME_MANUAL.md)) and look at the screenshots, e.g.
-  `./build/manifold SEED --exec "level_info; arrow on; cutaway Z; camera X Y 40 90 -90; screenshot FILE.png 800 450; quit"`.
+  `./build/manifold SEED --exec "level_info; arrow on; cutaway HEIGHT; camera X Y 40 90 -90; screenshot FILE.png 800 450; quit"`.
   Small screenshots (800 x 450) are usually enough. For room levels, `level_info` tells how tiles map to
   world coordinates and the `cutaway` height of each layer. `--screenshot FILE.png` saves the first frame.
   Add console commands rather than command-line options for new ways to inspect the game.
