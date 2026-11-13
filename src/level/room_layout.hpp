@@ -150,8 +150,8 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 ///
 /// The player starts in the center of a random floor tile that is not part of a hole, neither in its floor
 /// nor in its ceiling (where a ramp may be). All such tiles have the same chance. The player faces along +x,
-/// +y, -x or -y at random, but not a wall tile right next to the start, unless there are walls on all four
-/// sides.
+/// +y, -x or -y at random, but not a tile right next to the start that is a wall or part of a hole in its
+/// floor or ceiling, unless all four neighbors are such tiles.
 ///
 /// \throws std::invalid_argument if the settings are invalid or can't be met, e.g. min_holes > max_holes,
 ///         or min_ramps > min_holes.

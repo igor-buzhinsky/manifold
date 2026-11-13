@@ -401,13 +401,16 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     plan.start_x = start.x;
     plan.start_y = start.y;
 
-    // The player faces along x or y, but not right into a wall. If there are walls all around, any of the
-    // four directions will do.
+    // The player faces along x or y, but not right into a wall, a hole in the floor (a drop) or a hole in
+    // the ceiling (where a ramp may block the view). If all four neighbors are such tiles, any direction will do.
     const RoomPlan& start_plan = plan.layers.at(static_cast<std::size_t>(start_layer));
     std::vector<int> directions;
     for (int direction = 0; direction < static_cast<int>(kNeighborSteps.size()); ++direction) {
         const TilePosition& step = kNeighborSteps.at(static_cast<std::size_t>(direction));
-        if (start_plan.tile(start.x + step.x, start.y + step.y) != Tile::kWall) {
+        const int x = start.x + step.x;
+        const int y = start.y + step.y;
+        if (start_plan.tile(x, y) != Tile::kWall && !plan.is_hole(start_layer, x, y) &&
+            !plan.is_hole(start_layer - 1, x, y)) {
             directions.push_back(direction);
         }
     }

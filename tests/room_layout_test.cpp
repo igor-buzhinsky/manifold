@@ -363,10 +363,11 @@ TEST(LayeredPlanTest, EveryRoomHasAtMostOneHole) {
     }
 }
 
-TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWall) {
+TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWallOrHole) {
     std::set<int> start_layers;
     std::set<int> directions;
-    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+    // Starts next to a hole are rare, so this test needs more seeds than the others.
+    for (std::uint64_t seed = 0; seed < 200; ++seed) {
         const LayeredPlan plan = make_layered_plan(seed);
         start_layers.insert(plan.start_layer);
         directions.insert(plan.start_direction);
@@ -379,7 +380,11 @@ TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWall) {
         ASSERT_LT(plan.start_direction, 4);
         constexpr std::array<std::pair<int, int>, 4> kSteps{{{1, 0}, {0, 1}, {-1, 0}, {0, -1}}};
         const auto [step_x, step_y] = kSteps.at(static_cast<std::size_t>(plan.start_direction));
-        EXPECT_NE(layer.tile(plan.start_x + step_x, plan.start_y + step_y), Tile::kWall) << "seed " << seed;
+        const int facing_x = plan.start_x + step_x;
+        const int facing_y = plan.start_y + step_y;
+        EXPECT_NE(layer.tile(facing_x, facing_y), Tile::kWall) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.start_layer, facing_x, facing_y)) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.start_layer - 1, facing_x, facing_y)) << "seed " << seed;
     }
     // The start layer and direction are random too.
     EXPECT_GT(start_layers.size(), 1U);
