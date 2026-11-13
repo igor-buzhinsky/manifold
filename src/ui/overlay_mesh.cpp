@@ -54,6 +54,31 @@ float text_width(std::string_view text, float scale) {
     return static_cast<float>(text.size()) * kCharacterAdvance * scale;
 }
 
+namespace {
+
+/// Length of the first line of `paragraph`, which has no line breaks, when wrapped as wrap_text() does.
+std::size_t first_line_length(std::string_view paragraph, float max_width, float scale) {
+    // The longest start of the paragraph that fits, with at least one character.
+    std::size_t fit = 1;
+    while (fit < paragraph.size() && text_width(paragraph.substr(0, fit + 1), scale) <= max_width) {
+        ++fit;
+    }
+    if (fit == paragraph.size()) {
+        return fit;
+    }
+    // Break before the run of spaces that ends at the last space that fits.
+    std::size_t space = paragraph.substr(0, fit + 1).rfind(' ');
+    if (space == std::string_view::npos) {
+        return fit;
+    }
+    while (space > 0 && paragraph[space - 1] == ' ') {
+        --space;
+    }
+    return space > 0 ? space : fit;
+}
+
+}  // namespace
+
 std::vector<std::string> wrap_text(std::string_view text, float max_width, float scale) {
     std::vector<std::string> lines;
     std::size_t start = 0;
@@ -64,22 +89,12 @@ std::vector<std::string> wrap_text(std::string_view text, float max_width, float
             lines.emplace_back();
         }
         while (!paragraph.empty()) {
-            // The longest start of the paragraph that fits, with at least one character.
-            std::size_t fit = 0;
-            while (fit < paragraph.size() &&
-                   (fit == 0 || text_width(paragraph.substr(0, fit + 1), scale) <= max_width)) {
-                ++fit;
-            }
-            if (fit < paragraph.size()) {
-                const std::size_t space = paragraph.substr(0, fit + 1).rfind(' ');
-                if (space != std::string_view::npos && space > 0) {
-                    fit = space;
-                }
-            }
+            const std::size_t fit = first_line_length(paragraph, max_width, scale);
             lines.emplace_back(paragraph.substr(0, fit));
             paragraph.remove_prefix(fit);
             if (paragraph.starts_with(' ')) {
-                paragraph.remove_prefix(1);  // The space where the line was broken.
+                // The spaces where the line was broken.
+                paragraph.remove_prefix(std::min(paragraph.find_first_not_of(' '), paragraph.size()));
             }
         }
         if (end == std::string_view::npos) {

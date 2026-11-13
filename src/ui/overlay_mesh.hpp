@@ -23,8 +23,9 @@ float text_width(std::string_view text, float scale);
 
 /// Splits text into lines that are at most `max_width` pixels wide at `scale`.
 ///
-/// Lines are broken after the last space that fits, or between characters if a word is too long. Line
-/// breaks in `text` are kept. Every line gets at least one character, so very narrow widths still end.
+/// Lines are broken at the last space that fits, which is left out with any spaces after it, or between
+/// characters if a word is too long. Line breaks in `text` are kept. Every line gets at least one character, so very
+/// narrow widths still end.
 std::vector<std::string> wrap_text(std::string_view text, float max_width, float scale);
 
 /// Flat shapes and text drawn over the picture, e.g. the console or later the parts of the game's interface.

@@ -9,6 +9,7 @@
 
 #include "render/viewport.hpp"
 #include "ui/overlay_mesh.hpp"
+#include "ui/text_field.hpp"
 #include "util/log.hpp"
 
 namespace manifold {
@@ -68,9 +69,22 @@ TEST(ConsoleWindowTest, ScrollsWithinTheOutput) {
     EXPECT_EQ(window.scroll(), 0U);  // Running a command shows the newest output.
 }
 
+TEST(ConsoleWindowTest, LongInputShowsThePartAroundTheCursor) {
+    ConsoleWindow window;
+    const PixelSize size{.width = 400, .height = 900};
+    window.input().insert(std::string(200, 'w'));
+    for (const OverlayMesh mesh = window.build_mesh(size); const OverlayVertex& vertex : mesh.vertices()) {
+        EXPECT_LE(vertex.position.x, 400.0f);
+    }
+    window.input().apply(EditKey::kHome);
+    for (const OverlayMesh mesh = window.build_mesh(size); const OverlayVertex& vertex : mesh.vertices()) {
+        EXPECT_LE(vertex.position.x, 400.0f);
+    }
+}
+
 TEST(ConsoleWindowTest, KeepsOnlyTheNewestOutput) {
     ConsoleWindow window;
-    window.add_output(LogLevel::kInfo, "a\nb");
+    window.add_output(LogLevel::kInfo, "a\nb\n");
     for (std::size_t i = 0; i < ConsoleWindow::kMaxOutputLines; ++i) {
         window.add_output(LogLevel::kWarning, "x");
     }

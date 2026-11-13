@@ -53,6 +53,7 @@ TEST(OverlayMeshTest, WrapsAtSpacesThenBetweenCharacters) {
     for (const std::string& line : lines) {
         EXPECT_LE(text_width(line, 1.0f), 5.0f * letter);
     }
+    EXPECT_EQ(wrap_text("aaa   aaa", 5.0f * letter, 1.0f), (std::vector<std::string>{"aaa", "aaa"}));
     // Too narrow for anything: one character per line.
     EXPECT_EQ(wrap_text("abc", 0.0f, 1.0f), (std::vector<std::string>{"a", "b", "c"}));
 }

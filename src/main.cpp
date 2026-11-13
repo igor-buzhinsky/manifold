@@ -208,43 +208,57 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
     }
 }
 
+/// Handles a key press: the console key, Escape, and the keys of the console window while it is open.
+///
+/// \return False when the game should quit.
+bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
+                     manifold::CommandQueue& commands) {
+    if (key.scancode == kConsoleKey) {
+        if (!key.repeat) {
+            set_console_open(console_window, window, !console_window.is_open());
+        }
+    } else if (key.key == SDLK_ESCAPE) {
+        if (!key.repeat) {
+            if (!console_window.is_open()) {
+                return false;
+            }
+            set_console_open(console_window, window, false);
+        }
+    } else if (console_window.is_open()) {
+        handle_console_key(key, console_window, commands);
+    }
+    return true;
+}
+
 /// Handles pending window and key events: quitting, and the console window.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
+/// \param window             The window, whose text input is on while the console window is open.
+/// \param console_window     The console window.
+/// \param commands           Where commands run in the console window go.
+/// \param console_key_held   Whether the console key is held down. Kept between calls.
 /// \return False when the game should quit.
-bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window,
-                   manifold::CommandQueue& commands) {
+bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
+                   bool& console_key_held) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             return false;
         }
+        if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) && event.key.scancode == kConsoleKey) {
+            console_key_held = event.type == SDL_EVENT_KEY_DOWN;
+        }
         if (event.type == SDL_EVENT_TEXT_INPUT && console_window.is_open()) {
-            // The console key types ` or ~, which would land in the input line when it closes the console.
-            const std::string_view text = event.text.text;
-            if (text != "`" && text != "~") {
-                console_window.input().insert(text);
+            // The console key types a character, which depends on the keyboard layout. It would land in the
+            // input line, so text is ignored while the key is held.
+            if (!console_key_held) {
+                console_window.input().insert(event.text.text);
             }
             continue;
         }
-        if (event.type != SDL_EVENT_KEY_DOWN) {
-            continue;
-        }
-        if (event.key.scancode == kConsoleKey) {
-            if (!event.key.repeat) {
-                set_console_open(console_window, window, !console_window.is_open());
-            }
-        } else if (event.key.key == SDLK_ESCAPE) {
-            if (event.key.repeat) {
-                continue;
-            }
-            if (!console_window.is_open()) {
-                return false;
-            }
-            set_console_open(console_window, window, false);
-        } else if (console_window.is_open()) {
-            handle_console_key(event.key, console_window, commands);
+        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands)) {
+            return false;
         }
     }
     return true;
@@ -365,6 +379,7 @@ void run(const Options& options) {
     commands.add(options.commands, true);
     manifold::TerminalInput terminal;
 
+    bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
         for (const std::string& line : terminal.read_lines()) {
@@ -391,7 +406,7 @@ void run(const Options& options) {
             return;
         }
         window.swap_buffers();
-    } while (handle_events(window, console_window, commands));
+    } while (handle_events(window, console_window, commands, console_key_held));
 }
 
 }  // namespace

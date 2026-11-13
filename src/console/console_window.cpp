@@ -38,6 +38,9 @@ void ConsoleWindow::add_output(LogLevel level, std::string_view message) {
     } else if (level == LogLevel::kError) {
         kind = LineKind::kError;
     }
+    if (message.ends_with('\n')) {
+        message.remove_suffix(1);  // Not an empty line after it.
+    }
     std::size_t start = 0;
     while (true) {
         const std::size_t end = message.find('\n', start);
@@ -124,14 +127,22 @@ OverlayMesh ConsoleWindow::build_mesh(const PixelSize& size) const {
     mesh.add_rectangle({0.0f, 0.0f}, {width, height}, kBackground);
     mesh.add_rectangle({0.0f, height}, {width, scale}, kBorder);
 
-    // The input line, at the bottom, with a bar before the character at the cursor.
+    // The input line, at the bottom, with a bar before the character at the cursor. A line too long for the
+    // window shows the part around the cursor. All characters are equally wide.
+    const float max_width = width - (2.0f * margin);
+    const float cell = text_width(" ", scale);
+    const std::string line = std::string(kPrompt) + input_.text();
+    const std::size_t cursor = kPrompt.size() + input_.cursor();
+    const auto fitting = std::max<std::size_t>(1, static_cast<std::size_t>(max_width / cell) - 1);
+    const std::size_t first = cursor >= fitting ? cursor - fitting + 1 : 0;
     float y = height - margin - line_height;
-    mesh.add_text({margin, y}, std::string(kPrompt) + input_.text(), scale, kInputColor);
-    const float cursor_x = margin + text_width(std::string(kPrompt) + input_.text().substr(0, input_.cursor()), scale);
+    mesh.add_text({margin, y}, std::string_view(line).substr(first, fitting), scale, kInputColor);
+    // The last pixel column of a character's cell is always empty, so the bar fits there without covering a
+    // character.
+    const float cursor_x = margin + (static_cast<float>(cursor - first) * cell) - scale;
     mesh.add_rectangle({cursor_x, y - scale}, {scale, line_height}, kInputColor);
 
     // The output above it, newest at the bottom. A view scrolled up says so.
-    const float max_width = width - (2.0f * margin);
     if (scroll_ > 0) {
         y -= line_height;
         mesh.add_text({margin, y}, std::format("--- {} newer lines below (Page Down) ---", scroll_), scale, kBorder);

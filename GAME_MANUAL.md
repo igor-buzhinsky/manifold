@@ -44,7 +44,8 @@ Keys of the console window:
 | Page Up / Page Down | Show older / newer output |
 | `/~ or Escape | Close the console |
 
-The console font has only ASCII characters, and the `/~ key can't type ` or ~.
+The console font has only ASCII characters. The `/~ key only opens and closes the console, so the character
+it types can't be typed.
 
 | Command | Action |
 |---|---|
