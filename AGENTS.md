@@ -16,8 +16,14 @@ code is documented with `///` comments.
 cmake --build build --target format
 cmake --build build                       # must build without warnings
 ctest --test-dir build --output-on-failure
-cmake --build build --target lint         # must pass
+scripts/lint_changed.py                   # must pass
 ```
+
+`scripts/lint_changed.py` runs the checks of the `lint` target only on the sources changed since the last
+commit, and on the .cpp files that include a changed header. It lints everything if `.clang-tidy`,
+`.clang-format` or `CMakeLists.txt` changed. After committing, use `--base HEAD~1` (or another commit), or
+name the files to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
+asked or when unsure what a change affects.
 
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.

@@ -5,6 +5,7 @@ Formatting and most rules are enforced by tools, so run them before committing:
 ```sh
 cmake --build build --target format   # reformat all sources in place
 cmake --build build --target lint     # check formatting, then run clang-tidy (fails on any issue)
+scripts/lint_changed.py               # the same, but only for what changed since the last commit
 ctest --test-dir build --output-on-failure
 ```
 
