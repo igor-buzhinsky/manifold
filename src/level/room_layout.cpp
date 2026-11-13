@@ -374,25 +374,47 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
         }
     }
 
-    // A player starting above a hole would fall right away, so rooms with a hole in the floor are skipped.
-    RoomFlags floor_hole;
-    for (const RoomPlan& layer : plan.layers) {
-        floor_hole.emplace_back(layer.rooms.size(), false);
-    }
-    for (const Hole& hole : plan.holes) {
-        const auto upper = static_cast<std::size_t>(hole.layer) + 1;
-        floor_hole.at(upper).at(static_cast<std::size_t>(plan.layers.at(upper).room_at(hole.x, hole.y))) = true;
-    }
-    std::vector<std::pair<int, std::size_t>> starts;
-    for (std::size_t layer = 0; layer < plan.layers.size(); ++layer) {
-        for (std::size_t room = 0; room < plan.layers[layer].rooms.size(); ++room) {
-            if (!floor_hole[layer][room]) {
-                starts.emplace_back(static_cast<int>(layer), room);
+    // The player starts at the center of a random floor tile. Above a hole in the floor the player would
+    // fall right away, and below a hole in the ceiling there may be a ramp, so tiles of holes are skipped.
+    std::vector<std::pair<int, TilePosition>> starts;
+    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
+        const RoomPlan& layer = plan.layers[index];
+        const auto layer_number = static_cast<int>(index);
+        for (int y = 0; y < layer.height; ++y) {
+            for (int x = 0; x < layer.width; ++x) {
+                if (layer.tile(x, y) == Tile::kFloor && !plan.is_hole(layer_number, x, y) &&
+                    !plan.is_hole(layer_number - 1, x, y)) {
+                    starts.emplace_back(layer_number, TilePosition{.x = x, .y = y});
+                }
             }
         }
     }
-    std::tie(plan.start_layer, plan.start_room) =
+    if (starts.empty()) {
+        return std::nullopt;
+    }
+    const auto& [start_layer, start] =
         starts.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(starts.size()) - 1)));
+    plan.start_layer = start_layer;
+    plan.start_x = start.x;
+    plan.start_y = start.y;
+
+    // The player faces along x or y, but not right into a wall. If there are walls all around, any of the
+    // four directions will do.
+    constexpr std::array<TilePosition, 4> kSteps{
+        {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
+    const RoomPlan& start_plan = plan.layers.at(static_cast<std::size_t>(start_layer));
+    std::vector<int> directions;
+    for (int direction = 0; direction < static_cast<int>(kSteps.size()); ++direction) {
+        const TilePosition& step = kSteps.at(static_cast<std::size_t>(direction));
+        if (start_plan.tile(start.x + step.x, start.y + step.y) != Tile::kWall) {
+            directions.push_back(direction);
+        }
+    }
+    if (directions.empty()) {
+        directions = {0, 1, 2, 3};
+    }
+    plan.start_direction =
+        directions.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(directions.size()) - 1)));
     return plan;
 }
 
@@ -471,10 +493,6 @@ LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
 
 std::string draw_plan(const LayeredPlan& plan) {
     const TileBox box = used_tiles(plan);
-    const GridRoom& start = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
-    const int start_x = start.x + (start.width / 2);
-    const int start_y = start.y + (start.height / 2);
-
     std::string text;
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
         const RoomPlan& layer = plan.layers[index];
@@ -482,7 +500,7 @@ std::string draw_plan(const LayeredPlan& plan) {
         text += "Layer " + std::to_string(layer_number) + ":\n";
         for (int y = box.y_max; y >= box.y_min; --y) {
             for (int x = box.x_min; x <= box.x_max; ++x) {
-                if (layer_number == plan.start_layer && x == start_x && y == start_y) {
+                if (layer_number == plan.start_layer && x == plan.start_x && y == plan.start_y) {
                     text += '@';
                 } else if (const std::optional<Hole> hole = find_hole(plan, layer_number, x, y)) {
                     text += hole_symbol(*hole);
@@ -613,7 +631,7 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
 }  // namespace
 
 Level RoomLayout::generate(float clearance, LevelRng& rng) const {
-    // The player starts in the center of a room, which is at least half a tile away from any wall.
+    // The player starts in the center of a tile, which is at least half a tile away from any wall.
     if (config_.tile_size / 2.0f <= clearance) {
         throw std::runtime_error("level generation failed: tiles are too small for the player");
     }
@@ -646,11 +664,13 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     build_ramps(world, plan, grid);
     add_torches(world, plan, grid, config_, rng);
 
-    const GridRoom& room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
-    const glm::vec3 start = grid.at(static_cast<float>(room.x) + (static_cast<float>(room.width) / 2.0f),
-                                    static_cast<float>(room.y) + (static_cast<float>(room.height) / 2.0f),
+    const glm::vec3 start = grid.at(static_cast<float>(plan.start_x) + 0.5f, static_cast<float>(plan.start_y) + 0.5f,
                                     grid.floor_z.at(static_cast<std::size_t>(plan.start_layer)));
-    return {.layout = LayoutKind::kRooms, .world = std::move(world), .player_start = start, .plan = draw_plan(plan)};
+    return {.layout = LayoutKind::kRooms,
+            .world = std::move(world),
+            .player_start = start,
+            .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
+            .plan = draw_plan(plan)};
 }
 
 }  // namespace manifold

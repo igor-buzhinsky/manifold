@@ -18,9 +18,10 @@ namespace manifold {
 
 namespace {
 
-/// The player's settings, moved to `position`.
-PlayerParams with_position(PlayerParams params, const glm::vec3& position) {
-    params.position = position;
+/// The player's settings, moved to the start of `level` and turned the way it says.
+PlayerParams at_start(PlayerParams params, const Level& level) {
+    params.position = level.player_start;
+    params.yaw = level.player_yaw;
     return params;
 }
 
@@ -37,7 +38,7 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       seed_(seed),
       level_(std::move(level)),
-      player_(with_position(config.player, level_.player_start)) {}
+      player_(at_start(config.player, level_)) {}
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
 

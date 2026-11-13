@@ -34,6 +34,7 @@ struct Level {
     LayoutKind layout;              ///< The layout that generated the level.
     World world;                    ///< Geometry of the level.
     glm::vec3 player_start{0.0f};   ///< Where the player starts: the point between the feet.
+    float player_yaw = 0.0f;        ///< Direction the player faces at the start: radians counter-clockwise from +x.
     std::string plan;               ///< Human-readable description of the level plan, for debugging.
     float gravity = kEarthGravity;  ///< Downward acceleration, in metres per second squared.
 };

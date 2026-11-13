@@ -107,8 +107,12 @@ struct LayeredPlan {
     std::vector<RoomPlan> layers;  ///< From the bottom up.
     std::vector<Hole> holes;       ///< Holes between the layers.
     int start_layer = 0;           ///< Index in `layers` of the layer where the player starts.
-    std::size_t start_room = 0;    ///< Index of the start room in that layer's rooms.
-    int attempts = 0;              ///< How many times the level was planned until the holes fit.
+    int start_x = 0;               ///< Tile of the player start along x.
+    int start_y = 0;               ///< Tile of the player start along y.
+    /// Direction the player faces at the start, in quarter turns counter-clockwise from +x: 0 is +x, 1 is +y,
+    /// 2 is -x and 3 is -y.
+    int start_direction = 0;
+    int attempts = 0;  ///< How many times the level was planned until the holes fit.
 
     /// The hole in the ceiling of `layer` that tile (x, y) is part of, if any.
     std::optional<Hole> hole_at(int layer, int x, int y) const;
@@ -141,11 +145,13 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 /// a ramp. The low end of a ramp must lead into the room of the lower layer, and its high end into the room
 /// of the upper layer. If both directions are possible, one is chosen at random.
 ///
-/// If the holes or ramps don't fit, all layers are planned again. The number of attempts is logged, as a warning when
-/// more than two were needed.
+/// If the holes or ramps don't fit, or there is no tile to start on, all layers are planned again. The number of
+/// attempts is logged, as a warning when more than two were needed.
 ///
-/// The player starts in the center of a random room without a hole in its floor. All such rooms have the
-/// same chance, so layers with more rooms are more likely.
+/// The player starts in the center of a random floor tile that is not part of a hole, neither in its floor
+/// nor in its ceiling (where a ramp may be). All such tiles have the same chance. The player faces along +x,
+/// +y, -x or -y at random, but not a wall tile right next to the start, unless there are walls on all four
+/// sides.
 ///
 /// \throws std::invalid_argument if the settings are invalid or can't be met, e.g. min_holes > max_holes,
 ///         or min_ramps > min_holes.
@@ -170,8 +176,8 @@ std::string draw_plan(const LayeredPlan& plan);
 /// along the wall. Each such side gets a torch with the same chance, chosen for the level uniformly from
 /// [`min_torch_chance`, `max_torch_chance`]. All torches of a level have the same flame, see
 /// choose_torch_flame().
-/// The player starts in the center of a random room, see plan_layers(). The plan is drawn as text, see
-/// draw_plan().
+/// The player starts in the center of a random tile, facing a random direction, see plan_layers(). The plan is drawn as
+/// text, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}

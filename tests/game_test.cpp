@@ -130,9 +130,11 @@ TEST(GameTest, NoclipWalksThroughWalls) {
 TEST(GameTest, PlayerStartsAtLevelStart) {
     GameConfig config = make_config();
     config.player.position = {100.0f, 100.0f, 0.0f};  // Replaced by the level's start.
+    config.player.yaw = 0.1f;                         // Replaced by the level's start too.
     const Game game(config, 3, LayoutKind::kRooms);
     EXPECT_EQ(game.level().layout, LayoutKind::kRooms);
     EXPECT_EQ(game.player().position(), game.level().player_start);
+    EXPECT_FLOAT_EQ(game.player().yaw(), game.level().player_yaw);
 }
 
 TEST(GameTest, LevelHasEarthGravityByDefault) {
@@ -211,10 +213,10 @@ TEST(GameTest, WalksUpRampOntoPlatform) {
 }
 
 TEST(GameTest, WalksDownRampWithoutLeavingGround) {
-    GameConfig config = make_config();
+    const GameConfig config = make_config();
     Level level = make_ramp_level();
     level.player_start = {4.0f, 0.0f, 2.5f};
-    config.player.yaw = kPi;
+    level.player_yaw = kPi;
     Game game(config, std::move(level));
     game.update({}, 1.0f / 60.0f);  // Find the ground.
     for (int frame = 0; frame < 240; ++frame) {
@@ -226,10 +228,10 @@ TEST(GameTest, WalksDownRampWithoutLeavingGround) {
 
 TEST(GameTest, WalkingOffLedgeFalls) {
     // Snapping to the ground only works for small steps down, not for a 2.5 m drop.
-    GameConfig config = make_config();
+    const GameConfig config = make_config();
     Level level = make_ramp_level();
     level.player_start = {4.0f, 0.0f, 2.5f};
-    config.player.yaw = kPi / 2.0f;  // Facing +y, off the side of the platform.
+    level.player_yaw = kPi / 2.0f;  // Facing +y, off the side of the platform.
     Game game(config, std::move(level));
     game.update({}, 1.0f / 60.0f);
     for (int frame = 0; frame < 120 && game.player().position().z > 2.0f; ++frame) {
@@ -299,8 +301,8 @@ TEST(GameTest, HoldingRiseJumpsOnlyOnce) {
 glm::vec3 walk_to_low_block(int jump_frame) {
     Level level = make_ramp_level();
     level.world.add_obstacle({.base_center = {-4.0f, 4.0f, 0.0f}, .half_size = 1.0f, .height = 0.4f, .yaw = 0.0f});
-    GameConfig config = make_config();
-    config.player.yaw = kPi / 2.0f;  // Facing the block at +y.
+    const GameConfig config = make_config();
+    level.player_yaw = kPi / 2.0f;  // Facing the block at +y.
     Game game(config, std::move(level));
     game.update({}, 1.0f / 60.0f);
     for (int frame = 0; frame < 120; ++frame) {

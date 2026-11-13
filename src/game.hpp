@@ -14,7 +14,7 @@ namespace manifold {
 /// Settings for a new game.
 struct GameConfig {
     LevelConfig level;    ///< Settings for level generation.
-    PlayerParams player;  ///< The player at the start. The position is replaced by the level's start.
+    PlayerParams player;  ///< The player at the start. The position and yaw are replaced by the level's start.
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  ///< Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  ///< Radians per second: 60 degrees.
     float move_speed = 3.0f;                              ///< Metres per second, also when rising.

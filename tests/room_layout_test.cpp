@@ -1,11 +1,13 @@
 #include "level/room_layout.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <numbers>
 #include <optional>
 #include <queue>
 #include <set>
@@ -361,21 +363,45 @@ TEST(LayeredPlanTest, EveryRoomHasAtMostOneHole) {
     }
 }
 
-TEST(LayeredPlanTest, StartRoomHasNoHoleInFloor) {
+TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWall) {
     std::set<int> start_layers;
+    std::set<int> directions;
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const LayeredPlan plan = make_layered_plan(seed);
         start_layers.insert(plan.start_layer);
+        directions.insert(plan.start_direction);
         const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(plan.start_layer));
-        ASSERT_LT(plan.start_room, layer.rooms.size());
-        for (const Hole& hole : plan.holes) {
-            if (hole.layer + 1 == plan.start_layer) {
-                EXPECT_NE(layer.room_at(hole.x, hole.y), static_cast<int>(plan.start_room)) << "seed " << seed;
-            }
-        }
+        EXPECT_EQ(layer.tile(plan.start_x, plan.start_y), Tile::kFloor) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.start_layer, plan.start_x, plan.start_y)) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.start_layer - 1, plan.start_x, plan.start_y)) << "seed " << seed;
+
+        ASSERT_GE(plan.start_direction, 0);
+        ASSERT_LT(plan.start_direction, 4);
+        constexpr std::array<std::pair<int, int>, 4> kSteps{{{1, 0}, {0, 1}, {-1, 0}, {0, -1}}};
+        const auto [step_x, step_y] = kSteps.at(static_cast<std::size_t>(plan.start_direction));
+        EXPECT_NE(layer.tile(plan.start_x + step_x, plan.start_y + step_y), Tile::kWall) << "seed " << seed;
     }
-    // The start layer is random too.
+    // The start layer and direction are random too.
     EXPECT_GT(start_layers.size(), 1U);
+    EXPECT_GT(directions.size(), 1U);
+}
+
+TEST(LayeredPlanTest, StartFacesAnyDirectionWhenWallsAreAllAround) {
+    // A single room of one tile has walls on all sides and no openings.
+    RoomLayoutConfig config = make_config();
+    config.layer_count = 1;
+    config.min_room_size = 1;
+    config.max_room_size = 1;
+    config.placement_attempts = 0;
+    config.min_holes = 0;
+    config.max_holes = 0;
+    config.min_ramps = 0;
+    config.max_ramps = 0;
+    std::set<int> directions;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        directions.insert(make_layered_plan(seed, config).start_direction);
+    }
+    EXPECT_EQ(directions.size(), 4U);
 }
 
 TEST(LayeredPlanTest, SameSeedGivesSamePlan) {
@@ -497,21 +523,19 @@ TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
     EXPECT_FLOAT_EQ(bounds.height, (3.0f * config.height) + (2.0f * config.slab_thickness));
 }
 
-TEST(RoomLayoutTest, PlayerStartsInCenterOfStartRoomWithoutCollisions) {
+TEST(RoomLayoutTest, PlayerStartsInCenterOfStartTileWithoutCollisions) {
     const RoomLayoutConfig config = make_config();
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const Level level = generate(seed);
         const LayeredPlan plan = make_layered_plan(seed);
-        const GridRoom& room = plan.layers.at(static_cast<std::size_t>(plan.start_layer)).rooms.at(plan.start_room);
         const WorldBounds& bounds = level.world.bounds();
-        const float center_x =
-            bounds.x_min + ((static_cast<float>(room.x) + (static_cast<float>(room.width) / 2.0f)) * config.tile_size);
-        const float center_y =
-            bounds.y_min + ((static_cast<float>(room.y) + (static_cast<float>(room.height) / 2.0f)) * config.tile_size);
-        EXPECT_FLOAT_EQ(level.player_start.x, center_x);
-        EXPECT_FLOAT_EQ(level.player_start.y, center_y);
+        EXPECT_FLOAT_EQ(level.player_start.x,
+                        bounds.x_min + ((static_cast<float>(plan.start_x) + 0.5f) * config.tile_size));
+        EXPECT_FLOAT_EQ(level.player_start.y,
+                        bounds.y_min + ((static_cast<float>(plan.start_y) + 0.5f) * config.tile_size));
         EXPECT_FLOAT_EQ(level.player_start.z,
                         static_cast<float>(plan.start_layer) * (config.height + config.slab_thickness));
+        EXPECT_FLOAT_EQ(level.player_yaw, static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f);
 
         const VerticalCylinder body{.base = level.player_start, .radius = 0.6f, .height = 1.8f};
         for (const Obstacle& obstacle : level.world.obstacles()) {
@@ -583,10 +607,9 @@ TEST(RoomLayoutTest, PlayerWalksUpGeneratedRamps) {
         level.player_start = {bounds.x_min + ((static_cast<float>(low.first) + 0.5f) * config.tile_size),
                               bounds.y_min + ((static_cast<float>(low.second) + 0.5f) * config.tile_size),
                               static_cast<float>(hole.layer) * layer_step};
-        GameConfig game_config;
-        game_config.player.yaw =
+        level.player_yaw =
             std::atan2(static_cast<float>(high.second - low.second), static_cast<float>(high.first - low.first));
-        Game game(game_config, std::move(level));
+        Game game(GameConfig{}, std::move(level));
         for (int frame = 0; frame < 180; ++frame) {
             game.update({.forward = 1.0f}, 1.0f / 60.0f);
         }
