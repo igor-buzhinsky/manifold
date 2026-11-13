@@ -5,8 +5,9 @@ Checks the formatting of the changed sources with clang-format, then runs clang-
 files and on every .cpp file that includes a changed header, directly or through other headers.
 
 By default, "changed" means different from HEAD: staged, unstaged and untracked files under src/ and
-tests/. Use --base to compare with another commit, or name the files to lint. If .clang-tidy,
-.clang-format or CMakeLists.txt changed, all sources are linted, since any of them may be affected.
+tests/. Use --base to compare with another commit, or name the files or folders to lint. If a .clang-tidy,
+.clang-format or CMakeLists.txt file, or anything in external/ or cmake/, changed, all sources are linted,
+since any of them may be affected.
 
 Uses the tools found by CMake (see CMakeCache.txt in the build directory) and its compilation database,
 so only files that are built are linted: tests only when MANIFOLD_BUILD_TESTS is on.
@@ -14,7 +15,8 @@ so only files that are built are linted: tests only when MANIFOLD_BUILD_TESTS is
 Usage:
     scripts/lint_changed.py                     # what changed since the last commit
     scripts/lint_changed.py --base HEAD~1       # also what the last commit changed
-    scripts/lint_changed.py src/game.hpp        # these files, and the .cpp files that include them
+    scripts/lint_changed.py src/game.hpp        # this file, and the .cpp files that include it
+    scripts/lint_changed.py src/level           # the files in this folder, and the .cpp files that include them
 """
 
 import argparse
@@ -27,21 +29,47 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIRS = ("src", "tests")
 SOURCE_SUFFIXES = (".cpp", ".hpp")
-# Changes to these files may affect the lint result of any source.
-CONFIG_FILES = (".clang-tidy", ".clang-format", "CMakeLists.txt")
+# Changes to files with these names, anywhere, may affect the lint result of any source.
+CONFIG_NAMES = (".clang-tidy", ".clang-format", "CMakeLists.txt")
+# So may changes to files in these folders, e.g. the headers of third-party code.
+CONFIG_DIRS = ("external", "cmake")
 INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
 
 
 def git_lines(*args: str) -> list[str]:
     """Runs git in the repository and returns the lines of its output."""
-    output = subprocess.run(["git", *args], cwd=ROOT, check=True, capture_output=True, text=True).stdout
-    return [line for line in output.splitlines() if line]
+    result = subprocess.run(["git", *args], cwd=ROOT, stdout=subprocess.PIPE, text=True)  # Errors go to stderr.
+    if result.returncode:
+        sys.exit(f"git {' '.join(args)} failed")
+    return [line for line in result.stdout.splitlines() if line]
 
 
 def changed_files(base: str) -> list[str]:
     """Paths, relative to the repository, that differ from `base` or are untracked."""
-    return sorted(set(git_lines("diff", "--name-only", base)) | set(git_lines("ls-files", "--others",
-                                                                                "--exclude-standard")))
+    untracked = git_lines("ls-files", "--others", "--exclude-standard")
+    return sorted(set(git_lines("diff", "--name-only", base)) | set(untracked))
+
+
+def named_files(names: list[str]) -> list[str]:
+    """Paths, relative to the repository, of the named files and of the files in the named folders.
+
+    Exits if a name does not exist or is outside the repository, so that a typo doesn't pass as clean.
+    """
+    paths = []
+    for name in names:
+        path = Path(name).resolve()
+        if not path.exists():
+            sys.exit(f"No such file or folder: {name}")
+        if not path.is_relative_to(ROOT):
+            sys.exit(f"Outside the repository: {name}")
+        paths.extend(sorted(path.rglob("*")) if path.is_dir() else [path])
+    return [str(path.relative_to(ROOT)) for path in paths if path.is_file()]
+
+
+def is_config(name: str) -> bool:
+    """Checks whether a change to this file, relative to the repository, may affect the lint result of any source."""
+    path = Path(name)
+    return path.name in CONFIG_NAMES or path.parts[0] in CONFIG_DIRS
 
 
 def all_sources() -> list[Path]:
@@ -79,8 +107,11 @@ def translation_units(changed: set[Path], sources: list[Path]) -> set[Path]:
 
 def cmake_cache(build_dir: Path) -> dict[str, str]:
     """The entries of the CMake cache, by name without type."""
+    cache_file = build_dir / "CMakeCache.txt"
+    if not cache_file.is_file():
+        sys.exit(f"{cache_file} not found: configure first with cmake -S . -B build")
     entries = {}
-    for line in (build_dir / "CMakeCache.txt").read_text(encoding="utf-8").splitlines():
+    for line in cache_file.read_text(encoding="utf-8").splitlines():
         match = re.match(r"^([A-Za-z0-9_]+):[A-Z]+=(.*)$", line)
         if match:
             entries[match.group(1)] = match.group(2)
@@ -106,22 +137,26 @@ def main() -> int:
     cache = cmake_cache(build_dir)
     sources = all_sources()
 
-    names = [str(Path(name).resolve().relative_to(ROOT)) for name in args.files] or changed_files(args.base)
-    if any(name in CONFIG_FILES for name in names):
+    names = named_files(args.files) if args.files else changed_files(args.base)
+    if any(is_config(name) for name in names):
         print("Lint configuration or build changed: linting all sources", flush=True)
         changed = set(sources)
     else:
         changed = {(ROOT / name).resolve() for name in names} & set(sources)
     if not changed:
-        print("No changed sources to lint", flush=True)
+        print("No changed sources under src/ or tests/ to lint", flush=True)
         return 0
 
     to_format = sorted(str(path) for path in changed)
     print(f"Checking formatting of {len(to_format)} file(s)", flush=True)
-    if subprocess.run([tool(cache, "CLANG_FORMAT_EXE", "clang-format"), "--dry-run", "--Werror", *to_format]).returncode:
+    clang_format = tool(cache, "CLANG_FORMAT_EXE", "clang-format")
+    if subprocess.run([clang_format, "--dry-run", "--Werror", *to_format]).returncode:
         return 1
 
-    entries = json.loads((build_dir / "compile_commands.json").read_text(encoding="utf-8"))
+    database_file = build_dir / "compile_commands.json"
+    if not database_file.is_file():
+        sys.exit(f"{database_file} not found: build first with cmake --build build")
+    entries = json.loads(database_file.read_text(encoding="utf-8"))
     database = {(Path(entry["directory"]) / entry["file"]).resolve() for entry in entries}
     units = translation_units(changed, sources)
     for skipped in sorted(units - database):

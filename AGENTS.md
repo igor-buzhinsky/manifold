@@ -21,8 +21,9 @@ scripts/lint_changed.py                   # must pass
 
 `scripts/lint_changed.py` runs the checks of the `lint` target only on the sources changed since the last
 commit, and on the .cpp files that include a changed header. It lints everything if `.clang-tidy`,
-`.clang-format` or `CMakeLists.txt` changed. After committing, use `--base HEAD~1` (or another commit), or
-name the files to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
+`.clang-format`, `CMakeLists.txt` or `external/` changed. To check a change that is already committed, pass
+`--base` with the commit before its first commit (e.g. `--base HEAD~1` for one commit), or name the files or
+folders to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
 asked or when unsure what a change affects.
 
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
