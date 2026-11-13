@@ -25,7 +25,9 @@ template <typename Number>
 Number parse_number(const std::string& text, std::string_view what) {
     Number value{};
     const char* end = text.data() + text.size();
-    const auto [stop, error] = std::from_chars(text.data(), end, value);
+    // std::from_chars doesn't take a plus sign, but people type it.
+    const char* begin = text.starts_with('+') && !text.starts_with("+-") ? text.data() + 1 : text.data();
+    const auto [stop, error] = std::from_chars(begin, end, value);
     if (error != std::errc{} || stop != end) {
         throw CommandError(std::format("not {}: {}", what, text));
     }
@@ -133,14 +135,24 @@ void CommandQueue::add(std::string_view text, bool stop_on_error) {
     }
 }
 
+std::size_t CommandQueue::clear() {
+    const std::size_t count = commands_.size();
+    commands_.clear();
+    frames_to_wait_ = 0;
+    return count;
+}
+
 void CommandQueue::run_frame(const Console& console) {
     if (frames_to_wait_ > 0) {
         --frames_to_wait_;
-        return;
+        if (frames_to_wait_ > 0) {
+            return;
+        }
     }
     while (!commands_.empty() && frames_to_wait_ == 0) {
         const Entry entry = std::move(commands_.front());
         commands_.pop_front();
+        running_stops_on_error_ = entry.stop_on_error;
         try {
             console.run(entry.words);
         } catch (const CommandError& error) {

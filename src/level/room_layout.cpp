@@ -640,13 +640,13 @@ std::string describe(const LayeredPlan& plan, const GridPlacement& grid) {
         floors += std::format("{}{:.2f}", floors.empty() ? "" : ", ", z);
     }
     return std::format(
-        "Tiles of {} m: tile (x, y) covers world x from {} + {} x and y from {} + {} y. Floors of the layers at z = "
-        "{}.\n"
+        "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
+        "Floors of the layers at z = {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
         "Start: layer {}, tile ({}, {}), facing {}.\n{}",
-        grid.tile, grid.x_min, grid.tile, grid.y_min, grid.tile, floors, box.x_min, box.x_max, box.y_max, box.y_min,
-        plan.start_layer, plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)),
-        draw_plan(plan));
+        grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
+        grid.y_min + grid.tile, grid.tile, floors, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
+        plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), draw_plan(plan));
 }
 
 }  // namespace

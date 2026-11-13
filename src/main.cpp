@@ -48,6 +48,7 @@ constexpr int kWindowWidth = 1600;
 struct Options {
     std::optional<std::uint64_t> seed;           ///< Level seed. Random if not given.
     std::string commands;                        ///< Console commands to run at the start. Errors stop the game.
+    bool quit = false;                           ///< Whether to add `quit` after the commands.
     std::optional<manifold::LayoutKind> layout;  ///< Level layout. Random if not given.
 };
 
@@ -65,8 +66,8 @@ std::uint64_t parse_seed(const std::string& text) {
 
 /// Parses the command line: `manifold [SEED] [--layout debug|rooms] [--exec COMMANDS]... [--screenshot FILE.png]`.
 ///
-/// `--screenshot FILE.png` is short for `--exec "screenshot FILE.png; quit"`. Commands run in the order of
-/// the options.
+/// `--screenshot FILE.png` is short for `--exec "screenshot FILE.png"`, with `quit` after all commands.
+/// Commands run in the order of the options.
 ///
 /// \param args All arguments, including the program name.
 /// \throws std::invalid_argument if an argument is invalid.
@@ -80,7 +81,8 @@ Options parse_options(std::span<char*> args) {
             }
             const std::string value = args[++i];
             if (arg == "--screenshot") {
-                options.commands += "\nscreenshot " + value + "\nquit";
+                options.commands += "\nscreenshot " + value;
+                options.quit = true;
             } else if (arg == "--exec") {
                 options.commands += "\n" + value;
             } else {
@@ -92,6 +94,9 @@ Options parse_options(std::span<char*> args) {
         } else {
             options.seed = parse_seed(arg);
         }
+    }
+    if (options.quit) {
+        options.commands += "\nquit";
     }
     return options;
 }
@@ -218,15 +223,25 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
 
 /// Takes the screenshots that console commands asked for, each drawn as it asked.
 ///
+/// A screenshot that fails is logged, and stops the game only if its request says so.
+///
 /// \param window_size The size of screenshots that don't give their own.
+/// \throws std::runtime_error if a screenshot that stops on error fails.
 void take_screenshots(manifold::Renderer& renderer, const manifold::Game& game,
                       std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
     for (const manifold::ScreenshotRequest& request : requests) {
         const manifold::PixelSize size = request.size.value_or(window_size);
-        const manifold::OffscreenFramebuffer framebuffer(size);
-        draw_game(renderer, game, request.view, size);
-        manifold::save_screenshot(request.path, size.width, size.height);
-        manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
+        try {
+            const manifold::OffscreenFramebuffer framebuffer(size);
+            draw_game(renderer, game, request.view, size);
+            manifold::save_screenshot(request.path, size.width, size.height);
+            manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
+        } catch (const std::runtime_error& error) {
+            if (request.stop_on_error) {
+                throw;
+            }
+            manifold::log_error("screenshot {}: {}", request.path, error.what());
+        }
     }
 }
 

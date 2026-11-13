@@ -27,7 +27,10 @@ TEST(ConsoleTest, ParsesArguments) {
     EXPECT_THROW(parse_float_argument("1.5x"), CommandError);
     EXPECT_THROW(parse_float_argument(""), CommandError);
     EXPECT_THROW(parse_float_argument("inf"), CommandError);
+    EXPECT_FLOAT_EQ(parse_float_argument("+2.5"), 2.5f);
+    EXPECT_THROW(parse_float_argument("+-2"), CommandError);
     EXPECT_EQ(parse_int_argument("-42"), -42);
+    EXPECT_EQ(parse_int_argument("+7"), 7);
     EXPECT_THROW(parse_int_argument("4.2"), CommandError);
     EXPECT_THROW(parse_int_argument("99999999999"), CommandError);
     EXPECT_TRUE(parse_switch_argument("on"));
@@ -87,10 +90,9 @@ TEST(CommandQueueTest, RunsCommandsInOrderUntilOneWaits) {
     recording.queue.add("a; wait 2; b; wait 0; c", true);
     recording.queue.run_frame(recording.console);
     EXPECT_EQ(recording.runs, (Words{"a"}));
-    recording.queue.run_frame(recording.console);  // The first frame waited for.
-    recording.queue.run_frame(recording.console);  // The second one.
+    recording.queue.run_frame(recording.console);  // One frame later.
     EXPECT_EQ(recording.runs, (Words{"a"}));
-    recording.queue.run_frame(recording.console);
+    recording.queue.run_frame(recording.console);  // Two frames later.
     EXPECT_EQ(recording.runs, (Words{"a", "b", "c"}));
     EXPECT_EQ(recording.queue.size(), 0U);
 }
@@ -109,6 +111,28 @@ TEST(CommandQueueTest, ThrowsErrorsOnlyOfCommandsThatStopOnError) {
         EXPECT_EQ(std::string(error.what()), "fail 1: failed");
     }
     EXPECT_EQ(recording.queue.size(), 1U);  // c is still waiting.
+}
+
+TEST(CommandQueueTest, TellsWhetherTheRunningCommandStopsOnError) {
+    CommandQueue queue;
+    Console console;
+    std::vector<bool> seen;
+    console.add("check", "check", "Records the flag.",
+                [&](std::span<const std::string>) { seen.push_back(queue.running_stops_on_error()); });
+    queue.add("check", true);
+    queue.add("check", false);
+    queue.run_frame(console);
+    EXPECT_EQ(seen, (std::vector<bool>{true, false}));
+}
+
+TEST(CommandQueueTest, ClearRemovesWaitingCommands) {
+    RecordingConsole recording;
+    recording.queue.add("a; wait 3; b; c", true);
+    recording.queue.run_frame(recording.console);
+    EXPECT_EQ(recording.queue.clear(), 2U);
+    recording.queue.add("c", true);
+    recording.queue.run_frame(recording.console);  // No longer waits.
+    EXPECT_EQ(recording.runs, (Words{"a", "c"}));
 }
 
 }  // namespace

@@ -546,8 +546,10 @@ TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
                               std::to_string(plan.start_x) + ", " + std::to_string(plan.start_y) + "), facing " +
                               kDirections.at(static_cast<std::size_t>(plan.start_direction)) + ".\n";
     EXPECT_NE(level.info.find(start), std::string::npos) << level.info;
-    EXPECT_NE(level.info.find("Tiles of 2 m: tile (x, y) covers world x from -40 + 2 x and y from -30 + 2 y."),
-              std::string::npos)
+    EXPECT_NE(
+        level.info.find(
+            "Tiles of 2 m: tile (x, y) covers world x from -40 + 2 x to -38 + 2 x and y from -30 + 2 y to -28 + 2 y."),
+        std::string::npos)
         << level.info;
     EXPECT_TRUE(level.info.ends_with(draw_plan(plan)));
 }

@@ -99,11 +99,14 @@ void add_game_commands(Console& console, CommandQueue& queue, const Game& game, 
     const std::string screenshot_usage = "screenshot FILE [WIDTH HEIGHT]";
     console.add("screenshot", screenshot_usage,
                 "Saves the view as a PNG file after this frame, by default as large as the window.",
-                [&state, screenshot_usage](std::span<const std::string> arguments) {
+                [&queue, &state, screenshot_usage](std::span<const std::string> arguments) {
                     if (arguments.size() != 1) {
                         expect_count(arguments, 3, screenshot_usage);
                     }
-                    ScreenshotRequest request{.path = arguments[0], .size = std::nullopt, .view = state.view};
+                    ScreenshotRequest request{.path = arguments[0],
+                                              .size = std::nullopt,
+                                              .view = state.view,
+                                              .stop_on_error = queue.running_stops_on_error()};
                     if (arguments.size() == 3) {
                         request.size = PixelSize{.width = parse_screenshot_size(arguments[1]),
                                                  .height = parse_screenshot_size(arguments[2])};
@@ -121,10 +124,14 @@ void add_game_commands(Console& console, CommandQueue& queue, const Game& game, 
                     queue.wait(frames);
                 });
 
-    console.add("quit", "quit", "Quits the game after this frame.", [&state](std::span<const std::string> arguments) {
-        expect_count(arguments, 0, "quit");
-        state.quit = true;
-    });
+    console.add("quit", "quit", "Quits the game after this frame, without running the commands after it.",
+                [&queue, &state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "quit");
+                    state.quit = true;
+                    if (const std::size_t dropped = queue.clear(); dropped > 0) {
+                        log_warning("Quitting without running the {} command(s) after quit", dropped);
+                    }
+                });
 }
 
 }  // namespace manifold

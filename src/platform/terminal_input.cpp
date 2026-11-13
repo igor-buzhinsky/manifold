@@ -14,7 +14,17 @@
 
 namespace manifold {
 
+void TerminalInput::end() {
+    ended_ = true;
+    buffer_.append("\n");  // The last line may have no line break.
+}
+
 std::vector<std::string> TerminalInput::read_lines() {
+    // A game started in the background of a shell (`manifold &`) would be stopped by reading the terminal,
+    // so it reads only while it is in the foreground.
+    if (isatty(STDIN_FILENO) != 0 && tcgetpgrp(STDIN_FILENO) != getpgrp()) {
+        return {};
+    }
     std::array<char, 4096> chunk{};
     while (!ended_) {
         pollfd input{.fd = STDIN_FILENO, .events = POLLIN, .revents = 0};
@@ -22,13 +32,12 @@ std::vector<std::string> TerminalInput::read_lines() {
             break;  // Nothing to read now.
         }
         if ((input.revents & (POLLIN | POLLHUP)) == 0) {
-            ended_ = true;  // E.g. there is no standard input.
+            end();  // E.g. there is no standard input.
             break;
         }
         const ssize_t count = read(STDIN_FILENO, chunk.data(), chunk.size());
         if (count <= 0) {
-            ended_ = true;
-            buffer_.append("\n");  // The last line may have no line break.
+            end();
             if (count < 0) {
                 log_warning("Can't read console commands from the standard input any more");
             }

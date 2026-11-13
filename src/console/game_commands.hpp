@@ -28,6 +28,9 @@ struct ScreenshotRequest {
     std::string path;               ///< PNG file to write.
     std::optional<PixelSize> size;  ///< Size of the picture, or none for the size of the window.
     ViewSettings view;              ///< How the game was shown when the screenshot was asked for.
+    /// Whether failing to save it should stop the game, as it does for the commands of `--exec`, or only be
+    /// logged, see CommandQueue::running_stops_on_error().
+    bool stop_on_error = false;
 };
 
 /// What console commands change, and what they ask the main loop to do.

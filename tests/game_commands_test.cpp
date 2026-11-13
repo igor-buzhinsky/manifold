@@ -89,6 +89,11 @@ TEST(GameCommandsTest, ScreenshotsKeepTheViewOfTheirTime) {
     EXPECT_FALSE(eyes.size.has_value());
     EXPECT_FALSE(eyes.view.camera.has_value());
     EXPECT_TRUE(eyes.view.arrow);
+    EXPECT_TRUE(top.stop_on_error);  // Added by run(), like --exec.
+
+    fixture.queue.add("screenshot typed.png", false);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_FALSE(fixture.state.screenshots.back().stop_on_error);
 }
 
 TEST(GameCommandsTest, ScreenshotRejectsWrongSizes) {
@@ -103,12 +108,13 @@ TEST(GameCommandsTest, ScreenshotRejectsWrongSizes) {
 
 TEST(GameCommandsTest, WaitDelaysTheNextCommandsAndQuitAsksToQuit) {
     Fixture fixture;
-    fixture.queue.add("wait 1; quit", true);
-    fixture.queue.run_frame(fixture.console);
+    fixture.queue.add("wait 1; quit; arrow on", true);
     fixture.queue.run_frame(fixture.console);
     EXPECT_FALSE(fixture.state.quit);
     fixture.queue.run_frame(fixture.console);
     EXPECT_TRUE(fixture.state.quit);
+    EXPECT_FALSE(fixture.state.view.arrow);  // Commands after quit don't run.
+    EXPECT_EQ(fixture.queue.size(), 0U);
     fixture.queue.add("wait -1", true);
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }

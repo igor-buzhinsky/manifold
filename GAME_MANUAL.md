@@ -24,11 +24,13 @@ Console commands inspect the game, e.g. to test a level. Type them into the term
 from, one per line, or give them on the command line with `--exec`, separated by `;`:
 
 ```sh
+# From high above the middle of the level, looking down: the arrow shows the player through the roof.
 ./build/manifold 42 --exec "arrow on; camera 0 0 30 90 -90; screenshot top.png 800 450; quit"
 ```
 
-In `--exec`, a command that fails stops the game with an error. A command typed into the terminal that
-fails only shows the error. Words are separated by spaces and can't contain any, so neither can file names.
+In `--exec`, a command that fails, or a screenshot that can't be saved, stops the game with an error. When
+typed into the terminal, it only shows the error. Commands are read from the terminal only while the game
+runs in the foreground of the shell. Words are separated by spaces and can't contain any, so neither can file names.
 Angles are in degrees.
 
 | Command | Action |
@@ -42,7 +44,8 @@ Angles are in degrees.
 | `lighting on\|off` | Turn lights off to see the plain texture colors, or on again |
 | `shadows on\|off` | Turn shadows off or on |
 | `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window. Other sizes keep the 16:9 view, with black bars |
-| `wait FRAMES` | Run the next commands after this many frames, e.g. to let the player fall |
-| `quit` | Quit the game after this frame |
+| `wait FRAMES` | Run the next commands this many frames later: with 1 in the next frame. E.g. to let the player fall |
+| `quit` | Quit the game after this frame, without running the commands after it |
 
-`--screenshot FILE.png` is short for `--exec "screenshot FILE.png; quit"`.
+Numbers may start with `+` or `-`. `--screenshot FILE.png` is short for `--exec "screenshot FILE.png"`, with
+`quit` after all other commands.

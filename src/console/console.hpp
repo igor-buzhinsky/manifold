@@ -103,10 +103,21 @@ public:
     ///                      command typed by hand.
     void add(std::string_view text, bool stop_on_error);
 
-    /// Makes the commands after the one that is running wait until `frames` more frames have passed.
+    /// Makes the commands after the one that is running run `frames` frames later.
     ///
-    /// With 0, they run in the same frame.
+    /// With 0, they run in the same frame, with 1 in the next frame, and so on.
     void wait(int frames) { frames_to_wait_ = frames; }
+
+    /// Removes the commands that haven't run yet.
+    ///
+    /// \return How many commands were removed.
+    std::size_t clear();
+
+    /// Whether the command that is running was added with `stop_on_error`, see add().
+    ///
+    /// A command whose work is done later, e.g. by the main loop, can use this to decide what to do when
+    /// that work fails.
+    bool running_stops_on_error() const { return running_stops_on_error_; }
 
     /// Runs the commands that are due in this frame: one after another, until none are left or one waits.
     ///
@@ -127,6 +138,7 @@ private:
 
     std::deque<Entry> commands_;
     int frames_to_wait_ = 0;
+    bool running_stops_on_error_ = false;
 };
 
 }  // namespace manifold
