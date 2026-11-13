@@ -101,6 +101,16 @@ void add_player_commands(Console& console, Game& game, ConsoleState& state) {
                     }
                     game.teleport(position, yaw);
                 });
+
+    console.add("noclip", "noclip [on|off]",
+                "Lets the player fly through everything (Page Up / Page Down), or not. Without on or off, toggles it.",
+                [&game](std::span<const std::string> arguments) {
+                    if (arguments.size() > 1) {
+                        throw CommandError("usage: noclip [on|off]");
+                    }
+                    game.set_noclip(arguments.empty() ? !game.noclip() : parse_switch_argument(arguments[0]));
+                    log_info("Noclip {}", game.noclip() ? "on" : "off");
+                });
 }
 
 /// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,

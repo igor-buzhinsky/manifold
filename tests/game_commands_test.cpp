@@ -74,6 +74,19 @@ TEST(GameCommandsTest, TeleportMovesThePlayerInDegrees) {
     }
 }
 
+TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
+    Fixture fixture;
+    EXPECT_FALSE(fixture.game.noclip());
+    fixture.run("noclip");
+    EXPECT_TRUE(fixture.game.noclip());
+    fixture.run("noclip on");
+    EXPECT_TRUE(fixture.game.noclip());
+    fixture.run("noclip");
+    EXPECT_FALSE(fixture.game.noclip());
+    fixture.queue.add("noclip maybe", true);
+    EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+}
+
 TEST(GameCommandsTest, CutawaySetsAndClearsTheHeight) {
     Fixture fixture;
     EXPECT_FALSE(fixture.state.view.cutaway.has_value());

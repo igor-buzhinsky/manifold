@@ -6,6 +6,7 @@
 
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_video.h>
 #include <glad/gl.h>
 
@@ -83,6 +84,14 @@ Window::~Window() {
     SDL_GL_DestroyContext(context_);
     SDL_DestroyWindow(window_);
     SDL_Quit();
+}
+
+void Window::set_text_input(bool on) {
+    if (on) {
+        SDL_StartTextInput(window_);
+    } else {
+        SDL_StopTextInput(window_);
+    }
 }
 
 PixelSize Window::framebuffer_size() const {

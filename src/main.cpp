@@ -11,6 +11,7 @@
 #include <span>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <utility>
 #include <vector>
@@ -23,6 +24,7 @@
 #include <glm/vec3.hpp>
 
 #include "console/console.hpp"
+#include "console/console_window.hpp"
 #include "console/game_commands.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
@@ -32,10 +34,12 @@
 #include "render/camera.hpp"
 #include "render/lighting.hpp"
 #include "render/marker.hpp"
+#include "render/overlay_renderer.hpp"
 #include "render/renderer.hpp"
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
+#include "ui/text_field.hpp"
 #include "util/log.hpp"
 #include "world/torch.hpp"
 
@@ -144,24 +148,103 @@ void log_game(const manifold::Game& game) {
     manifold::log_info("Level info:\n{}", game.level().info);
 }
 
-/// Handles pending window and key events, such as quitting and cheats.
+/// The key that opens and closes the console: the one left of 1, labelled `/~ on US keyboards.
+constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
+
+/// The key of the console window that `key` is, if any.
+std::optional<manifold::ConsoleKey> console_key(SDL_Keycode key) {
+    switch (key) {
+        case SDLK_RETURN:
+        case SDLK_KP_ENTER:
+            return manifold::ConsoleKey::kSubmit;
+        case SDLK_UP:
+            return manifold::ConsoleKey::kHistoryBack;
+        case SDLK_DOWN:
+            return manifold::ConsoleKey::kHistoryForward;
+        case SDLK_PAGEUP:
+            return manifold::ConsoleKey::kScrollUp;
+        case SDLK_PAGEDOWN:
+            return manifold::ConsoleKey::kScrollDown;
+        default:
+            return std::nullopt;
+    }
+}
+
+/// The key that edits a text field that `key` is, if any.
+std::optional<manifold::EditKey> edit_key(SDL_Keycode key) {
+    switch (key) {
+        case SDLK_BACKSPACE:
+            return manifold::EditKey::kBackspace;
+        case SDLK_DELETE:
+            return manifold::EditKey::kDelete;
+        case SDLK_LEFT:
+            return manifold::EditKey::kLeft;
+        case SDLK_RIGHT:
+            return manifold::EditKey::kRight;
+        case SDLK_HOME:
+            return manifold::EditKey::kHome;
+        case SDLK_END:
+            return manifold::EditKey::kEnd;
+        default:
+            return std::nullopt;
+    }
+}
+
+/// Opens or closes the console window, with text input only while it is open.
+void set_console_open(manifold::ConsoleWindow& console_window, manifold::Window& window, bool open) {
+    console_window.set_open(open);
+    window.set_text_input(open);
+}
+
+/// Handles a key press while the console window is open: editing, history, scrolling and running commands.
+void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& console_window,
+                        manifold::CommandQueue& commands) {
+    if (const std::optional<manifold::EditKey> edit = edit_key(key.key)) {
+        console_window.input().apply(*edit);
+    } else if (const std::optional<manifold::ConsoleKey> console = console_key(key.key)) {
+        if (const std::optional<std::string> command = console_window.handle(*console)) {
+            commands.add(*command, false);
+        }
+    }
+}
+
+/// Handles pending window and key events: quitting, and the console window.
+///
+/// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
 /// \return False when the game should quit.
-bool handle_events(manifold::Game& game) {
+bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window,
+                   manifold::CommandQueue& commands) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             return false;
         }
-        if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat) {
+        if (event.type == SDL_EVENT_TEXT_INPUT && console_window.is_open()) {
+            // The console key types ` or ~, which would land in the input line when it closes the console.
+            const std::string_view text = event.text.text;
+            if (text != "`" && text != "~") {
+                console_window.input().insert(text);
+            }
             continue;
         }
-        if (event.key.key == SDLK_ESCAPE) {
-            return false;
+        if (event.type != SDL_EVENT_KEY_DOWN) {
+            continue;
         }
-        if (event.key.key == SDLK_Z && (event.key.mod & SDL_KMOD_CTRL) != 0) {
-            game.toggle_noclip();
-            manifold::log_info("Noclip {}", game.noclip() ? "on" : "off");
+        if (event.key.scancode == kConsoleKey) {
+            if (!event.key.repeat) {
+                set_console_open(console_window, window, !console_window.is_open());
+            }
+        } else if (event.key.key == SDLK_ESCAPE) {
+            if (event.key.repeat) {
+                continue;
+            }
+            if (!console_window.is_open()) {
+                return false;
+            }
+            set_console_open(console_window, window, false);
+        } else if (console_window.is_open()) {
+            handle_console_key(event.key, console_window, commands);
         }
     }
     return true;
@@ -172,7 +255,8 @@ constexpr float kMaxFrameTime = 0.1f;
 
 /// Reads the keys that are held down.
 ///
-/// These are the key bindings. Keep GAME_MANUAL.md up to date when changing them.
+/// These are the key bindings, with those of handle_events(). Keep GAME_MANUAL.md up to date when changing
+/// them.
 manifold::PlayerInput read_input() {
     const bool* keys = SDL_GetKeyboardState(nullptr);
     const auto axis = [keys](SDL_Scancode positive, SDL_Scancode negative) {
@@ -245,16 +329,34 @@ void take_screenshots(manifold::Renderer& renderer, const manifold::Game& game,
     }
 }
 
+/// Removes the log listener when it goes out of scope, before what the listener uses is gone.
+struct LogListenerReset {
+    LogListenerReset() = default;
+    ~LogListenerReset() { manifold::set_log_listener({}); }
+    LogListenerReset(const LogListenerReset&) = delete;
+    LogListenerReset& operator=(const LogListenerReset&) = delete;
+    LogListenerReset(LogListenerReset&&) = delete;
+    LogListenerReset& operator=(LogListenerReset&&) = delete;
+};
+
 /// Runs the game until the player quits or a console command does.
 ///
 /// \throws manifold::CommandError if one of the commands of `options` fails.
 void run(const Options& options) {
+    // The console window shows the log, from the start.
+    manifold::ConsoleWindow console_window;
+    manifold::set_log_listener([&console_window](manifold::LogLevel level, std::string_view message) {
+        console_window.add_output(level, message);
+    });
+    const LogListenerReset reset_log_listener;
+
     manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
     log_game(game);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
     manifold::Renderer renderer(game.world(), pick_level_texture(game.seed()));
+    const manifold::OverlayRenderer overlay_renderer;
 
     manifold::Console console;
     manifold::CommandQueue commands;
@@ -273,17 +375,23 @@ void run(const Options& options) {
         const std::uint64_t ticks = SDL_GetTicksNS();
         const float dt = std::min(static_cast<float>(ticks - previous_ticks) * 1e-9f, kMaxFrameTime);
         previous_ticks = ticks;
-        game.update(read_input(), dt);
+        // While the console window is open, the keys type into it instead of moving the player.
+        game.update(console_window.is_open() ? manifold::PlayerInput{} : read_input(), dt);
 
         const manifold::PixelSize window_size = window.framebuffer_size();
         draw_game(renderer, game, state.view, window_size);
+        if (console_window.is_open()) {
+            const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
+            overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
+                                  viewport);
+        }
         take_screenshots(renderer, game, state.screenshots, window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;
         }
         window.swap_buffers();
-    } while (handle_events(game));
+    } while (handle_events(window, console_window, commands));
 }
 
 }  // namespace

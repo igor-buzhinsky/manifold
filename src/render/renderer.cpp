@@ -18,6 +18,7 @@
 #include <glm/vec4.hpp>
 
 #include "render/camera.hpp"
+#include "render/gl_util.hpp"
 #include "render/lighting.hpp"
 #include "render/shadow_map.hpp"
 #include "render/texture_image.hpp"
@@ -342,67 +343,6 @@ struct FlameInstance {
 static_assert(static_cast<int>(TorchFlame::kOrange) == 0 && static_cast<int>(TorchFlame::kBlue) == 1 &&
                   static_cast<int>(TorchFlame::kGreen) == 2,
               "update the flame colors in kFlameFragmentShader");
-
-/// Compiles one shader stage.
-///
-/// \param type   GL_VERTEX_SHADER or GL_FRAGMENT_SHADER.
-/// \param source GLSL source code.
-/// \throws std::runtime_error with the compiler log if compilation fails.
-GLuint compile_shader(GLenum type, const char* source) {
-    const GLuint shader = glCreateShader(type);
-    glShaderSource(shader, 1, &source, nullptr);
-    glCompileShader(shader);
-    GLint success = GL_FALSE;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-    if (success != GL_TRUE) {
-        std::string log(1024, '\0');
-        glGetShaderInfoLog(shader, static_cast<GLsizei>(log.size()), nullptr, log.data());
-        glDeleteShader(shader);
-        throw std::runtime_error("shader compilation failed: " + log);
-    }
-    return shader;
-}
-
-/// Compiles and links a shader program.
-///
-/// \throws std::runtime_error with the compiler or linker log if anything fails.
-GLuint link_program(const char* vertex_source, const char* fragment_source) {
-    const GLuint vertex_shader = compile_shader(GL_VERTEX_SHADER, vertex_source);
-    const GLuint fragment_shader = compile_shader(GL_FRAGMENT_SHADER, fragment_source);
-    const GLuint program = glCreateProgram();
-    glAttachShader(program, vertex_shader);
-    glAttachShader(program, fragment_shader);
-    glLinkProgram(program);
-    glDeleteShader(vertex_shader);
-    glDeleteShader(fragment_shader);
-    GLint success = GL_FALSE;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
-    if (success != GL_TRUE) {
-        std::string log(1024, '\0');
-        glGetProgramInfoLog(program, static_cast<GLsizei>(log.size()), nullptr, log.data());
-        glDeleteProgram(program);
-        throw std::runtime_error("shader linking failed: " + log);
-    }
-    return program;
-}
-
-/// Converts an offset into the bound array buffer to the pointer that OpenGL takes for it.
-const void* buffer_offset(std::size_t offset) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
-    return reinterpret_cast<const void*>(offset);
-}
-
-/// Describes a float vector field of the bound array buffer to the currently bound vertex array.
-///
-/// \param location   Attribute location in the vertex shader.
-/// \param components Number of floats in the field, e.g. 3 for a vec3.
-/// \param stride     Size of one element of the buffer, e.g. sizeof(Vertex), in bytes.
-/// \param offset     Offset of the field in an element, in bytes.
-void set_vertex_attribute(GLuint location, GLint components, std::size_t stride, std::size_t offset) {
-    glEnableVertexAttribArray(location);
-    glVertexAttribPointer(location, components, GL_FLOAT, GL_FALSE, static_cast<GLsizei>(stride),
-                          buffer_offset(offset));
-}
 
 /// The flames of the torches, in the same order.
 std::vector<FlameInstance> make_flames(std::span<const Torch> torches) {

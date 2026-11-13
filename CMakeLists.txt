@@ -54,6 +54,7 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 # so that tests can link against it.
 add_library(manifold_core STATIC
     src/console/console.cpp
+    src/console/console_window.cpp
     src/console/game_commands.cpp
     src/game.cpp
     src/level/debug_layout.cpp
@@ -70,6 +71,8 @@ add_library(manifold_core STATIC
     src/render/texture_image.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
+    src/ui/overlay_mesh.cpp
+    src/ui/text_field.cpp
     src/util/log.cpp
     src/world/geometry.cpp
     src/world/player.cpp
@@ -84,6 +87,8 @@ add_executable(manifold
     src/main.cpp
     src/platform/terminal_input.cpp
     src/platform/window.cpp
+    src/render/gl_util.cpp
+    src/render/overlay_renderer.cpp
     src/render/renderer.cpp
     src/render/screenshot.cpp
 )
@@ -108,6 +113,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/camera_test.cpp
         tests/collision_test.cpp
         tests/console_test.cpp
+        tests/console_window_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp
         tests/geometry_test.cpp
@@ -117,6 +123,8 @@ if(MANIFOLD_BUILD_TESTS)
         tests/lighting_test.cpp
         tests/log_test.cpp
         tests/marker_test.cpp
+        tests/overlay_mesh_test.cpp
+        tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp
         tests/texture_image_test.cpp

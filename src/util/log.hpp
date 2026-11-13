@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <format>
+#include <functional>
 #include <string_view>
 #include <utility>
 
@@ -14,8 +15,16 @@ enum class LogLevel : std::uint8_t {
     kError,    ///< Something failed.
 };
 
-/// Writes a message to stderr, prefixed with its level, e.g. "[warning] ...".
+/// Receives every log message, e.g. to show it in the console window.
+using LogListener = std::function<void(LogLevel level, std::string_view message)>;
+
+/// Writes a message to stderr, prefixed with its level, e.g. "[warning] ...", and passes it to the listener.
 void log_message(LogLevel level, std::string_view message);
+
+/// Sets the one listener that receives every log message after it is written to stderr, or removes it.
+///
+/// \param listener The listener, or an empty function to remove it. It must not log itself.
+void set_log_listener(LogListener listener);
 
 /// Writes an info message, formatted like std::format().
 template <typename... Args>

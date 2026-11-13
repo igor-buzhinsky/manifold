@@ -38,6 +38,12 @@ public:
     /// Size of the drawable area in pixels, which can differ from the window size on high-DPI screens.
     PixelSize framebuffer_size() const;
 
+    /// Turns text input on or off.
+    ///
+    /// While it is on, typed text arrives as SDL_EVENT_TEXT_INPUT events, with the keyboard layout and input
+    /// methods applied, e.g. for the console. Some platforms show an on-screen keyboard then.
+    void set_text_input(bool on);
+
     /// Shows the frame drawn since the last call. Waits for vsync.
     void swap_buffers();
 

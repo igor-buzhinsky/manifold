@@ -58,7 +58,7 @@ TEST(GameTest, TimeIsSumOfFrameDurations) {
 TEST(GameTest, AnimationTimeWrapsAround) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     // With noclip and no input, a long frame changes nothing but the time.
-    game.toggle_noclip();
+    game.set_noclip(true);
     game.update({}, static_cast<float>(Game::kAnimationPeriod) + 0.5f);
     EXPECT_NEAR(game.animation_time(), 0.5f, 1e-3f);
 }
@@ -119,11 +119,11 @@ TEST(GameTest, CollisionsStopPlayerAtLevelWall) {
 TEST(GameTest, NoclipWalksThroughWalls) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     EXPECT_FALSE(game.noclip());
-    game.toggle_noclip();
+    game.set_noclip(true);
     EXPECT_TRUE(game.noclip());
     game.update({.forward = 1.0f}, 100.0f);
     EXPECT_NEAR(game.player().position().x, 200.0f, 1e-3f);
-    game.toggle_noclip();
+    game.set_noclip(false);
     EXPECT_FALSE(game.noclip());
 }
 
@@ -160,7 +160,7 @@ TEST(GameTest, FlyingUpAndDownNeedsNoclip) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     game.update({.rise = -1.0f}, 0.5f);
     EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
-    game.toggle_noclip();
+    game.set_noclip(true);
     game.update({.rise = 1.0f}, 0.5f);
     EXPECT_NEAR(game.player().position().z, 1.0f, 1e-6f);
     game.update({.rise = -1.0f}, 0.25f);
@@ -169,7 +169,7 @@ TEST(GameTest, FlyingUpAndDownNeedsNoclip) {
 
 TEST(GameTest, NoclipDoesNotFall) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    game.toggle_noclip();
+    game.set_noclip(true);
     game.update({.rise = 1.0f}, 0.5f);
     game.update({}, 1.0f);
     EXPECT_NEAR(game.player().position().z, 1.0f, 1e-6f);
@@ -178,9 +178,9 @@ TEST(GameTest, NoclipDoesNotFall) {
 
 TEST(GameTest, FallsByGravityAndLands) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    game.toggle_noclip();
+    game.set_noclip(true);
     game.update({.rise = 1.0f}, 1.0f);
-    game.toggle_noclip();
+    game.set_noclip(false);
 
     // Each frame, the speed changes first and then the position.
     const float dt = 0.1f;

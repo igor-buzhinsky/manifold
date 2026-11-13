@@ -81,10 +81,10 @@ public:
     /// \param yaw      Direction to face, in radians counter-clockwise from +x, or none to keep it.
     void teleport(const glm::vec3& position, std::optional<float> yaw = std::nullopt);
 
-    /// Whether the noclip cheat is on: the player flies through obstacles and walls.
+    /// Whether noclip is on: the player flies through obstacles and walls.
     bool noclip() const { return noclip_; }
-    /// Turns the noclip cheat on or off.
-    void toggle_noclip() { noclip_ = !noclip_; }
+    /// Turns noclip on or off.
+    void set_noclip(bool noclip) { noclip_ = noclip; }
 
     const Level& level() const { return level_; }
     const World& world() const { return level_.world; }
