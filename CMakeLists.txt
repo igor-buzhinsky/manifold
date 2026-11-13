@@ -138,7 +138,6 @@ find_program(CLANG_FORMAT_EXE clang-format)
 find_program(CLANG_TIDY_EXE clang-tidy)
 # Runs clang-tidy on many files at once; it comes with clang-tidy.
 find_program(RUN_CLANG_TIDY_EXE NAMES run-clang-tidy run-clang-tidy.py)
-cmake_host_system_information(RESULT LINT_JOBS QUERY NUMBER_OF_LOGICAL_CORES)
 
 if(CLANG_FORMAT_EXE)
     add_custom_target(format
@@ -162,19 +161,22 @@ else()
 endif()
 
 if(CLANG_TIDY_EXE AND RUN_CLANG_TIDY_EXE)
-    # The file arguments are regexes on paths in compile_commands.json; anchoring them keeps out dependencies.
-    set(LINT_FILE_REGEXES ${MANIFOLD_TU_SOURCES})
-    list(TRANSFORM LINT_FILE_REGEXES PREPEND "^")
-    list(TRANSFORM LINT_FILE_REGEXES APPEND "$")
+    # The file arguments are escaped, anchored regexes on paths in compile_commands.json, which keeps out
+    # dependencies. Only files in the database are linted: tests only when MANIFOLD_BUILD_TESTS is on.
+    set(LINT_FILE_REGEXES)
+    foreach(source ${MANIFOLD_TU_SOURCES})
+        string(REGEX REPLACE "([][+.*()^$?|\\{}])" "\\\\\\1" escaped_source "${source}")
+        list(APPEND LINT_FILE_REGEXES "^${escaped_source}$")
+    endforeach()
     add_custom_target(lint
-        COMMAND ${RUN_CLANG_TIDY_EXE} -quiet -j ${LINT_JOBS} -clang-tidy-binary ${CLANG_TIDY_EXE}
-            -p ${CMAKE_BINARY_DIR} ${LINT_FILE_REGEXES}
-        COMMENT "Running clang-tidy on ${LINT_JOBS} cores"
+        COMMAND ${RUN_CLANG_TIDY_EXE} -quiet -clang-tidy-binary ${CLANG_TIDY_EXE} -p ${CMAKE_BINARY_DIR}
+            ${LINT_FILE_REGEXES}
+        COMMENT "Running clang-tidy on all cores"
         VERBATIM
     )
 else()
     add_custom_target(lint
-        COMMAND ${CMAKE_COMMAND} -E echo "clang-tidy not found: sudo apt install clang-tidy, then re-run cmake -S . -B build"
+        COMMAND ${CMAKE_COMMAND} -E echo "clang-tidy or run-clang-tidy not found: sudo apt install clang-tidy, then re-run cmake -S . -B build"
         COMMAND ${CMAKE_COMMAND} -E false
         VERBATIM
     )
