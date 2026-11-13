@@ -10,7 +10,6 @@
 #include <random>
 #include <stdexcept>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -30,6 +29,10 @@ struct TilePosition {
     int x = 0;
     int y = 0;
 };
+
+/// Steps to the four neighbors of a tile: towards +x, +y, -x and -y, in this order.
+constexpr std::array<TilePosition, 4> kNeighborSteps{
+    {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
 
 /// Index of tile (x, y) in RoomPlan::tiles. The tile must be inside the grid.
 std::size_t tile_index(const RoomPlan& plan, int x, int y) {
@@ -400,12 +403,10 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
 
     // The player faces along x or y, but not right into a wall. If there are walls all around, any of the
     // four directions will do.
-    constexpr std::array<TilePosition, 4> kSteps{
-        {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
     const RoomPlan& start_plan = plan.layers.at(static_cast<std::size_t>(start_layer));
     std::vector<int> directions;
-    for (int direction = 0; direction < static_cast<int>(kSteps.size()); ++direction) {
-        const TilePosition& step = kSteps.at(static_cast<std::size_t>(direction));
+    for (int direction = 0; direction < static_cast<int>(kNeighborSteps.size()); ++direction) {
+        const TilePosition& step = kNeighborSteps.at(static_cast<std::size_t>(direction));
         if (start_plan.tile(start.x + step.x, start.y + step.y) != Tile::kWall) {
             directions.push_back(direction);
         }
@@ -482,13 +483,14 @@ LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
         }
         plan->attempts = attempt;
         if (attempt > 2) {
-            log_warning("Room layout: the holes between layers fit only after {} attempts", attempt);
+            log_warning("Room layout: the holes between layers and the player start fit only after {} attempts",
+                        attempt);
         } else {
             log_info("Room layout: planned in {} attempt(s)", attempt);
         }
         return std::move(*plan);
     }
-    throw std::runtime_error("level generation failed: the holes between layers don't fit");
+    throw std::runtime_error("level generation failed: the holes between layers or the player start don't fit");
 }
 
 std::string draw_plan(const LayeredPlan& plan) {
@@ -599,8 +601,6 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
             ? config.min_torch_chance
             : std::uniform_real_distribution<float>(config.min_torch_chance, config.max_torch_chance)(rng);
     std::bernoulli_distribution has_torch(chance);
-    const std::array<TilePosition, 4> directions{
-        {{.x = 1, .y = 0}, {.x = 0, .y = 1}, {.x = -1, .y = 0}, {.x = 0, .y = -1}}};
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
         const RoomPlan& layer = plan.layers[index];
         for (int y = 0; y < layer.height; ++y) {
@@ -608,7 +608,7 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
                 if (layer.tile(x, y) != Tile::kWall) {
                     continue;
                 }
-                for (const TilePosition& direction : directions) {
+                for (const TilePosition& direction : kNeighborSteps) {
                     const int front_x = x + direction.x;
                     const int front_y = y + direction.y;
                     const std::optional<Hole> hole = plan.hole_at(static_cast<int>(index), front_x, front_y);
@@ -664,8 +664,8 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     build_ramps(world, plan, grid);
     add_torches(world, plan, grid, config_, rng);
 
-    const glm::vec3 start = grid.at(static_cast<float>(plan.start_x) + 0.5f, static_cast<float>(plan.start_y) + 0.5f,
-                                    grid.floor_z.at(static_cast<std::size_t>(plan.start_layer)));
+    const glm::vec3 start =
+        grid.tile_center(plan.start_x, plan.start_y, grid.floor_z.at(static_cast<std::size_t>(plan.start_layer)));
     return {.layout = LayoutKind::kRooms,
             .world = std::move(world),
             .player_start = start,

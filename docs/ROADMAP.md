@@ -57,7 +57,7 @@ rewrites.
   when walking down them work on top of this. This was simpler than Jolt for the shapes needed so far,
   and is good C++ practice. It tests every obstacle on each move, which is slow in large levels. Replacing
   it with Jolt Physics is considered, see [DECISIONS.md](DECISIONS.md).
-- A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start. Later also
+- A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start (position and yaw). Later also
   lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
   downstream depends on that.
 - Level generation is deterministic from a seed, so levels can be reproduced for debugging.

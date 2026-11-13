@@ -112,7 +112,7 @@ struct LayeredPlan {
     /// Direction the player faces at the start, in quarter turns counter-clockwise from +x: 0 is +x, 1 is +y,
     /// 2 is -x and 3 is -y.
     int start_direction = 0;
-    int attempts = 0;  ///< How many times the level was planned until the holes fit.
+    int attempts = 0;  ///< How many times the level was planned until the holes and the player start fit.
 
     /// The hole in the ceiling of `layer` that tile (x, y) is part of, if any.
     std::optional<Hole> hole_at(int layer, int x, int y) const;
@@ -155,7 +155,7 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 ///
 /// \throws std::invalid_argument if the settings are invalid or can't be met, e.g. min_holes > max_holes,
 ///         or min_ramps > min_holes.
-/// \throws std::runtime_error if the grid is too small for a room, or the holes don't fit after
+/// \throws std::runtime_error if the grid is too small for a room, or the holes or the player start don't fit after
 ///         `config.max_plan_attempts` attempts.
 LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng);
 
