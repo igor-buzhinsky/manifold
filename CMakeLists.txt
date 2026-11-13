@@ -136,6 +136,9 @@ file(GLOB_RECURSE MANIFOLD_TU_SOURCES CONFIGURE_DEPENDS ${CMAKE_SOURCE_DIR}/src/
 
 find_program(CLANG_FORMAT_EXE clang-format)
 find_program(CLANG_TIDY_EXE clang-tidy)
+# Runs clang-tidy on many files at once; it comes with clang-tidy.
+find_program(RUN_CLANG_TIDY_EXE NAMES run-clang-tidy run-clang-tidy.py)
+cmake_host_system_information(RESULT LINT_JOBS QUERY NUMBER_OF_LOGICAL_CORES)
 
 if(CLANG_FORMAT_EXE)
     add_custom_target(format
@@ -158,10 +161,15 @@ else()
     endforeach()
 endif()
 
-if(CLANG_TIDY_EXE)
+if(CLANG_TIDY_EXE AND RUN_CLANG_TIDY_EXE)
+    # The file arguments are regexes on paths in compile_commands.json; anchoring them keeps out dependencies.
+    set(LINT_FILE_REGEXES ${MANIFOLD_TU_SOURCES})
+    list(TRANSFORM LINT_FILE_REGEXES PREPEND "^")
+    list(TRANSFORM LINT_FILE_REGEXES APPEND "$")
     add_custom_target(lint
-        COMMAND ${CLANG_TIDY_EXE} -p ${CMAKE_BINARY_DIR} ${MANIFOLD_TU_SOURCES}
-        COMMENT "Running clang-tidy"
+        COMMAND ${RUN_CLANG_TIDY_EXE} -quiet -j ${LINT_JOBS} -clang-tidy-binary ${CLANG_TIDY_EXE}
+            -p ${CMAKE_BINARY_DIR} ${LINT_FILE_REGEXES}
+        COMMENT "Running clang-tidy on ${LINT_JOBS} cores"
         VERBATIM
     )
 else()
