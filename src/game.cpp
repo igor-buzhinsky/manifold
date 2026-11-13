@@ -40,6 +40,15 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       level_(std::move(level)),
       player_(at_start(config.player, level_)) {}
 
+void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
+    player_.set_position(position);
+    player_.set_vertical_speed(0.0f);
+    player_.set_on_ground(false);
+    if (yaw) {
+        player_.rotate(*yaw - player_.yaw(), 0.0f);
+    }
+}
+
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
 
 void Game::update(const PlayerInput& input, float dt) {

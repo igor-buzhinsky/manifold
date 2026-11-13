@@ -630,22 +630,32 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
+/// How far below its ceiling the cut of the `cutaway` console command shows a layer best: low enough to
+/// leave out the ceiling, high enough to keep almost all of the walls.
+constexpr float kCutBelowCeiling = 0.1f;
+
 /// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, and
 /// the plan, see draw_plan().
-std::string describe(const LayeredPlan& plan, const GridPlacement& grid) {
+///
+/// \param plan   The plan of the level.
+/// \param grid   Where the tiles are in the world.
+/// \param height Height of a layer from its floor to its ceiling.
+std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height) {
     constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
     const TileBox box = used_tiles(plan);
     std::string floors;
+    std::string cuts;
     for (const float z : grid.floor_z) {
         floors += std::format("{}{:.2f}", floors.empty() ? "" : ", ", z);
+        cuts += std::format("{}{:.2f}", cuts.empty() ? "" : ", ", z + height - kCutBelowCeiling);
     }
     return std::format(
         "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
-        "Floors of the layers at z = {}.\n"
+        "Floors of the layers at z = {}. To see a layer from above: cutaway {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
         "Start: layer {}, tile ({}, {}), facing {}.\n{}",
         grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
-        grid.y_min + grid.tile, grid.tile, floors, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
+        grid.y_min + grid.tile, grid.tile, floors, cuts, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
         plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), draw_plan(plan));
 }
 
@@ -691,7 +701,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .world = std::move(world),
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
-            .info = describe(plan, grid)};
+            .info = describe(plan, grid, config_.height)};
 }
 
 }  // namespace manifold

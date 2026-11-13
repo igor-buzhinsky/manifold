@@ -8,6 +8,8 @@
 #include <string>
 #include <utility>
 
+#include <glm/vec3.hpp>
+
 #include "console/console.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
@@ -48,13 +50,8 @@ int parse_screenshot_size(const std::string& text) {
     return size;
 }
 
-}  // namespace
-
-Camera view_camera(const ViewSettings& view, const Player& player) {
-    return view.camera.value_or(make_player_camera(player));
-}
-
-void add_game_commands(Console& console, CommandQueue& queue, const Game& game, ConsoleState& state) {
+/// Adds the commands that inspect and move the player and the camera: level_info, camera and teleport.
+void add_player_commands(Console& console, Game& game, ConsoleState& state) {
     console.add("level_info", "level_info", "Describes the level, depending on its layout, and the player.",
                 [&game](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "level_info");
@@ -86,6 +83,37 @@ void add_game_commands(Console& console, CommandQueue& queue, const Game& game, 
                                                 parse_float_argument(arguments[2])},
                                    .yaw = to_radians(parse_float_argument(arguments[3])),
                                    .pitch = to_radians(pitch)};
+                    }
+                });
+
+    const std::string teleport_usage = "teleport X Y Z [YAW]";
+    console.add("teleport", teleport_usage,
+                "Moves the player's feet to (X, Y, Z), without checking for obstacles, facing YAW degrees if given.",
+                [&game, teleport_usage](std::span<const std::string> arguments) {
+                    if (arguments.size() != 3) {
+                        expect_count(arguments, 4, teleport_usage);
+                    }
+                    const glm::vec3 position{parse_float_argument(arguments[0]), parse_float_argument(arguments[1]),
+                                             parse_float_argument(arguments[2])};
+                    std::optional<float> yaw;
+                    if (arguments.size() == 4) {
+                        yaw = to_radians(parse_float_argument(arguments[3]));
+                    }
+                    game.teleport(position, yaw);
+                });
+}
+
+/// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,
+/// arrow, lighting, shadows, screenshot, wait and quit.
+void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& state) {
+    console.add("cutaway", "cutaway HEIGHT|off",
+                "Leaves out everything above HEIGHT, to look into a layer from above, or shows everything again.",
+                [&state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, "cutaway HEIGHT|off");
+                    if (arguments[0] == "off") {
+                        state.view.cutaway.reset();
+                    } else {
+                        state.view.cutaway = parse_float_argument(arguments[0]);
                     }
                 });
 
@@ -132,6 +160,17 @@ void add_game_commands(Console& console, CommandQueue& queue, const Game& game, 
                         log_warning("Quitting without running the {} command(s) after quit", dropped);
                     }
                 });
+}
+
+}  // namespace
+
+Camera view_camera(const ViewSettings& view, const Player& player) {
+    return view.camera.value_or(make_player_camera(player));
+}
+
+void add_game_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
+    add_player_commands(console, game, state);
+    add_view_commands(console, queue, state);
 }
 
 }  // namespace manifold

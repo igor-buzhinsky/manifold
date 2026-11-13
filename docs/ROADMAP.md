@@ -113,8 +113,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Console**: commands that inspect the game, for testing levels by hand and for scripted checks, see
   [GAME_MANUAL.md](../GAME_MANUAL.md). Done: typed into the terminal the game was started from, or given with
   `--exec`; `--screenshot` is short for a script. Commands: `help`, `level_info` (its text depends on the
-  layout), `camera`, `arrow`, `lighting`, `shadows`, `screenshot` (of any size, drawn off screen), `wait` and
-  `quit`. Next: an in-game console window, which needs text drawing (a bitmap font) and text input.
+  layout), `camera`, `teleport`, `cutaway` (leaves out everything above a height, to look into a layer from
+  above), `arrow`, `lighting`, `shadows`, `screenshot` (of any size, drawn off screen), `wait` and `quit`. Next: an in-game console window, which needs text drawing (a bitmap font) and text input.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
   version of the linear series of levels.

@@ -40,6 +40,7 @@ layout(location = 3) in vec3 a_color;
 layout(location = 4) in float a_texture_weight;
 
 uniform mat4 u_view_projection;
+uniform float u_cut_height;  // See DrawOptions::cut_height. Only used while GL_CLIP_DISTANCE0 is on.
 
 out vec3 v_position;
 out vec3 v_normal;
@@ -53,6 +54,7 @@ void main() {
     v_uv = a_uv;
     v_color = a_color;
     v_texture_weight = a_texture_weight;
+    gl_ClipDistance[0] = u_cut_height - a_position.z;
     gl_Position = u_view_projection * vec4(a_position, 1.0);
 }
 )glsl";
@@ -86,6 +88,7 @@ uniform sampler2D u_texture;
 uniform samplerCubeArrayShadow u_shadow_maps;
 uniform vec3 u_ambient;
 uniform bool u_lighting;  // If false, the surface has its plain color, without lights or shadows.
+uniform bool u_cutaway;   // If true, back faces are the insides of solids that are cut open.
 
 out vec4 frag_color;
 
@@ -121,7 +124,14 @@ vec3 linear_to_srgb(vec3 color) {
     return mix(color * 12.92, 1.055 * pow(color, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, color));
 }
 
+// Color of the cut through a solid, as seen from above, already sRGB.
+const vec3 kCutColor = vec3(0.12, 0.12, 0.14);
+
 void main() {
+    if (u_cutaway && !gl_FrontFacing) {
+        frag_color = vec4(kCutColor, 1.0);
+        return;
+    }
     vec3 normal = normalize(v_normal);
     // The texture has an sRGB format, so sampling returns linear RGB.
     vec3 albedo = v_color * mix(vec3(1.0), texture(u_texture, v_uv).rgb, v_texture_weight);
@@ -197,6 +207,7 @@ layout(location = 2) in int a_flame;
 uniform mat4 u_view_projection;
 uniform vec3 u_right;  // Horizontal unit vector to the right of the camera.
 uniform vec2 u_size;   // Width and height of a flame, in metres.
+uniform float u_cut_height;  // See DrawOptions::cut_height. Only used while GL_CLIP_DISTANCE0 is on.
 
 out vec2 v_uv;
 flat out float v_phase;
@@ -209,6 +220,7 @@ void main() {
     v_uv = corner;
     v_phase = a_phase;
     vec3 position = a_bottom + u_right * ((corner.x - 0.5) * u_size.x) + vec3(0.0, 0.0, corner.y * u_size.y);
+    gl_ClipDistance[0] = u_cut_height - position.z;
     gl_Position = u_view_projection * vec4(position, 1.0);
 }
 )glsl";
@@ -656,11 +668,26 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
                        glm::value_ptr(view_projection));
     glUniform3fv(glGetUniformLocation(program_, "u_ambient"), 1, glm::value_ptr(lighting.ambient));
     glUniform1i(glGetUniformLocation(program_, "u_lighting"), options.lighting ? 1 : 0);
+    glUniform1i(glGetUniformLocation(program_, "u_cutaway"), options.cut_height ? 1 : 0);
+    glUniform1f(glGetUniformLocation(program_, "u_cut_height"), options.cut_height.value_or(0.0f));
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, shadow_maps_);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture_);
     glBindVertexArray(vertex_array_);
+    if (options.cut_height) {
+        glEnable(GL_CLIP_DISTANCE0);
+        // The insides of cut solids are seen through the cut: their back faces are drawn first, in the cut
+        // color. Neighboring blocks share the planes of their sides, so a block's inside lies in the same
+        // plane as the outside of its neighbor. Pulling the insides a little towards the camera keeps them
+        // in front there, so the cut looks solid.
+        glCullFace(GL_FRONT);
+        glEnable(GL_POLYGON_OFFSET_FILL);
+        glPolygonOffset(0.0f, -4.0f);
+        glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
+        glDisable(GL_POLYGON_OFFSET_FILL);
+        glCullFace(GL_BACK);
+    }
     glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
 
     if (flame_count_ > 0) {
@@ -671,11 +698,13 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
                            glm::value_ptr(view_projection));
         glUniform3fv(glGetUniformLocation(flame_program_, "u_right"), 1, glm::value_ptr(right));
         glUniform1f(glGetUniformLocation(flame_program_, "u_time"), time);
+        glUniform1f(glGetUniformLocation(flame_program_, "u_cut_height"), options.cut_height.value_or(0.0f));
         glBindVertexArray(flame_vertex_array_);
         glDisable(GL_CULL_FACE);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, flame_count_);
         glEnable(GL_CULL_FACE);
     }
+    glDisable(GL_CLIP_DISTANCE0);
 
     if (!options.marker.empty()) {
         // On top of everything, and from both sides, so it can be seen through floors and walls.

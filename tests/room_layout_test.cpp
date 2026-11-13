@@ -551,6 +551,10 @@ TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
             "Tiles of 2 m: tile (x, y) covers world x from -40 + 2 x to -38 + 2 x and y from -30 + 2 y to -28 + 2 y."),
         std::string::npos)
         << level.info;
+    EXPECT_NE(level.info.find("Floors of the layers at z = 0.00, 3.30, 6.60. To see a layer from above: cutaway "
+                              "2.90, 6.20, 9.50.\n"),
+              std::string::npos)
+        << level.info;
     EXPECT_TRUE(level.info.ends_with(draw_plan(plan)));
 }
 

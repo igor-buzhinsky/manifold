@@ -4,6 +4,8 @@
 #include <numbers>
 #include <optional>
 
+#include <glm/vec3.hpp>
+
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "world/player.hpp"
@@ -70,6 +72,14 @@ public:
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
     void update(const PlayerInput& input, float dt);
+
+    /// Moves the player, e.g. to test a level, without checking for obstacles.
+    ///
+    /// The player stops falling, and falls again from rest at the next update unless noclip is on.
+    ///
+    /// \param position The point between the player's feet.
+    /// \param yaw      Direction to face, in radians counter-clockwise from +x, or none to keep it.
+    void teleport(const glm::vec3& position, std::optional<float> yaw = std::nullopt);
 
     /// Whether the noclip cheat is on: the player flies through obstacles and walls.
     bool noclip() const { return noclip_; }

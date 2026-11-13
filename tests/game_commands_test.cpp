@@ -61,6 +61,31 @@ TEST(GameCommandsTest, CameraRejectsWrongArguments) {
     EXPECT_FALSE(fixture.state.view.camera.has_value());
 }
 
+TEST(GameCommandsTest, TeleportMovesThePlayerInDegrees) {
+    Fixture fixture;
+    fixture.run("teleport 1 +2 3.5 180");
+    EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.5f));
+    EXPECT_FLOAT_EQ(fixture.game.player().yaw(), std::numbers::pi_v<float>);
+    fixture.run("teleport 0 0 0");
+    EXPECT_FLOAT_EQ(fixture.game.player().yaw(), std::numbers::pi_v<float>);
+    for (const char* command : {"teleport 1 2", "teleport 1 2 3 4 5", "teleport a 2 3"}) {
+        fixture.queue.add(command, true);
+        EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError) << command;
+    }
+}
+
+TEST(GameCommandsTest, CutawaySetsAndClearsTheHeight) {
+    Fixture fixture;
+    EXPECT_FALSE(fixture.state.view.cutaway.has_value());
+    fixture.run("cutaway 6.2");
+    ASSERT_TRUE(fixture.state.view.cutaway.has_value());
+    EXPECT_FLOAT_EQ(*fixture.state.view.cutaway, 6.2f);
+    fixture.run("cutaway off");
+    EXPECT_FALSE(fixture.state.view.cutaway.has_value());
+    fixture.queue.add("cutaway", true);
+    EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+}
+
 TEST(GameCommandsTest, SwitchesChangeTheView) {
     Fixture fixture;
     EXPECT_FALSE(fixture.state.view.arrow);

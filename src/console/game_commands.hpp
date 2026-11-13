@@ -18,6 +18,8 @@ struct ViewSettings {
     bool arrow = false;            ///< Whether an arrow at the player's feet shows where the player is and faces.
     bool lighting = true;          ///< If false, surfaces have their plain texture colors, without lights or shadows.
     bool shadows = true;           ///< Whether lights cast shadows.
+    /// If set, everything above this height is left out, so that a camera above can see into a layer.
+    std::optional<float> cutaway;
 };
 
 /// The camera that `view` looks through.
@@ -49,8 +51,8 @@ inline constexpr int kMaxScreenshotSize = 8192;
 ///
 /// \param console Where to add the commands.
 /// \param queue   The queue that `wait` delays.
-/// \param game    The game the commands inspect. It must outlive the console.
+/// \param game    The game the commands inspect and change. It must outlive the console.
 /// \param state   What the commands change. It must outlive the console.
-void add_game_commands(Console& console, CommandQueue& queue, const Game& game, ConsoleState& state);
+void add_game_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state);
 
 }  // namespace manifold

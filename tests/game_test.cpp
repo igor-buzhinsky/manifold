@@ -137,6 +137,20 @@ TEST(GameTest, PlayerStartsAtLevelStart) {
     EXPECT_FLOAT_EQ(game.player().yaw(), game.level().player_yaw);
 }
 
+TEST(GameTest, TeleportMovesThePlayerWhoThenFallsFromRest) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({}, 0.1f);
+    game.teleport({3.0f, 4.0f, 2.0f}, kPi / 2.0f);
+    EXPECT_EQ(game.player().position(), glm::vec3(3.0f, 4.0f, 2.0f));
+    EXPECT_FLOAT_EQ(game.player().yaw(), kPi / 2.0f);
+    EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
+    EXPECT_FALSE(game.player().on_ground());
+    game.teleport({1.0f, 1.0f, 0.0f});
+    EXPECT_FLOAT_EQ(game.player().yaw(), kPi / 2.0f);  // Kept.
+    game.update({}, 0.01f);
+    EXPECT_TRUE(game.player().on_ground());
+}
+
 TEST(GameTest, LevelHasEarthGravityByDefault) {
     const Game game(make_config(), 1, LayoutKind::kDebug);
     EXPECT_FLOAT_EQ(game.level().gravity, kEarthGravity);

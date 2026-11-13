@@ -22,6 +22,9 @@ struct DrawOptions {
     bool lighting = true;  ///< If false, surfaces have their plain texture colors, without lights or shadows.
     /// Triangles drawn in one bright color on top of everything, e.g. build_arrow(), or none.
     std::span<const glm::vec3> marker;
+    /// If set, the world and the flames above this height are left out, so a camera above can see into a
+    /// layer. Where solids are cut open, their insides are drawn in a dark color. Shadows don't change.
+    std::optional<float> cut_height;
 };
 
 /// Draws the world and the torch flames with OpenGL, with shadows from the lights that cast them.

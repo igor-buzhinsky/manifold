@@ -218,7 +218,7 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
     const std::vector<glm::vec3> arrow =
         view.arrow ? manifold::build_arrow(game.player().position(), game.player().yaw()) : std::vector<glm::vec3>();
     renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
-                  {.lighting = view.lighting, .marker = arrow});
+                  {.lighting = view.lighting, .marker = arrow, .cut_height = view.cutaway});
 }
 
 /// Takes the screenshots that console commands asked for, each drawn as it asked.
