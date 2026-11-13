@@ -78,7 +78,7 @@ TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {
     EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, 1).layout, LayoutKind::kRooms);
     EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 1).layout, LayoutKind::kDebug);
     // Without a layout, the choice depends only on the seed.
-    EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).plan, generate_level(config, std::nullopt, 0.3f, 5).plan);
+    EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).info, generate_level(config, std::nullopt, 0.3f, 5).info);
 }
 
 }  // namespace

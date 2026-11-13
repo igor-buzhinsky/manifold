@@ -200,7 +200,7 @@ Level make_ramp_level() {
     World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 6.0f});
     world.add_ramp({.base_center = {0.0f, 0.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.5f});
     world.add_obstacle({.base_center = {4.0f, 0.0f, 0.0f}, .half_size = 2.0f, .height = 2.5f, .yaw = 0.0f});
-    return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = {-4.0f, 0.0f, 0.0f}, .plan = ""};
+    return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = {-4.0f, 0.0f, 0.0f}, .info = ""};
 }
 
 TEST(GameTest, WalksUpRampOntoPlatform) {

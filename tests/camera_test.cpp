@@ -42,6 +42,18 @@ TEST(CameraTest, ScreenAxesMatchWorldDirections) {
     EXPECT_GT(project(camera, {10.0f, 0.0f, 2.5f}).y, 0.0f);
 }
 
+TEST(CameraTest, LookingStraightDownShowsTheYawDirectionAtTheTop) {
+    const Camera camera{.position = {0.0f, 0.0f, 20.0f},
+                        .yaw = std::numbers::pi_v<float> / 2.0f,
+                        .pitch = -std::numbers::pi_v<float> / 2.0f};
+    const glm::vec3 below = project(camera, {0.0f, 0.0f, 0.0f});
+    EXPECT_NEAR(below.x, 0.0f, 1e-5f);
+    EXPECT_NEAR(below.y, 0.0f, 1e-5f);
+    // +y, the yaw direction, is at the top, and +x to the right.
+    EXPECT_GT(project(camera, {0.0f, 2.0f, 0.0f}).y, 0.0f);
+    EXPECT_GT(project(camera, {2.0f, 0.0f, 0.0f}).x, 0.0f);
+}
+
 TEST(CameraTest, PointBehindIsNotVisible) {
     const Camera camera{.position = {0.0f, 0.0f, 1.5f}, .yaw = 0.0f};
     const glm::vec4 clip = camera.projection() * camera.view() * glm::vec4(-5.0f, 0.0f, 1.5f, 1.0f);

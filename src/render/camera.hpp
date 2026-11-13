@@ -22,6 +22,8 @@ struct Camera {
     /// Unit vector in the direction the camera looks.
     glm::vec3 forward() const;
     /// Matrix that transforms world coordinates into camera coordinates.
+    ///
+    /// The top of the picture is towards +z, or, when looking straight down, in the direction of the yaw.
     glm::mat4 view() const;
     /// Matrix that transforms camera coordinates into OpenGL clip coordinates, for a 16:9 picture.
     glm::mat4 projection() const;

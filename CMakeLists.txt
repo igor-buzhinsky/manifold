@@ -53,6 +53,8 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 # Game logic and everything else that doesn't need a window or OpenGL lives in a library,
 # so that tests can link against it.
 add_library(manifold_core STATIC
+    src/console/console.cpp
+    src/console/game_commands.cpp
     src/game.cpp
     src/level/debug_layout.cpp
     src/level/layout_factory.cpp
@@ -61,6 +63,7 @@ add_library(manifold_core STATIC
     src/physics/collision.cpp
     src/render/camera.cpp
     src/render/lighting.cpp
+    src/render/marker.cpp
     src/render/shadow_map.cpp
     src/render/stb_image.cpp
     src/render/stb_image_write.cpp
@@ -79,6 +82,7 @@ target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
 
 add_executable(manifold
     src/main.cpp
+    src/platform/terminal_input.cpp
     src/platform/window.cpp
     src/render/renderer.cpp
     src/render/screenshot.cpp
@@ -103,6 +107,8 @@ if(MANIFOLD_BUILD_TESTS)
     add_executable(manifold_tests
         tests/camera_test.cpp
         tests/collision_test.cpp
+        tests/console_test.cpp
+        tests/game_commands_test.cpp
         tests/game_test.cpp
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
@@ -110,6 +116,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/level_test.cpp
         tests/lighting_test.cpp
         tests/log_test.cpp
+        tests/marker_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp
         tests/texture_image_test.cpp

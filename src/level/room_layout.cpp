@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <format>
 #include <map>
 #include <numbers>
 #include <optional>
@@ -629,6 +630,25 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
+/// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, and
+/// the plan, see draw_plan().
+std::string describe(const LayeredPlan& plan, const GridPlacement& grid) {
+    constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
+    const TileBox box = used_tiles(plan);
+    std::string floors;
+    for (const float z : grid.floor_z) {
+        floors += std::format("{}{:.2f}", floors.empty() ? "" : ", ", z);
+    }
+    return std::format(
+        "Tiles of {} m: tile (x, y) covers world x from {} + {} x and y from {} + {} y. Floors of the layers at z = "
+        "{}.\n"
+        "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
+        "Start: layer {}, tile ({}, {}), facing {}.\n{}",
+        grid.tile, grid.x_min, grid.tile, grid.y_min, grid.tile, floors, box.x_min, box.x_max, box.y_max, box.y_min,
+        plan.start_layer, plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)),
+        draw_plan(plan));
+}
+
 }  // namespace
 
 Level RoomLayout::generate(float clearance, LevelRng& rng) const {
@@ -671,7 +691,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .world = std::move(world),
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
-            .plan = draw_plan(plan)};
+            .info = describe(plan, grid)};
 }
 
 }  // namespace manifold

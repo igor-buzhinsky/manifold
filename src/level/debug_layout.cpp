@@ -147,23 +147,23 @@ void place_torches(const DebugLayoutConfig& config, TorchFlame flame, World& wor
     }
 }
 
-/// Converts radians to degrees, for the plan.
+/// Converts radians to degrees, for the level info.
 float degrees(float radians) { return radians * 180.0f / std::numbers::pi_v<float>; }
 
 /// Lists the obstacles, ceiling blocks and ramps, one per line.
 std::string describe(const World& world) {
-    std::string plan;
+    std::string info;
     for (const Obstacle& obstacle : world.obstacles()) {
-        plan += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), size {} m, yaw {:5.1f} deg\n",
+        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), size {} m, yaw {:5.1f} deg\n",
                             obstacle.base_center.z > 0.0f ? "Ceiling block" : "Obstacle", obstacle.base_center.x,
                             obstacle.base_center.y, obstacle.base_center.z, 2.0f * obstacle.half_size,
                             degrees(obstacle.yaw));
     }
     for (const Ramp& ramp : world.ramps()) {
-        plan += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), up towards {:5.1f} deg\n", "Ramp",
+        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), up towards {:5.1f} deg\n", "Ramp",
                             ramp.base_center.x, ramp.base_center.y, ramp.base_center.z, degrees(ramp.yaw));
     }
-    return plan;
+    return info;
 }
 
 }  // namespace
@@ -187,8 +187,8 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     place_blocks(config_, keep_clear, config_.obstacle_height, config_.ceiling_thickness, world, rng);
     place_ramps(config_, keep_clear, world, rng);
     place_torches(config_, choose_torch_flame(rng), world);
-    std::string plan = describe(world);
-    return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .plan = std::move(plan)};
+    std::string info = describe(world);
+    return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .info = std::move(info)};
 }
 
 }  // namespace manifold

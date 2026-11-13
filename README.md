@@ -31,12 +31,14 @@ cmake --build build
 ./build/manifold 42                         # level generated from seed 42
 ./build/manifold 42 --layout rooms          # force a layout: debug or rooms (by default rooms; debug only on request)
 ./build/manifold 42 --screenshot view.png   # save the first frame as a PNG and exit
+./build/manifold 42 --exec "lighting off; screenshot flat.png 800 450; quit"   # run console commands
 ```
 
 The game reads its textures from `assets/textures/` in the source tree, whose path is built into the
 executable, so keep the checkout where it was built. If no texture is found, surfaces are plain grey.
 
-Controls are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the window to quit.
+Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the
+window to quit.
 
 ## Tests
 

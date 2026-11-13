@@ -85,6 +85,7 @@ layout(std140) uniform Lights {
 uniform sampler2D u_texture;
 uniform samplerCubeArrayShadow u_shadow_maps;
 uniform vec3 u_ambient;
+uniform bool u_lighting;  // If false, the surface has its plain color, without lights or shadows.
 
 out vec4 frag_color;
 
@@ -124,6 +125,10 @@ void main() {
     vec3 normal = normalize(v_normal);
     // The texture has an sRGB format, so sampling returns linear RGB.
     vec3 albedo = v_color * mix(vec3(1.0), texture(u_texture, v_uv).rgb, v_texture_weight);
+    if (!u_lighting) {
+        frag_color = vec4(linear_to_srgb(albedo), 1.0);
+        return;
+    }
 
     vec3 irradiance = u_ambient;
     for (int i = 0; i < u_light_count; ++i) {
@@ -258,6 +263,28 @@ void main() {
     // Already sRGB: the flame is as bright as the display allows.
     vec3 color = heat > 0.65 ? kCore[v_flame] : heat > 0.35 ? kMiddle[v_flame] : kEdge[v_flame];
     frag_color = vec4(color, 1.0);
+}
+)glsl";
+
+/// Draws the marker of DrawOptions in one color.
+constexpr const char* kMarkerVertexShader = R"glsl(
+#version 410 core
+layout(location = 0) in vec3 a_position;
+
+uniform mat4 u_view_projection;
+
+void main() {
+    gl_Position = u_view_projection * vec4(a_position, 1.0);
+}
+)glsl";
+
+/// Paints the marker bright magenta, which stands out against the level.
+constexpr const char* kMarkerFragmentShader = R"glsl(
+#version 410 core
+out vec4 frag_color;
+
+void main() {
+    frag_color = vec4(1.0, 0.2, 0.9, 1.0);
 }
 )glsl";
 
@@ -467,7 +494,8 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_program_(link_program(kShadowVertexShader, kShadowFragmentShader)),
       shadow_maps_(create_shadow_maps()),
       shadow_framebuffer_(create_shadow_framebuffer(shadow_maps_)),
-      shadow_cache_(kShadowSlots) {
+      shadow_cache_(kShadowSlots),
+      marker_program_(link_program(kMarkerVertexShader, kMarkerFragmentShader)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);
     glGenBuffers(1, &vertex_buffer_);
@@ -508,6 +536,13 @@ Renderer::Renderer(const World& world, const Image& texture)
     glVertexAttribDivisor(2, 1);
     glBindVertexArray(0);
 
+    glGenVertexArrays(1, &marker_vertex_array_);
+    glBindVertexArray(marker_vertex_array_);
+    glGenBuffers(1, &marker_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, marker_buffer_);
+    set_vertex_attribute(0, 3, sizeof(glm::vec3), 0);
+    glBindVertexArray(0);
+
     glGenBuffers(1, &light_buffer_);
     glBindBuffer(GL_UNIFORM_BUFFER, light_buffer_);
     glBufferData(GL_UNIFORM_BUFFER, sizeof(GpuLights), nullptr, GL_DYNAMIC_DRAW);
@@ -526,6 +561,9 @@ Renderer::Renderer(const World& world, const Image& texture)
 }
 
 Renderer::~Renderer() {
+    glDeleteBuffers(1, &marker_buffer_);
+    glDeleteVertexArrays(1, &marker_vertex_array_);
+    glDeleteProgram(marker_program_);
     glDeleteFramebuffers(1, &shadow_framebuffer_);
     glDeleteTextures(1, &shadow_maps_);
     glDeleteProgram(shadow_program_);
@@ -559,6 +597,8 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
         return slots;
     }
 
+    GLint previous_framebuffer = 0;
+    glGetIntegerv(GL_FRAMEBUFFER_BINDING, &previous_framebuffer);
     glBindFramebuffer(GL_FRAMEBUFFER, shadow_framebuffer_);
     glViewport(0, 0, kShadowMapSize, kShadowMapSize);
     glUseProgram(shadow_program_);
@@ -590,19 +630,23 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
         }
     }
     glCullFace(GL_BACK);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer));
     return slots;
 }
 
-void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time) {
-    const std::vector<std::optional<std::size_t>> shadow_slots = update_shadow_maps(lighting.lights);
+void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time,
+                    const DrawOptions& options) {
+    // Without lighting, no lights are needed, nor their shadow maps.
+    const std::span<const PointLight> used_lights =
+        options.lighting ? std::span<const PointLight>(lighting.lights) : std::span<const PointLight>();
+    const std::vector<std::optional<std::size_t>> shadow_slots = update_shadow_maps(used_lights);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
     const glm::mat4 view_projection = camera.projection() * camera.view();
 
-    const GpuLights lights = to_gpu_lights(lighting.lights, shadow_slots);
+    const GpuLights lights = to_gpu_lights(used_lights, shadow_slots);
     glBindBuffer(GL_UNIFORM_BUFFER, light_buffer_);
     glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(GpuLights), &lights);
     glBindBufferBase(GL_UNIFORM_BUFFER, kLightsBinding, light_buffer_);
@@ -611,6 +655,7 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
     glUniformMatrix4fv(glGetUniformLocation(program_, "u_view_projection"), 1, GL_FALSE,
                        glm::value_ptr(view_projection));
     glUniform3fv(glGetUniformLocation(program_, "u_ambient"), 1, glm::value_ptr(lighting.ambient));
+    glUniform1i(glGetUniformLocation(program_, "u_lighting"), options.lighting ? 1 : 0);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, shadow_maps_);
     glActiveTexture(GL_TEXTURE0);
@@ -630,6 +675,22 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
         glDisable(GL_CULL_FACE);
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, flame_count_);
         glEnable(GL_CULL_FACE);
+    }
+
+    if (!options.marker.empty()) {
+        // On top of everything, and from both sides, so it can be seen through floors and walls.
+        glUseProgram(marker_program_);
+        glUniformMatrix4fv(glGetUniformLocation(marker_program_, "u_view_projection"), 1, GL_FALSE,
+                           glm::value_ptr(view_projection));
+        glBindVertexArray(marker_vertex_array_);
+        glBindBuffer(GL_ARRAY_BUFFER, marker_buffer_);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(options.marker.size_bytes()), options.marker.data(),
+                     GL_STREAM_DRAW);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_CULL_FACE);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(options.marker.size()));
+        glEnable(GL_CULL_FACE);
+        glEnable(GL_DEPTH_TEST);
     }
     glBindVertexArray(0);
 }

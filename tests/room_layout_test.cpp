@@ -538,6 +538,20 @@ TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
     EXPECT_FLOAT_EQ(bounds.height, (3.0f * config.height) + (2.0f * config.slab_thickness));
 }
 
+TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
+    const Level level = generate(2);
+    const LayeredPlan plan = make_layered_plan(2);
+    constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
+    const std::string start = "Start: layer " + std::to_string(plan.start_layer) + ", tile (" +
+                              std::to_string(plan.start_x) + ", " + std::to_string(plan.start_y) + "), facing " +
+                              kDirections.at(static_cast<std::size_t>(plan.start_direction)) + ".\n";
+    EXPECT_NE(level.info.find(start), std::string::npos) << level.info;
+    EXPECT_NE(level.info.find("Tiles of 2 m: tile (x, y) covers world x from -40 + 2 x and y from -30 + 2 y."),
+              std::string::npos)
+        << level.info;
+    EXPECT_TRUE(level.info.ends_with(draw_plan(plan)));
+}
+
 TEST(RoomLayoutTest, PlayerStartsInCenterOfStartTileWithoutCollisions) {
     const RoomLayoutConfig config = make_config();
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {

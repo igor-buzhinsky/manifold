@@ -30,7 +30,13 @@ asked or when unsure what a change affects.
   `manifold_core`, so that everything else can be tested.
 - When changing key bindings or cheats, update [GAME_MANUAL.md](GAME_MANUAL.md).
 - If a new system package is needed, add it to the install command in [README.md](README.md).
-- `./build/manifold SEED --screenshot FILE.png` saves the first frame, which helps to check rendering changes.
+- To check rendering or levels, run the game with console commands (see the Console section of
+  [GAME_MANUAL.md](GAME_MANUAL.md)) and look at the screenshots, e.g.
+  `./build/manifold SEED --exec "level_info; arrow on; camera X Y Z 0 -90; screenshot FILE.png 800 450; quit"`.
+  Small screenshots (800 x 450) are usually enough. For room levels, `level_info` tells how tiles map to
+  world coordinates. `--screenshot FILE.png` saves the first frame. Add console commands rather than
+  command-line options for new ways to inspect the game.
+- When adding or changing console commands, update [GAME_MANUAL.md](GAME_MANUAL.md).
 
 ## Review after nontrivial changes
 

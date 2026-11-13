@@ -218,7 +218,7 @@ TEST(DebugLayoutTest, SameSeedGivesSameLevel) {
         EXPECT_EQ(first.world.obstacles()[i].base_center, second.world.obstacles()[i].base_center);
         EXPECT_EQ(first.world.obstacles()[i].yaw, second.world.obstacles()[i].yaw);
     }
-    EXPECT_EQ(first.plan, second.plan);
+    EXPECT_EQ(first.info, second.info);
 }
 
 TEST(DebugLayoutTest, DifferentSeedsGiveDifferentLevels) {
@@ -230,12 +230,12 @@ TEST(DebugLayoutTest, DifferentSeedsGiveDifferentLevels) {
 TEST(DebugLayoutTest, PlanListsObstaclesCeilingBlocksAndRamps) {
     const Level level = generate(make_config(), 1);
     std::size_t lines = 0;
-    for (const char c : level.plan) {
+    for (const char c : level.info) {
         lines += c == '\n' ? 1 : 0;
     }
     EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size());
-    EXPECT_NE(level.plan.find("Ceiling block"), std::string::npos);
-    EXPECT_NE(level.plan.find("Ramp"), std::string::npos);
+    EXPECT_NE(level.info.find("Ceiling block"), std::string::npos);
+    EXPECT_NE(level.info.find("Ramp"), std::string::npos);
 }
 
 TEST(DebugLayoutTest, ThrowsWhenThereIsNoRoom) {

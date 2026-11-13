@@ -110,6 +110,11 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
     compute shaders. This closes the macOS path unless we keep a 4.1 render path.
   - **Jolt Physics**: replace our collision code with Jolt, with the player as a `CharacterVirtual`. Keep
     the current behavior: sliding, ramps, gravity, jumping and noclip.
+- **Console**: commands that inspect the game, for testing levels by hand and for scripted checks, see
+  [GAME_MANUAL.md](../GAME_MANUAL.md). Done: typed into the terminal the game was started from, or given with
+  `--exec`; `--screenshot` is short for a script. Commands: `help`, `level_info` (its text depends on the
+  layout), `camera`, `arrow`, `lighting`, `shadows`, `screenshot` (of any size, drawn off screen), `wait` and
+  `quit`. Next: an in-game console window, which needs text drawing (a bitmap font) and text input.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
   version of the linear series of levels.
@@ -177,7 +182,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   deprecated, version). Needs testing on a Mac. If we move to OpenGL 4.5, macOS needs a separate 4.1
   path or another renderer.
 - **Windows support**: add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb, glad
-  and the C++ code are already portable.
+  and the C++ code are already portable, except reading console commands from the terminal, which uses POSIX
+  `poll()` (`src/platform/terminal_input.cpp`).
 - **Advanced party implementation**: The party is bound to a magical orb (?), and characters can transport
   themselves to a pocket dimension.
 - New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.

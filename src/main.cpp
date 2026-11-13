@@ -22,12 +22,16 @@
 #include <SDL3/SDL_timer.h>
 #include <glm/vec3.hpp>
 
+#include "console/console.hpp"
+#include "console/game_commands.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "platform/terminal_input.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
 #include "render/lighting.hpp"
+#include "render/marker.hpp"
 #include "render/renderer.hpp"
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
@@ -43,7 +47,7 @@ constexpr int kWindowWidth = 1600;
 /// Command-line options.
 struct Options {
     std::optional<std::uint64_t> seed;           ///< Level seed. Random if not given.
-    std::optional<std::string> screenshot_path;  ///< If given, save the first frame there and quit.
+    std::string commands;                        ///< Console commands to run at the start. Errors stop the game.
     std::optional<manifold::LayoutKind> layout;  ///< Level layout. Random if not given.
 };
 
@@ -59,7 +63,10 @@ std::uint64_t parse_seed(const std::string& text) {
     return seed;
 }
 
-/// Parses the command line: `manifold [SEED] [--layout debug|rooms] [--screenshot FILE.png]`.
+/// Parses the command line: `manifold [SEED] [--layout debug|rooms] [--exec COMMANDS]... [--screenshot FILE.png]`.
+///
+/// `--screenshot FILE.png` is short for `--exec "screenshot FILE.png; quit"`. Commands run in the order of
+/// the options.
 ///
 /// \param args All arguments, including the program name.
 /// \throws std::invalid_argument if an argument is invalid.
@@ -67,13 +74,15 @@ Options parse_options(std::span<char*> args) {
     Options options;
     for (std::size_t i = 1; i < args.size(); ++i) {
         const std::string arg = args[i];
-        if (arg == "--screenshot" || arg == "--layout") {
+        if (arg == "--screenshot" || arg == "--exec" || arg == "--layout") {
             if (i + 1 == args.size()) {
                 throw std::invalid_argument(arg + " needs a value");
             }
             const std::string value = args[++i];
             if (arg == "--screenshot") {
-                options.screenshot_path = value;
+                options.commands += "\nscreenshot " + value + "\nquit";
+            } else if (arg == "--exec") {
+                options.commands += "\n" + value;
             } else {
                 options.layout = manifold::parse_layout_name(value);
                 if (!options.layout) {
@@ -127,7 +136,7 @@ void log_game(const manifold::Game& game) {
     }
     manifold::log_info("Player: position ({:.2f}, {:.2f}, {:.2f}), radius {} m, height {} m", player.position().x,
                        player.position().y, player.position().z, player.radius(), player.height());
-    manifold::log_info("Level plan:\n{}", game.level().plan);
+    manifold::log_info("Level info:\n{}", game.level().info);
 }
 
 /// Handles pending window and key events, such as quitting and cheats.
@@ -173,7 +182,57 @@ manifold::PlayerInput read_input() {
     };
 }
 
-/// Runs the game until the player quits, or until the screenshot is saved.
+/// Draws the game into the bound framebuffer, as `view` shows it.
+///
+/// \param renderer    Draws.
+/// \param game        What to draw.
+/// \param view        How to show it.
+/// \param framebuffer Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
+void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const manifold::ViewSettings& view,
+               const manifold::PixelSize& framebuffer) {
+    // The light spell: a warm light at the player's eyes, plus a little ambient light. The torches
+    // nearest to the camera fill up the remaining lights.
+    const manifold::Camera camera = manifold::view_camera(view, game.player());
+    manifold::Lighting lighting{
+        .ambient = glm::vec3(0.01f),
+        .lights = {{.position = game.player().eye_position(),
+                    .color = {1.0f, 0.85f, 0.6f},
+                    .intensity = 5.0f,
+                    .range = 15.0f}},
+    };
+    const std::vector<manifold::PointLight> torch_lights =
+        manifold::select_lights(manifold::torch_lights(game.world().torches(), game.animation_time()), camera.position,
+                                manifold::kMaxLights - 1);
+    lighting.lights.insert(lighting.lights.end(), torch_lights.begin(), torch_lights.end());
+    if (!view.shadows) {
+        for (manifold::PointLight& light : lighting.lights) {
+            light.shadow_id.reset();
+        }
+    }
+
+    const std::vector<glm::vec3> arrow =
+        view.arrow ? manifold::build_arrow(game.player().position(), game.player().yaw()) : std::vector<glm::vec3>();
+    renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
+                  {.lighting = view.lighting, .marker = arrow});
+}
+
+/// Takes the screenshots that console commands asked for, each drawn as it asked.
+///
+/// \param window_size The size of screenshots that don't give their own.
+void take_screenshots(manifold::Renderer& renderer, const manifold::Game& game,
+                      std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
+    for (const manifold::ScreenshotRequest& request : requests) {
+        const manifold::PixelSize size = request.size.value_or(window_size);
+        const manifold::OffscreenFramebuffer framebuffer(size);
+        draw_game(renderer, game, request.view, size);
+        manifold::save_screenshot(request.path, size.width, size.height);
+        manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
+    }
+}
+
+/// Runs the game until the player quits or a console command does.
+///
+/// \throws manifold::CommandError if one of the commands of `options` fails.
 void run(const Options& options) {
     manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
     log_game(game);
@@ -182,31 +241,30 @@ void run(const Options& options) {
     manifold::Window window("Manifold", kWindowWidth, window_height);
     manifold::Renderer renderer(game.world(), pick_level_texture(game.seed()));
 
+    manifold::Console console;
+    manifold::CommandQueue commands;
+    manifold::ConsoleState state;
+    manifold::add_game_commands(console, commands, game, state);
+    commands.add(options.commands, true);
+    manifold::TerminalInput terminal;
+
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
+        for (const std::string& line : terminal.read_lines()) {
+            commands.add(line, false);
+        }
+        commands.run_frame(console);
+
         const std::uint64_t ticks = SDL_GetTicksNS();
         const float dt = std::min(static_cast<float>(ticks - previous_ticks) * 1e-9f, kMaxFrameTime);
         previous_ticks = ticks;
         game.update(read_input(), dt);
 
-        // The light spell: a warm light at the player's eyes, plus a little ambient light. The torches
-        // nearest to the player fill up the remaining lights.
-        const manifold::Camera camera = manifold::make_player_camera(game.player());
-        manifold::Lighting lighting{
-            .ambient = glm::vec3(0.01f),
-            .lights = {{.position = camera.position, .color = {1.0f, 0.85f, 0.6f}, .intensity = 5.0f, .range = 15.0f}},
-        };
-        const std::vector<manifold::PointLight> torch_lights =
-            manifold::select_lights(manifold::torch_lights(game.world().torches(), game.animation_time()),
-                                    camera.position, manifold::kMaxLights - 1);
-        lighting.lights.insert(lighting.lights.end(), torch_lights.begin(), torch_lights.end());
-
-        const manifold::PixelSize framebuffer = window.framebuffer_size();
-        renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio),
-                      game.animation_time());
-        if (options.screenshot_path) {
-            manifold::save_screenshot(*options.screenshot_path, framebuffer.width, framebuffer.height);
-            manifold::log_info("Saved {}", *options.screenshot_path);
+        const manifold::PixelSize window_size = window.framebuffer_size();
+        draw_game(renderer, game, state.view, window_size);
+        take_screenshots(renderer, game, state.screenshots, window_size);
+        state.screenshots.clear();
+        if (state.quit) {
             return;
         }
         window.swap_buffers();

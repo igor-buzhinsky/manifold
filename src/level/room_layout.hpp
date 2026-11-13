@@ -176,8 +176,9 @@ std::string draw_plan(const LayeredPlan& plan);
 /// along the wall. Each such side gets a torch with the same chance, chosen for the level uniformly from
 /// [`min_torch_chance`, `max_torch_chance`]. All torches of a level have the same flame, see
 /// choose_torch_flame().
-/// The player starts in the center of a random tile, facing a random direction, see plan_layers(). The plan is drawn as
-/// text, see draw_plan().
+/// The player starts in the center of a random tile, facing a random direction, see plan_layers(). The level
+/// info tells how tiles map to world coordinates and where the player starts, and draws the plan, see
+/// draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}
