@@ -84,5 +84,6 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
   range of the torches; the most lights drawn at once, the distance over which they fade out before they
   are left out, and the shadow bias. Reset lights puts them back as they were at the start.
 
-Ctrl+click on a slider to type a value. While a value is typed, the keys don't move the player. The overlay
-can't be used while the console is open. Screenshots don't show it, but they show the lights it set.
+Ctrl+click on a slider to type a value. While a value is typed, or a control is held with the mouse, the
+keys don't move the player and don't open the console; only F3 still works. The overlay can't be used while
+the console is open. Screenshots don't show it, but they show the lights it set.

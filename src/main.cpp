@@ -212,17 +212,12 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
     }
 }
 
-/// Handles a key press: the console key, the debug overlay key, Escape, and the keys of the console window
-/// while it is open.
+/// Handles a key press: the console key, Escape, and the keys of the console window while it is open.
 ///
 /// \return False when the game should quit.
 bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
-                     manifold::CommandQueue& commands, manifold::ConsoleState& state) {
-    if (key.key == kDebugOverlayKey) {
-        if (!key.repeat) {
-            state.debug_overlay = !state.debug_overlay;
-        }
-    } else if (key.scancode == kConsoleKey) {
+                     manifold::CommandQueue& commands) {
+    if (key.scancode == kConsoleKey) {
         if (!key.repeat) {
             set_console_open(console_window, window, !console_window.is_open());
         }
@@ -257,6 +252,13 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
         if (event.type == SDL_EVENT_QUIT) {
             return false;
         }
+        // The debug overlay key works even while ImGui has the keyboard, so the overlay can always be hidden.
+        if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == kDebugOverlayKey) {
+            if (!event.key.repeat) {
+                state.debug_overlay = !state.debug_overlay;
+            }
+            continue;
+        }
         if (overlay.handle_event(event)) {
             continue;
         }
@@ -271,7 +273,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
             }
             continue;
         }
-        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands, state)) {
+        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands)) {
             return false;
         }
     }

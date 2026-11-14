@@ -94,7 +94,6 @@ uniform float u_shadow_bias;  // See kShadowBias.
 
 out vec4 frag_color;
 
-
 // Surfaces closer to a light than 0.3 m are lit as if they were 0.3 m away. This keeps the walls right
 // behind torch flames from turning white.
 const float kMinDistanceSquared = 0.09;

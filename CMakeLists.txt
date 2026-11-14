@@ -61,7 +61,8 @@ add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
 )
 target_include_directories(imgui SYSTEM PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
-target_link_libraries(imgui PUBLIC SDL3::SDL3)
+# The OpenGL backend loads OpenGL functions itself with dlopen, which older glibc has in libdl.
+target_link_libraries(imgui PUBLIC SDL3::SDL3 PRIVATE ${CMAKE_DL_LIBS})
 # Keeps the game from using names that ImGui is about to remove.
 target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
 

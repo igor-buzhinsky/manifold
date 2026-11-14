@@ -9,11 +9,13 @@
 #include <vector>
 
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_video.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <imgui.h>
 #include <imgui_impl_opengl3.h>
 #include <imgui_impl_sdl3.h>
+#include <imgui_internal.h>
 
 #include "console/game_commands.hpp"
 #include "game.hpp"
@@ -113,7 +115,7 @@ void light_section(ViewSettings& view) {
 
 }  // namespace
 
-DebugOverlay::DebugOverlay(const Window& window) {
+DebugOverlay::DebugOverlay(const Window& window) : window_(window.sdl_window()) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
@@ -121,7 +123,9 @@ DebugOverlay::DebugOverlay(const Window& window) {
     // the same place every time instead.
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
-    const float display_scale = SDL_GetWindowDisplayScale(window.sdl_window());
+    // The scale is read once, so moving the window to a display with another scale keeps the old one.
+    // Without SDL_WINDOW_HIGH_PIXEL_DENSITY, this is the display's content scale, which ImGui's examples use.
+    const float display_scale = SDL_GetWindowDisplayScale(window_);
     scale_ = display_scale > 0.0f ? display_scale : 1.0f;
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(scale_);
@@ -144,15 +148,24 @@ DebugOverlay::~DebugOverlay() {
 }
 
 void DebugOverlay::set_input(bool on) {
+    ImGuiIO& io = ImGui::GetIO();
     if (on && !input_) {
-        ImGuiIO& io = ImGui::GetIO();
         io.ClearInputKeys();
         io.ClearInputMouse();
+    } else if (!on && input_) {
+        // ImGui would only let go of the control, and turn text input off, in its next frame, which may not
+        // come while the overlay is hidden. The console window turns text input on again when it opens.
+        if (io.WantTextInput) {
+            SDL_StopTextInput(window_);
+        }
+        ImGui::ClearActiveID();
     }
     input_ = on;
 }
 
-bool DebugOverlay::handle_event(const SDL_Event& event) const {
+// Not const, although no member changes: it changes ImGui's state, which belongs to the overlay.
+// NOLINTNEXTLINE(readability-make-member-function-const)
+bool DebugOverlay::handle_event(const SDL_Event& event) {
     if (!input_) {
         return false;
     }
@@ -164,7 +177,9 @@ bool DebugOverlay::handle_event(const SDL_Event& event) const {
 
 bool DebugOverlay::wants_keyboard() const { return input_ && ImGui::GetIO().WantCaptureKeyboard; }
 
-void DebugOverlay::draw(Game& game, ViewSettings& view, const RenderStats& stats, const FrameTimes& frames) const {
+// Not const, although no member changes: it runs an ImGui frame, which changes ImGui's state.
+// NOLINTNEXTLINE(readability-make-member-function-const)
+void DebugOverlay::draw(Game& game, ViewSettings& view, const RenderStats& stats, const FrameTimes& frames) {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
