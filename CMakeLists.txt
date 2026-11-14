@@ -44,6 +44,27 @@ FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
 
+# Dear ImGui draws the debug overlay. It has no CMake support, so its sources, with the backends for SDL3
+# and OpenGL 3+, are built here.
+FetchContent_Declare(imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.93.0
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(imgui)
+add_library(imgui STATIC
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp
+)
+target_include_directories(imgui SYSTEM PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
+target_link_libraries(imgui PUBLIC SDL3::SDL3)
+# Keeps the game from using names that ImGui is about to remove.
+target_compile_definitions(imgui PUBLIC IMGUI_DISABLE_OBSOLETE_FUNCTIONS)
+
 # glad loads OpenGL functions. It is generated code kept in the repo, see external/glad/README.md.
 add_library(glad STATIC external/glad/src/gl.c)
 target_include_directories(glad SYSTEM PUBLIC external/glad/include)
@@ -73,6 +94,7 @@ add_library(manifold_core STATIC
     src/render/world_mesh.cpp
     src/ui/overlay_mesh.cpp
     src/ui/text_field.cpp
+    src/util/frame_times.cpp
     src/util/log.cpp
     src/world/geometry.cpp
     src/world/player.cpp
@@ -91,8 +113,9 @@ add_executable(manifold
     src/render/overlay_renderer.cpp
     src/render/renderer.cpp
     src/render/screenshot.cpp
+    src/ui/debug_overlay.cpp
 )
-target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad)
+target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad imgui)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 # Textures are read from the source tree, so the game finds them however it is started.
 target_compile_definitions(manifold PRIVATE MANIFOLD_TEXTURES_DIR="${CMAKE_SOURCE_DIR}/assets/textures")
@@ -118,6 +141,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/game_test.cpp
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
+        tests/frame_times_test.cpp
         tests/layout_factory_test.cpp
         tests/level_test.cpp
         tests/lighting_test.cpp

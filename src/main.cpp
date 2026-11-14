@@ -39,7 +39,9 @@
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
+#include "ui/debug_overlay.hpp"
 #include "ui/text_field.hpp"
+#include "util/frame_times.hpp"
 #include "util/log.hpp"
 #include "world/torch.hpp"
 
@@ -150,6 +152,8 @@ void log_game(const manifold::Game& game) {
 
 /// The key that opens and closes the console: the one left of 1, labelled `/~ on US keyboards.
 constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
+/// The key that shows and hides the debug overlay.
+constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
 
 /// The key of the console window that `key` is, if any.
 std::optional<manifold::ConsoleKey> console_key(SDL_Keycode key) {
@@ -208,12 +212,17 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
     }
 }
 
-/// Handles a key press: the console key, Escape, and the keys of the console window while it is open.
+/// Handles a key press: the console key, the debug overlay key, Escape, and the keys of the console window
+/// while it is open.
 ///
 /// \return False when the game should quit.
 bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
-                     manifold::CommandQueue& commands) {
-    if (key.scancode == kConsoleKey) {
+                     manifold::CommandQueue& commands, manifold::ConsoleState& state) {
+    if (key.key == kDebugOverlayKey) {
+        if (!key.repeat) {
+            state.debug_overlay = !state.debug_overlay;
+        }
+    } else if (key.scancode == kConsoleKey) {
         if (!key.repeat) {
             set_console_open(console_window, window, !console_window.is_open());
         }
@@ -230,21 +239,26 @@ bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     return true;
 }
 
-/// Handles pending window and key events: quitting, and the console window.
+/// Handles pending window and key events: quitting, the console window and the debug overlay.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
 /// \param window             The window, whose text input is on while the console window is open.
 /// \param console_window     The console window.
 /// \param commands           Where commands run in the console window go.
+/// \param overlay            The debug overlay, which gets the events first and may keep keys from the game.
+/// \param state              Where the debug overlay key shows or hides the overlay.
 /// \param console_key_held   Whether the console key is held down. Kept between calls.
 /// \return False when the game should quit.
 bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
-                   bool& console_key_held) {
+                   manifold::DebugOverlay& overlay, manifold::ConsoleState& state, bool& console_key_held) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
             return false;
+        }
+        if (overlay.handle_event(event)) {
+            continue;
         }
         if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) && event.key.scancode == kConsoleKey) {
             console_key_held = event.type == SDL_EVENT_KEY_DOWN;
@@ -257,7 +271,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
             }
             continue;
         }
-        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands)) {
+        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands, state)) {
             return false;
         }
     }
@@ -293,20 +307,10 @@ manifold::PlayerInput read_input() {
 /// \param framebuffer Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
 void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const manifold::ViewSettings& view,
                const manifold::PixelSize& framebuffer) {
-    // The light spell: a warm light at the player's eyes, plus a little ambient light. The torches
-    // nearest to the camera fill up the remaining lights.
+    // The light spell at the player's eyes, a little ambient light, and the torches nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
-    manifold::Lighting lighting{
-        .ambient = glm::vec3(0.01f),
-        .lights = {{.position = game.player().eye_position(),
-                    .color = {1.0f, 0.85f, 0.6f},
-                    .intensity = 5.0f,
-                    .range = 15.0f}},
-    };
-    const std::vector<manifold::PointLight> torch_lights =
-        manifold::select_lights(manifold::torch_lights(game.world().torches(), game.animation_time()), camera.position,
-                                manifold::kMaxLights - 1);
-    lighting.lights.insert(lighting.lights.end(), torch_lights.begin(), torch_lights.end());
+    manifold::Lighting lighting = manifold::scene_lighting(
+        view.lights, game.player().eye_position(), game.world().torches(), game.animation_time(), camera.position);
     if (!view.shadows) {
         for (manifold::PointLight& light : lighting.lights) {
             light.shadow_id.reset();
@@ -315,8 +319,9 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
 
     const std::vector<glm::vec3> arrow =
         view.arrow ? manifold::build_arrow(game.player().position(), game.player().yaw()) : std::vector<glm::vec3>();
-    renderer.draw(camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
-                  {.lighting = view.lighting, .marker = arrow, .cut_height = view.cutaway});
+    renderer.draw(
+        camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
+        {.lighting = view.lighting, .marker = arrow, .cut_height = view.cutaway, .shadow_bias = view.shadow_bias});
 }
 
 /// Takes the screenshots that console commands asked for, each drawn as it asked.
@@ -378,6 +383,8 @@ void run(const Options& options) {
     manifold::add_game_commands(console, commands, game, state);
     commands.add(options.commands, true);
     manifold::TerminalInput terminal;
+    manifold::DebugOverlay overlay(window);
+    manifold::FrameTimes frame_times;
 
     bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
@@ -388,13 +395,21 @@ void run(const Options& options) {
         commands.run_frame(console);
 
         const std::uint64_t ticks = SDL_GetTicksNS();
-        const float dt = std::min(static_cast<float>(ticks - previous_ticks) * 1e-9f, kMaxFrameTime);
+        const float frame_time = static_cast<float>(ticks - previous_ticks) * 1e-9f;
         previous_ticks = ticks;
-        // While the console window is open, the keys type into it instead of moving the player.
-        game.update(console_window.is_open() ? manifold::PlayerInput{} : read_input(), dt);
+        frame_times.add(frame_time);
+        // While the console window is open, or the debug overlay has the keyboard, the keys type into them
+        // instead of moving the player.
+        const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
+        game.update(keys_taken ? manifold::PlayerInput{} : read_input(), std::min(frame_time, kMaxFrameTime));
 
         const manifold::PixelSize window_size = window.framebuffer_size();
         draw_game(renderer, game, state.view, window_size);
+        // The stats of this draw, before screenshots draw again.
+        const manifold::RenderStats render_stats = renderer.stats();
+        if (state.debug_overlay) {
+            overlay.draw(game, state.view, render_stats, frame_times);
+        }
         if (console_window.is_open()) {
             const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
             overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
@@ -406,7 +421,9 @@ void run(const Options& options) {
             return;
         }
         window.swap_buffers();
-    } while (handle_events(window, console_window, commands, console_key_held));
+        // The console window has the keys while it is open, so the overlay gets no events then.
+        overlay.set_input(state.debug_overlay && !console_window.is_open());
+    } while (handle_events(window, console_window, commands, overlay, state, console_key_held));
 }
 
 }  // namespace

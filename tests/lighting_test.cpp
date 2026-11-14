@@ -203,5 +203,48 @@ TEST(LightingTest, ZeroFadeDistanceGivesNoNan) {
     EXPECT_FLOAT_EQ(selected[0].intensity, 0.0f);
 }
 
+TEST(LightingTest, TorchLightsUseTheirParams) {
+    const std::vector<Torch> torches{{.mount = {0.0f, 0.0f, 1.6f}, .yaw = 0.0f}};
+    const TorchLightParams params{.intensity = 2.0f, .range = 3.0f};
+    const PointLight light = torch_lights(torches, 1.0f, params)[0];
+    EXPECT_FLOAT_EQ(light.intensity, 2.0f * torch_flicker(1.0f, torch_phase(0)));
+    EXPECT_FLOAT_EQ(light.range, 3.0f);
+}
+
+TEST(LightingTest, SceneLightingPutsThePlayersLightFirst) {
+    std::vector<Torch> torches;
+    torches.reserve(40);
+    for (int i = 0; i < 40; ++i) {
+        torches.push_back({.mount = {static_cast<float>(i), 0.0f, 1.6f}, .yaw = 0.0f});
+    }
+    LightSettings settings;
+    settings.ambient = glm::vec3(0.2f);
+    settings.player_intensity = 7.0f;
+    settings.player_range = 9.0f;
+    const glm::vec3 eyes{0.5f, 0.5f, 1.7f};
+    const Lighting lighting = scene_lighting(settings, eyes, torches, 1.0f, {0.0f, 0.0f, 0.0f});
+    EXPECT_EQ(lighting.ambient, glm::vec3(0.2f));
+    ASSERT_EQ(lighting.lights.size(), kMaxLights);
+    EXPECT_EQ(lighting.lights[0].position, eyes);
+    EXPECT_EQ(lighting.lights[0].color, settings.player_color);
+    EXPECT_FLOAT_EQ(lighting.lights[0].intensity, 7.0f);
+    EXPECT_FLOAT_EQ(lighting.lights[0].range, 9.0f);
+    EXPECT_FALSE(lighting.lights[0].shadow_id.has_value());
+    // The torches nearest to the viewer come next.
+    EXPECT_EQ(lighting.lights[1].shadow_id, 0U);
+    EXPECT_EQ(lighting.lights[2].shadow_id, 1U);
+}
+
+TEST(LightingTest, SceneLightingKeepsMaxLightsInRange) {
+    const std::vector<Torch> torches(5, Torch{.mount = {1.0f, 0.0f, 1.6f}, .yaw = 0.0f});
+    LightSettings settings;
+    settings.max_lights = 3;
+    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 3U);
+    settings.max_lights = 0;  // Counts as 1: only the player's light.
+    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 1U);
+    settings.max_lights = kMaxLights + 10;
+    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 6U);
+}
+
 }  // namespace
 }  // namespace manifold

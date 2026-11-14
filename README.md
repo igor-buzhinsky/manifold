@@ -19,7 +19,7 @@ The first line is the toolchain (pkg-config is used by SDL3's build). The rest a
 that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
 The full list of SDL's optional dependencies is in its
 [README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
-(GLM, stb, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
+(GLM, stb, Dear ImGui, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
 `external/glad/`.
 
 Build and run:

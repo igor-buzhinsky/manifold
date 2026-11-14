@@ -41,18 +41,18 @@ float torch_flicker(float time, float phase) {
     return 0.875f + (0.125f * wave);
 }
 
-PointLight torch_light(const Torch& torch, float time, float phase) {
+PointLight torch_light(const Torch& torch, float time, float phase, const TorchLightParams& params) {
     return {.position = torch.light_position(),
             .color = torch_light_color(torch.flame),
-            .intensity = kTorchIntensity * torch_flicker(time, phase),
-            .range = kTorchRange};
+            .intensity = params.intensity * torch_flicker(time, phase),
+            .range = params.range};
 }
 
-std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time) {
+std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time, const TorchLightParams& params) {
     std::vector<PointLight> lights;
     lights.reserve(torches.size());
     for (std::size_t i = 0; i < torches.size(); ++i) {
-        PointLight light = torch_light(torches[i], time, torch_phase(i));
+        PointLight light = torch_light(torches[i], time, torch_phase(i), params);
         light.shadow_id = static_cast<std::uint32_t>(i);
         lights.push_back(light);
     }
@@ -75,6 +75,22 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
         light.intensity *= std::clamp((cut - gap(light)) / fade, 0.0f, 1.0f);
     }
     return selected;
+}
+
+Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
+                        float time, const glm::vec3& viewer) {
+    Lighting lighting{
+        .ambient = settings.ambient,
+        .lights = {{.position = eyes,
+                    .color = settings.player_color,
+                    .intensity = settings.player_intensity,
+                    .range = settings.player_range}},
+    };
+    const std::size_t max_lights = std::clamp<std::size_t>(settings.max_lights, 1, kMaxLights);
+    const std::vector<PointLight> chosen =
+        select_lights(torch_lights(torches, time, settings.torch), viewer, max_lights - 1, settings.fade_distance);
+    lighting.lights.insert(lighting.lights.end(), chosen.begin(), chosen.end());
+    return lighting;
 }
 
 }  // namespace manifold

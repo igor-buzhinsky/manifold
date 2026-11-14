@@ -47,6 +47,11 @@ public:
     /// Shows the frame drawn since the last call. Waits for vsync.
     void swap_buffers();
 
+    /// The SDL window, e.g. for the debug overlay. It lives as long as this object.
+    SDL_Window* sdl_window() const { return window_; }
+    /// The OpenGL context. It lives as long as this object.
+    SDL_GLContext gl_context() const { return context_; }
+
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;

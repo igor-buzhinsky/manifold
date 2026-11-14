@@ -25,12 +25,21 @@ struct DrawOptions {
     /// If set, the world and the flames above this height are left out, so a camera above can see into a
     /// layer. Where solids are cut open, their insides are drawn in a dark color. Shadows don't change.
     std::optional<float> cut_height;
+    float shadow_bias = kShadowBias;  ///< See kShadowBias.
+};
+
+/// What the last Renderer::draw() did, e.g. to show it in the debug overlay.
+struct RenderStats {
+    std::size_t lights = 0;             ///< Lights drawn.
+    std::size_t shadowed_lights = 0;    ///< Lights drawn that have a shadow map.
+    std::size_t shadow_maps_drawn = 0;  ///< Shadow maps drawn (again) before the picture.
 };
 
 /// Draws the world and the torch flames with OpenGL, with shadows from the lights that cast them.
 ///
 /// Each light with a `shadow_id` gets a cube shadow map, which is kept for later frames as long as the
-/// light is drawn often enough, see ShadowCache. Lights and the world must therefore not move.
+/// light is drawn often enough, see ShadowCache. Lights and the world must therefore not move. A map is
+/// drawn again when the range of its light changes.
 ///
 /// Needs a current OpenGL 4.1 core context, see Window for its whole lifetime.
 class Renderer {
@@ -62,12 +71,17 @@ public:
     void draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time,
               const DrawOptions& options = {});
 
+    /// What the last call of draw() did.
+    const RenderStats& stats() const { return stats_; }
+
 private:
     /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
     ///
     /// Changes the viewport, the current program, the bound vertex array and, if any map is drawn, the
     /// depth attachment of the shadow framebuffer. The framebuffer that was bound before is bound again at the
     /// end.
+    ///
+    /// Also counts the maps drawn in `stats_`.
     ///
     /// \return The shadow map slot of each of the first kMaxLights lights, if it has one.
     std::vector<std::optional<std::size_t>> update_shadow_maps(std::span<const PointLight> lights);
@@ -89,9 +103,12 @@ private:
     GLuint shadow_maps_ = 0;  ///< Cube map array with the shadow map of each slot of `shadow_cache_`.
     GLuint shadow_framebuffer_ = 0;
     ShadowCache shadow_cache_;
+    /// The range of the light whose shadow map is in each slot, when the map was drawn. Zero for no map.
+    std::vector<float> shadow_ranges_;
     GLuint marker_program_ = 0;
     GLuint marker_vertex_array_ = 0;
     GLuint marker_buffer_ = 0;  ///< The marker's triangles, filled on every draw that has a marker.
+    RenderStats stats_;
 };
 
 }  // namespace manifold

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <format>
+#include <functional>
 #include <numbers>
 #include <optional>
 #include <span>
@@ -32,13 +33,32 @@ void expect_count(std::span<const std::string> arguments, std::size_t count, con
     }
 }
 
-/// Adds a command that turns a setting on or off.
-void add_switch(Console& console, const std::string& name, const std::string& help, bool& setting) {
-    const std::string usage = name + " on|off";
-    console.add(name, usage, help, [&setting, usage](std::span<const std::string> arguments) {
-        expect_count(arguments, 1, usage);
-        setting = parse_switch_argument(arguments[0]);
-    });
+/// Adds a command that turns a setting on or off, or toggles it when run without an argument, and logs the
+/// new state.
+///
+/// \param console Where to add the command.
+/// \param name    The command, e.g. `shadows`.
+/// \param label   The setting in the log message, e.g. `Shadows`.
+/// \param help    What the command does.
+/// \param get     Tells whether the setting is on.
+/// \param set     Turns the setting on or off.
+void add_switch(Console& console, const std::string& name, const std::string& label, const std::string& help,
+                std::function<bool()> get, std::function<void(bool)> set) {
+    const std::string usage = name + " [on|off]";
+    console.add(name, usage, help + " Without on or off, toggles it.",
+                [get = std::move(get), set = std::move(set), usage, label](std::span<const std::string> arguments) {
+                    if (arguments.size() > 1) {
+                        throw CommandError("usage: " + usage);
+                    }
+                    set(arguments.empty() ? !get() : parse_switch_argument(arguments[0]));
+                    log_info("{} {}", label, get() ? "on" : "off");
+                });
+}
+
+/// Adds a command that turns `setting` on or off, see the other add_switch().
+void add_switch(Console& console, const std::string& name, const std::string& label, const std::string& help,
+                bool& setting) {
+    add_switch(console, name, label, help, [&setting] { return setting; }, [&setting](bool on) { setting = on; });
 }
 
 /// Parses a screenshot size in pixels.
@@ -50,7 +70,7 @@ int parse_screenshot_size(const std::string& text) {
     return size;
 }
 
-/// Adds the commands that inspect and move the player and the camera: level_info, camera and teleport.
+/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport and noclip.
 void add_player_commands(Console& console, Game& game, ConsoleState& state) {
     console.add("level_info", "level_info", "Describes the level, depending on its layout, and the player.",
                 [&game](std::span<const std::string> arguments) {
@@ -102,19 +122,13 @@ void add_player_commands(Console& console, Game& game, ConsoleState& state) {
                     game.teleport(position, yaw);
                 });
 
-    console.add("noclip", "noclip [on|off]",
-                "Lets the player fly through everything (Page Up / Page Down), or not. Without on or off, toggles it.",
-                [&game](std::span<const std::string> arguments) {
-                    if (arguments.size() > 1) {
-                        throw CommandError("usage: noclip [on|off]");
-                    }
-                    game.set_noclip(arguments.empty() ? !game.noclip() : parse_switch_argument(arguments[0]));
-                    log_info("Noclip {}", game.noclip() ? "on" : "off");
-                });
+    add_switch(
+        console, "noclip", "Noclip", "Lets the player fly through everything (Page Up / Page Down), or not.",
+        [&game] { return game.noclip(); }, [&game](bool on) { game.set_noclip(on); });
 }
 
 /// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,
-/// arrow, lighting, shadows, screenshot, wait and quit.
+/// arrow, lighting, shadows, imgui, screenshot, wait and quit.
 void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& state) {
     console.add("cutaway", "cutaway HEIGHT|off",
                 "Leaves out everything above HEIGHT, to look into a layer from above, or shows everything again.",
@@ -127,12 +141,15 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                     }
                 });
 
-    add_switch(console, "arrow",
-               "Shows an arrow at the player's feet, in the direction the player faces, on top of "
-               "everything.",
+    add_switch(console, "arrow", "Arrow",
+               "Shows an arrow at the player's feet, in the direction the player faces, on top of everything, or not.",
                state.view.arrow);
-    add_switch(console, "lighting", "Turns lights on, or off to show the plain texture colors.", state.view.lighting);
-    add_switch(console, "shadows", "Turns shadows on or off.", state.view.shadows);
+    add_switch(console, "lighting", "Lighting", "Turns lights on, or off to show the plain texture colors.",
+               state.view.lighting);
+    add_switch(console, "shadows", "Shadows", "Turns shadows on or off.", state.view.shadows);
+    add_switch(console, "imgui", "Debug overlay",
+               "Shows or hides the debug overlay, which tunes the lights and shows how the game runs.",
+               state.debug_overlay);
 
     const std::string screenshot_usage = "screenshot FILE [WIDTH HEIGHT]";
     console.add("screenshot", screenshot_usage,

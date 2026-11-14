@@ -17,6 +17,14 @@ inline constexpr int kCubeFaces = 6;
 /// Closest distance from a light that its shadow map records, in metres.
 inline constexpr float kShadowNearPlane = 0.05f;
 
+/// How much closer to a light surfaces count as than they are, when they are compared with its shadow
+/// map, in metres.
+///
+/// This keeps rounding in the shadow map from shadowing surfaces that should be lit. Lit surfaces are only
+/// compared with back faces behind them, so the bias can be small. A larger one would let light through
+/// where a floor meets a wall.
+inline constexpr float kShadowBias = 0.005f;
+
 /// The matrix that draws one face of a point light's cube shadow map.
 ///
 /// Faces are in OpenGL order: +x, -x, +y, -y, +z, -z. The picture of each face is laid out as OpenGL

@@ -7,12 +7,14 @@
 #include "console/console.hpp"
 #include "game.hpp"
 #include "render/camera.hpp"
+#include "render/lighting.hpp"
+#include "render/shadow_map.hpp"
 #include "render/viewport.hpp"
 #include "world/player.hpp"
 
 namespace manifold {
 
-/// How the game is shown, as console commands set it.
+/// How the game is shown, as console commands and the debug overlay set it.
 struct ViewSettings {
     std::optional<Camera> camera;  ///< A camera that stays in place, or none to see through the player's eyes.
     bool arrow = false;            ///< Whether an arrow at the player's feet shows where the player is and faces.
@@ -20,6 +22,8 @@ struct ViewSettings {
     bool shadows = true;           ///< Whether lights cast shadows.
     /// If set, everything above this height is left out, so that a camera above can see into a layer.
     std::optional<float> cutaway;
+    LightSettings lights;             ///< The lights, which only the debug overlay changes.
+    float shadow_bias = kShadowBias;  ///< See kShadowBias. Only the debug overlay changes it.
 };
 
 /// The camera that `view` looks through.
@@ -40,6 +44,7 @@ struct ConsoleState {
     ViewSettings view;                           ///< How the game is shown.
     std::vector<ScreenshotRequest> screenshots;  ///< To take after this frame is drawn, in order.
     bool quit = false;                           ///< Whether to quit after this frame.
+    bool debug_overlay = false;                  ///< Whether the debug overlay is shown.
 };
 
 /// Largest width and height of a screenshot, in pixels.

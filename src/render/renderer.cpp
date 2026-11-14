@@ -90,13 +90,10 @@ uniform samplerCubeArrayShadow u_shadow_maps;
 uniform vec3 u_ambient;
 uniform bool u_lighting;  // If false, the surface has its plain color, without lights or shadows.
 uniform bool u_cutaway;   // If true, back faces are the insides of solids that are cut open.
+uniform float u_shadow_bias;  // See kShadowBias.
 
 out vec4 frag_color;
 
-// Surfaces count as this much closer to the light than they are, in metres, so that rounding in the
-// shadow map doesn't shadow surfaces that should be lit. Lit surfaces are only compared with back faces
-// behind them, so the bias can be small. A larger one would let light through where a floor meets a wall.
-const float kShadowBias = 0.005;
 
 // Surfaces closer to a light than 0.3 m are lit as if they were 0.3 m away. This keeps the walls right
 // behind torch flames from turning white.
@@ -117,7 +114,7 @@ float light_reaching(int i) {
         return 1.0;
     }
     vec3 from_light = v_position - u_lights[i].position_range.xyz;
-    float reference = (length(from_light) - kShadowBias) / u_lights[i].position_range.w;
+    float reference = (length(from_light) - u_shadow_bias) / u_lights[i].position_range.w;
     return texture(u_shadow_maps, vec4(from_light, layer), reference);
 }
 
@@ -447,6 +444,7 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_maps_(create_shadow_maps()),
       shadow_framebuffer_(create_shadow_framebuffer(shadow_maps_)),
       shadow_cache_(kShadowSlots),
+      shadow_ranges_(kShadowSlots, 0.0f),
       marker_program_(link_program(kMarkerVertexShader, kMarkerFragmentShader)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);
@@ -542,10 +540,20 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     }
     const ShadowCache::Assignment assignment = shadow_cache_.assign(ids);
     std::vector<std::optional<std::size_t>> slots(count);
+    // The lights whose maps are drawn: those with a new slot, and those whose range changed, e.g. in the
+    // debug overlay, because a map stores distances divided by the range.
+    std::vector<bool> to_draw(ids.size(), false);
+    std::size_t draw_count = 0;
     for (std::size_t k = 0; k < ids.size(); ++k) {
         slots[owners[k]] = assignment.slots[k];
+        if (const std::optional<std::size_t> slot = assignment.slots[k]) {
+            to_draw[k] = std::ranges::find(assignment.to_draw, *slot) != assignment.to_draw.end() ||
+                         shadow_ranges_[*slot] != lights[owners[k]].range;
+            draw_count += to_draw[k] ? 1 : 0;
+        }
     }
-    if (assignment.to_draw.empty()) {
+    stats_.shadow_maps_drawn = draw_count;
+    if (draw_count == 0) {
         return slots;
     }
 
@@ -563,15 +571,16 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     // light are compared with themselves, but they get no light anyway.
     glCullFace(GL_FRONT);
     for (std::size_t k = 0; k < ids.size(); ++k) {
-        const std::optional<std::size_t> slot = assignment.slots[k];
-        if (!slot || std::ranges::find(assignment.to_draw, *slot) == assignment.to_draw.end()) {
+        if (!to_draw[k]) {
             continue;
         }
+        const std::size_t slot = *assignment.slots[k];
         const PointLight& light = lights[owners[k]];
+        shadow_ranges_[slot] = light.range;
         glUniform3fv(glGetUniformLocation(shadow_program_, "u_light_position"), 1, glm::value_ptr(light.position));
         glUniform1f(glGetUniformLocation(shadow_program_, "u_range"), light.range);
         for (int face = 0; face < kCubeFaces; ++face) {
-            const auto layer = (static_cast<GLint>(*slot) * kCubeFaces) + face;
+            const auto layer = (static_cast<GLint>(slot) * kCubeFaces) + face;
             glFramebufferTextureLayer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, shadow_maps_, 0, layer);
             glClear(GL_DEPTH_BUFFER_BIT);
             const glm::mat4 view_projection = cube_face_view_projection(light.position, light.range, face);
@@ -592,6 +601,9 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
     const std::span<const PointLight> used_lights =
         options.lighting ? std::span<const PointLight>(lighting.lights) : std::span<const PointLight>();
     const std::vector<std::optional<std::size_t>> shadow_slots = update_shadow_maps(used_lights);
+    stats_.lights = std::min(used_lights.size(), kMaxLights);
+    stats_.shadowed_lights = static_cast<std::size_t>(
+        std::ranges::count_if(shadow_slots, [](const std::optional<std::size_t>& slot) { return slot.has_value(); }));
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -609,6 +621,7 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
     glUniform3fv(glGetUniformLocation(program_, "u_ambient"), 1, glm::value_ptr(lighting.ambient));
     glUniform1i(glGetUniformLocation(program_, "u_lighting"), options.lighting ? 1 : 0);
     glUniform1i(glGetUniformLocation(program_, "u_cutaway"), options.cut_height ? 1 : 0);
+    glUniform1f(glGetUniformLocation(program_, "u_shadow_bias"), options.shadow_bias);
     glUniform1f(glGetUniformLocation(program_, "u_cut_height"), options.cut_height.value_or(0.0f));
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, shadow_maps_);

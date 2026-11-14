@@ -36,7 +36,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Images | **stb_image**, **stb_image_write** | In use | stb_image loads textures (PNG only), stb_image_write saves screenshots. |
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
-| Debug UI | **Dear ImGui** | Planned | Live tuning of lights, generator parameters, and so on. |
+| Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
 | Audio | SDL3 audio or **miniaudio** | Later | |
 
@@ -160,7 +160,11 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random
   texture (chosen from the level seed) from the PNG files under `assets/textures/`, at most 128 × 128
   pixels, with nearest-neighbour filtering. Next: different textures for walls, floor and ceiling.
-- Dear ImGui debug overlay.
+- ~~Dear ImGui debug overlay.~~ Done: F3 or `imgui [on|off]` shows a window with the frame times, what the
+  renderer drew, the player's state, the view switches, and sliders for the lights and the shadow bias.
+  The lights are a `LightSettings` in `ViewSettings`, so screenshots use them too. A shadow map is drawn
+  again when the range of its light changes. Next: level and texture inspectors, see "Later (unordered,
+  low priority, might not be done)".
 
 ## v0.3 — Party and rudimentary spellcasting
 
@@ -199,6 +203,12 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows of torches**: torch handles cast no shadows now. Under a point light just above the stick,
   a handle throws a hard, long shadow down the wall that a real torch, with its large flame, doesn't.
   A good-looking version needs a softer or larger light source.
+- **Level and texture inspectors in the debug overlay**: a tree of the level (layers, rooms, obstacles,
+  ramps, torches), where picking an item highlights it or moves the camera there, and views of GPU textures
+  (the level texture, the faces of a torch's shadow map, the shadow map slots and which light each holds).
+  This would make generated levels and shadow bugs faster to understand than with `level_info` and
+  screenshots. Later, a panel with the generator's parameters and a button that generates the level again
+  from a new seed, without restarting.
 - **Shadows of the player**: the player's light is at the camera, so its own shadows can't be seen, and
   the player has no body to cast shadows from other lights. Once there is a body (or a party), it could
   cast shadows from torches, which needs shadow maps that are drawn again whenever it moves.

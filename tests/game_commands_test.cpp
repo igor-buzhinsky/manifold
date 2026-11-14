@@ -108,8 +108,28 @@ TEST(GameCommandsTest, SwitchesChangeTheView) {
     EXPECT_TRUE(fixture.state.view.arrow);
     EXPECT_FALSE(fixture.state.view.lighting);
     EXPECT_FALSE(fixture.state.view.shadows);
-    fixture.queue.add("arrow", true);
-    EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+    for (const char* command : {"arrow maybe", "arrow on off"}) {
+        fixture.queue.add(command, true);
+        EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError) << command;
+    }
+}
+
+TEST(GameCommandsTest, SwitchesToggleWithoutArgument) {
+    Fixture fixture;
+    fixture.run("arrow; lighting; shadows; imgui");
+    EXPECT_TRUE(fixture.state.view.arrow);
+    EXPECT_FALSE(fixture.state.view.lighting);
+    EXPECT_FALSE(fixture.state.view.shadows);
+    EXPECT_TRUE(fixture.state.debug_overlay);
+    fixture.run("arrow; lighting; shadows; imgui");
+    EXPECT_FALSE(fixture.state.view.arrow);
+    EXPECT_TRUE(fixture.state.view.lighting);
+    EXPECT_TRUE(fixture.state.view.shadows);
+    EXPECT_FALSE(fixture.state.debug_overlay);
+    fixture.run("imgui on; imgui on");
+    EXPECT_TRUE(fixture.state.debug_overlay);
+    fixture.run("imgui off");
+    EXPECT_FALSE(fixture.state.debug_overlay);
 }
 
 TEST(GameCommandsTest, ScreenshotsKeepTheViewOfTheirTime) {

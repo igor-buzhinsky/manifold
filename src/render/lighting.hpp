@@ -46,6 +46,12 @@ inline constexpr float kTorchIntensity = 3.5f;
 /// Range of a torch's light, in metres.
 inline constexpr float kTorchRange = 6.0f;
 
+/// How bright and how far the lights of torches shine.
+struct TorchLightParams {
+    float intensity = kTorchIntensity;  ///< Brightness at 1 m, before flicker.
+    float range = kTorchRange;          ///< In metres.
+};
+
 /// The phase of a torch's flicker, so that neighboring torches don't flicker in step.
 ///
 /// \param index Index of the torch in the level.
@@ -66,10 +72,11 @@ float torch_flicker(float time, float phase);
 ///
 /// The light stays in place, because its shadow map is drawn once. Its `shadow_id` is not set.
 ///
-/// \param torch The torch.
-/// \param time  Seconds since the start of the game.
-/// \param phase Radians, see torch_phase().
-PointLight torch_light(const Torch& torch, float time, float phase);
+/// \param torch  The torch.
+/// \param time   Seconds since the start of the game.
+/// \param phase  Radians, see torch_phase().
+/// \param params How bright and how far the light shines.
+PointLight torch_light(const Torch& torch, float time, float phase, const TorchLightParams& params = {});
 
 /// The lights of all torches at a moment, in the same order as the torches.
 ///
@@ -77,7 +84,8 @@ PointLight torch_light(const Torch& torch, float time, float phase);
 ///
 /// \param torches The torches. Torch i flickers with torch_phase(i).
 /// \param time    Seconds since the start of the game.
-std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time);
+/// \param params  How bright and how far the lights shine.
+std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time, const TorchLightParams& params = {});
 
 /// Distance over which lights fade out before they are left out by select_lights(), in metres.
 inline constexpr float kLightFadeDistance = 2.0f;
@@ -100,5 +108,31 @@ inline constexpr float kLightFadeDistance = 2.0f;
 /// \return At most `max_count` lights, nearest first.
 std::vector<PointLight> select_lights(std::span<const PointLight> lights, const glm::vec3& viewer,
                                       std::size_t max_count, float fade_distance = kLightFadeDistance);
+
+/// The lights of a scene, which the debug overlay can change while the game runs.
+struct LightSettings {
+    glm::vec3 ambient{0.01f};  ///< See Lighting::ambient.
+    /// Color of the light spell: a light at the player's eyes, linear RGB.
+    glm::vec3 player_color{1.0f, 0.85f, 0.6f};
+    float player_intensity = 5.0f;  ///< Brightness of the player's light at 1 m.
+    float player_range = 15.0f;     ///< Range of the player's light, in metres.
+    TorchLightParams torch;
+    float fade_distance = kLightFadeDistance;  ///< See select_lights().
+    /// Most lights drawn at once, including the player's, from 1 to kMaxLights. Fewer show how lights
+    /// fade out, see select_lights().
+    std::size_t max_lights = kMaxLights;
+};
+
+/// The light in the scene at a moment: the ambient light, the player's light, and the lights of the torches
+/// that matter most to the viewer.
+///
+/// \param settings The lights. A `max_lights` outside [1, kMaxLights] counts as the nearest limit.
+/// \param eyes     Where the player's light is: at the player's eyes.
+/// \param torches  The torches, see torch_lights().
+/// \param time     Seconds since the start of the game.
+/// \param viewer   Where the scene is seen from, see select_lights().
+/// \return The player's light first, then the chosen torch lights, nearest first.
+Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
+                        float time, const glm::vec3& viewer);
 
 }  // namespace manifold
