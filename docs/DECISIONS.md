@@ -65,7 +65,7 @@ Gains:
 - **Character controller**: CharacterVirtual handles step-up on stairs, the steepest walkable slope,
   ground detection and moving platforms.
 - **Speed**: Jolt's broad phase only tests shapes near the player. Our code tests every obstacle on each
-  move, which is about 12–20k in room levels.
+  move, which is about 12–20k in room levels. (A spatial grid was added in v0.3, so this no longer holds.)
 - **More shapes**: convex hulls, meshes and cylinders, which glTF props need.
 - **Ray and shape casts**: for aiming spells, line of sight and AI.
 - **Moving bodies**: doors as kinematic bodies, objects that can be pushed around, and buoyancy for
@@ -80,8 +80,8 @@ Drawbacks:
 - Jolt has its own math types, so values are converted to and from GLM where the two meet. Jolt is
   y-up by default, but its up direction can be set, so our z-up convention stays.
 - Less of the collision algorithm is our own code, which matters for the goal of practicing C++.
-- Alternative: keep our own code and add a spatial grid for speed. This is cheaper now, but stairs, props,
-  doors and water would each need more of our own physics later.
+- Alternative: keep our own code and add a spatial grid for speed (added in v0.3). This is cheaper now,
+  but stairs, props, doors and water would each need more of our own physics later.
 
 ## 2026-11-11: Use glad instead of libepoxy to load OpenGL functions
 

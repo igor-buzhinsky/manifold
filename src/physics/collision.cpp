@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <optional>
 #include <span>
+#include <vector>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -12,6 +14,7 @@
 
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
+#include "world/spatial_grid.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -37,18 +40,35 @@ void keep_shallowest(std::optional<Contact>& shallowest, const Contact& contact)
     }
 }
 
+/// Indices of the obstacles and ramps near a body, kept between searches so that they don't allocate memory each time.
+struct NearbyIndices {
+    std::vector<std::size_t> obstacles;
+    std::vector<std::size_t> ramps;
+};
+
 /// Finds the deepest overlap of a body with anything in the world or with a blocker, if any.
+///
+/// \param world        The geometry to collide with. Only its obstacles and ramps near the body are tested.
+/// \param blockers     More obstacles to collide with. All of them are tested.
+/// \param body         The body.
+/// \param[out] nearby  Space for the search of nearby obstacles and ramps. Its contents are replaced.
 std::optional<Contact> find_deepest_contact(const World& world, std::span<const Obstacle> blockers,
-                                            const VerticalCylinder& body) {
+                                            const VerticalCylinder& body, NearbyIndices& nearby) {
+    // Only what overlaps the box around the body's footprint can touch it.
+    const Box2 box{.min = glm::vec2(body.base) - body.radius, .max = glm::vec2(body.base) + body.radius};
+    world.find_obstacles_near(box, nearby.obstacles);
+    world.find_ramps_near(box, nearby.ramps);
+
+    // The indices are in increasing order, so ties are resolved as when testing everything in order.
     std::optional<Contact> deepest = find_contact(body, world.bounds());
-    for (const Obstacle& obstacle : world.obstacles()) {
-        keep_deepest(deepest, find_contact(body, obstacle));
+    for (const std::size_t index : nearby.obstacles) {
+        keep_deepest(deepest, find_contact(body, world.obstacles()[index]));
     }
     for (const Obstacle& blocker : blockers) {
         keep_deepest(deepest, find_contact(body, blocker));
     }
-    for (const Ramp& ramp : world.ramps()) {
-        keep_deepest(deepest, find_contact(body, ramp));
+    for (const std::size_t index : nearby.ramps) {
+        keep_deepest(deepest, find_contact(body, world.ramps()[index]));
     }
     return deepest;
 }
@@ -180,10 +200,11 @@ SlideResult move_and_slide(const World& world, const VerticalCylinder& body, con
 
     VerticalCylinder moved = body;
     glm::vec3 correction{0.0f};
+    NearbyIndices nearby;
     for (int i = 0; i < steps; ++i) {
         moved.base += step;
         for (int iteration = 0; iteration < kMaxResolveIterations; ++iteration) {
-            const std::optional<Contact> contact = find_deepest_contact(world, blockers, moved);
+            const std::optional<Contact> contact = find_deepest_contact(world, blockers, moved, nearby);
             if (!contact) {
                 break;
             }

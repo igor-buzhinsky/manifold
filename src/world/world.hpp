@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <optional>
 #include <span>
 #include <vector>
@@ -9,6 +10,7 @@
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
+#include "world/spatial_grid.hpp"
 #include "world/torch.hpp"
 
 namespace manifold {
@@ -73,6 +75,8 @@ struct LevelExit {
 /// Only obstacles, ramps and the boundaries collide. The frames of doors are obstacles too, but the halves are not:
 /// how far a door is open changes, so it is kept outside of the world model, with the other dynamic state, such as
 /// the player. See DoorState.
+///
+/// The world sorts its obstacles and ramps into a grid, so that collision can test only the ones near a body.
 class World {
 public:
     /// Creates an empty level.
@@ -88,6 +92,15 @@ public:
     /// The exit, or none, e.g. in a level built by hand for a test.
     const std::optional<LevelExit>& exit() const { return exit_; }
 
+    /// Finds the obstacles that may overlap a box.
+    ///
+    /// \param box          Where to search.
+    /// \param[out] indices Replaced with the indices into obstacles() of all obstacles whose footprints overlap or
+    ///                     touch the box, and maybe some more nearby. In increasing order, each once.
+    void find_obstacles_near(const Box2& box, std::vector<std::size_t>& indices) const;
+    /// Finds the ramps that may overlap a box, like find_obstacles_near(). The indices are into ramps().
+    void find_ramps_near(const Box2& box, std::vector<std::size_t>& indices) const;
+
     void add_obstacle(const Obstacle& obstacle);
     void add_ramp(const Ramp& ramp);
     void add_torch(const Torch& torch);
@@ -100,6 +113,8 @@ private:
     WorldBounds bounds_;
     std::vector<Obstacle> obstacles_;
     std::vector<Ramp> ramps_;
+    SpatialGrid obstacle_grid_;
+    SpatialGrid ramp_grid_;
     std::vector<Torch> torches_;
     std::vector<Door> doors_;
     DoorLook door_look_ = DoorLook::kWood;

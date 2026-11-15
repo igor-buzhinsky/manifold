@@ -55,8 +55,8 @@ rewrites.
 - **Collision is our own code**, not Jolt. The player is a vertical cylinder that moves and slides against
   rotated boxes, ramps and the level bounds, in 3D. Gravity, jumping, landing, and sticking to ramps
   when walking down them work on top of this. This was simpler than Jolt for the shapes needed so far,
-  and is good C++ practice. It tests every obstacle on each move, which is slow in large levels. Replacing
-  it with Jolt Physics is considered, see [DECISIONS.md](DECISIONS.md).
+  and is good C++ practice. The world sorts obstacles and ramps into a grid of 2 m cells, so each move tests
+  only those near the player. Replacing it with Jolt Physics is considered, see [DECISIONS.md](DECISIONS.md).
 - A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start (position and yaw). Later also
   lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
   downstream depends on that.
@@ -172,7 +172,9 @@ and tools for inspecting the game. Done:
   ambient light of the hue of the level's texture (its mean linear color scaled to a set luminance, so that
   light and dark textures give equally bright light), which lights the level with no visible source.
   `level_info` shows it.
-- Optimize collision code, checking only nearby obstacles.
+- **Faster collision**: the world sorts its obstacles and ramps into a grid of 2 m cells (`SpatialGrid`), and
+  collision tests only those in the cells under the player, instead of all of them (about 12k in room levels). A
+  move takes about 0.5 µs instead of 58 µs. Ray casts still test every obstacle.
 - Saving the game in the beginning and when reaching a new level (at most one save, so no way to return to
   the previous level), loading previously saved game.
 - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new

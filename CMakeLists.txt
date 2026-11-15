@@ -103,6 +103,7 @@ add_library(manifold_core STATIC
     src/world/geometry.cpp
     src/world/obstacle.cpp
     src/world/player.cpp
+    src/world/spatial_grid.cpp
     src/world/torch.cpp
     src/world/world.cpp
 )
@@ -159,6 +160,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp
+        tests/spatial_grid_test.cpp
         tests/texture_image_test.cpp
         tests/torch_test.cpp
         tests/viewport_test.cpp

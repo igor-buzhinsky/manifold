@@ -1,16 +1,22 @@
 #include "world/world.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
+#include <random>
+#include <vector>
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "physics/collision.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
+#include "world/spatial_grid.hpp"
 
 namespace manifold {
 namespace {
@@ -64,6 +70,52 @@ TEST(WorldTest, AddingADoorAddsItsFramesAsObstacles) {
     EXPECT_EQ(world.obstacles()[0].base_center, door.frame(DoorSide::kNegative).base_center);
     EXPECT_EQ(world.obstacles()[1].base_center, door.frame(DoorSide::kPositive).base_center);
     EXPECT_EQ(world.obstacles()[0].surface, Surface::kDark);
+}
+
+TEST(WorldTest, FindsAllObstaclesAndRampsThatABodyTouches) {
+    // Random rotated blocks and ramps, partly outside the bounds, and random bodies, partly outside too.
+    World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 5.0f});
+    std::mt19937 random(7);
+    std::uniform_real_distribution<float> position(-13.0f, 13.0f);
+    std::uniform_real_distribution<float> size(0.05f, 3.0f);
+    std::uniform_real_distribution<float> angle(0.0f, 2.0f * std::numbers::pi_v<float>);
+    for (int i = 0; i < 200; ++i) {
+        world.add_obstacle({.base_center = {position(random), position(random), 0.0f},
+                            .half_size = {size(random), size(random)},
+                            .height = 2.0f,
+                            .yaw = angle(random)});
+        world.add_ramp({.base_center = {position(random), position(random), 0.0f},
+                        .half_length = size(random),
+                        .half_width = size(random),
+                        .rise = 1.0f,
+                        .yaw = angle(random)});
+    }
+
+    std::vector<std::size_t> obstacles;
+    std::vector<std::size_t> ramps;
+    int touching = 0;
+    for (int i = 0; i < 5000; ++i) {
+        const VerticalCylinder body{.base = {position(random), position(random), 0.0f}, .radius = 0.3f, .height = 1.8f};
+        const Box2 box{.min = glm::vec2(body.base) - body.radius, .max = glm::vec2(body.base) + body.radius};
+        world.find_obstacles_near(box, obstacles);
+        world.find_ramps_near(box, ramps);
+        ASSERT_TRUE(std::ranges::is_sorted(obstacles));
+        for (std::size_t index = 0; index < world.obstacles().size(); ++index) {
+            if (find_contact(body, world.obstacles()[index])) {
+                ++touching;
+                EXPECT_TRUE(std::ranges::binary_search(obstacles, index)) << "obstacle " << index << " body " << i;
+            }
+        }
+        for (std::size_t index = 0; index < world.ramps().size(); ++index) {
+            if (find_contact(body, world.ramps()[index])) {
+                ++touching;
+                EXPECT_TRUE(std::ranges::binary_search(ramps, index)) << "ramp " << index << " body " << i;
+            }
+        }
+        // Far fewer than all are found.
+        EXPECT_LT(obstacles.size(), world.obstacles().size() / 4);
+    }
+    EXPECT_GT(touching, 1000);
 }
 
 TEST(PlayerTest, ViewDirectionFollowsYawAndPitch) {
