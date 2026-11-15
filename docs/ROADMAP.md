@@ -173,7 +173,7 @@ and tools for inspecting the game. Done:
   the previous level), loading previously saved game.
 - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
   keyboard shortcut (e.g., Shift+Esc).
-- Audio: footsteps (2+ version depending on level texture), entering portals.
+- Audio: footsteps (2+ versions depending on level texture), entering portals.
 - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
   stamina, sanity. The party has shared mana.
 - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
