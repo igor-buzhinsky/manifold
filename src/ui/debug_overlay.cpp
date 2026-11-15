@@ -79,6 +79,8 @@ void player_section(Game& game) {
 void view_section(ViewSettings& view) {
     ImGui::Checkbox("Arrow", &view.arrow);
     ImGui::SameLine();
+    ImGui::Checkbox("Crosshair", &view.crosshair);
+    ImGui::SameLine();
     ImGui::Checkbox("Lighting", &view.lighting);
     ImGui::SameLine();
     ImGui::Checkbox("Shadows", &view.shadows);

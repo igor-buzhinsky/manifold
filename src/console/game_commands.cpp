@@ -208,7 +208,7 @@ void add_door_commands(Console& console, Game& game) {
 }
 
 /// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,
-/// arrow, lighting, shadows, imgui, screenshot, wait and quit.
+/// arrow, crosshair, lighting, shadows, imgui, screenshot, wait and quit.
 void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& state) {
     console.add("cutaway", "cutaway HEIGHT|off",
                 "Leaves out everything above HEIGHT, to look into a layer from above, or shows everything again.",
@@ -224,6 +224,10 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
     add_switch(console, "arrow", "Arrow",
                "Shows an arrow at the player's feet, in the direction the player faces, on top of everything, or not.",
                state.view.arrow);
+    add_switch(console, "crosshair", "Crosshair",
+               "Shows a crosshair at the center of the player's view, or not. It is hidden while the camera is put in "
+               "place with camera.",
+               state.view.crosshair);
     add_switch(console, "lighting", "Lighting", "Turns lights on, or off to show the plain texture colors.",
                state.view.lighting);
     add_switch(console, "shadows", "Shadows", "Turns shadows on or off.", state.view.shadows);

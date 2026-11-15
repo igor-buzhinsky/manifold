@@ -18,8 +18,10 @@ namespace manifold {
 struct ViewSettings {
     std::optional<Camera> camera;  ///< A camera that stays in place, or none to see through the player's eyes.
     bool arrow = false;            ///< Whether an arrow at the player's feet shows where the player is and faces.
-    bool lighting = true;          ///< If false, surfaces have their plain texture colors, without lights or shadows.
-    bool shadows = true;           ///< Whether lights cast shadows.
+    /// Whether a crosshair shows the center of the player's view. It is hidden while `camera` is set.
+    bool crosshair = true;
+    bool lighting = true;  ///< If false, surfaces have their plain texture colors, without lights or shadows.
+    bool shadows = true;   ///< Whether lights cast shadows.
     /// If set, everything above this height is left out, so that a camera above can see into a layer.
     std::optional<float> cutaway;
     LightSettings lights;             ///< The lights, which only the debug overlay changes.

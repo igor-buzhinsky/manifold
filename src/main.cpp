@@ -39,7 +39,9 @@
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
+#include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
+#include "ui/overlay_mesh.hpp"
 #include "ui/text_field.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
@@ -303,14 +305,15 @@ manifold::PlayerInput read_input() {
     };
 }
 
-/// Draws the game into the bound framebuffer, as `view` shows it.
+/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it.
 ///
-/// \param renderer    Draws.
-/// \param game        What to draw.
-/// \param view        How to show it.
-/// \param framebuffer Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
-void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const manifold::ViewSettings& view,
-               const manifold::PixelSize& framebuffer) {
+/// \param renderer         Draws the world.
+/// \param overlay_renderer Draws the crosshair.
+/// \param game             What to draw.
+/// \param view             How to show it.
+/// \param framebuffer      Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
+void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
+               const manifold::Game& game, const manifold::ViewSettings& view, const manifold::PixelSize& framebuffer) {
     // The light spell at the player's eyes, a little ambient light, and the lights of the torches and the exit
     // nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
@@ -325,10 +328,16 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
 
     const std::vector<glm::vec3> arrow =
         view.arrow ? manifold::build_arrow(game.player().position(), game.player().yaw()) : std::vector<glm::vec3>();
+    const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
     renderer.draw(
-        camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
-        game.doors(),
+        camera, lighting, viewport, game.animation_time(), game.doors(),
         {.lighting = view.lighting, .marker = arrow, .cut_height = view.cutaway, .shadow_bias = view.shadow_bias});
+    // The crosshair shows where the player looks, which a camera put in place doesn't.
+    if (view.crosshair && !view.camera) {
+        manifold::OverlayMesh crosshair;
+        manifold::add_crosshair(crosshair, {.width = viewport.width, .height = viewport.height});
+        overlay_renderer.draw(crosshair, viewport);
+    }
 }
 
 /// Takes the screenshots that console commands asked for, each drawn as it asked.
@@ -337,13 +346,14 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
 ///
 /// \param window_size The size of screenshots that don't give their own.
 /// \throws std::runtime_error if a screenshot that stops on error fails.
-void take_screenshots(manifold::Renderer& renderer, const manifold::Game& game,
-                      std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
+void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
+                      const manifold::Game& game, std::span<const manifold::ScreenshotRequest> requests,
+                      const manifold::PixelSize& window_size) {
     for (const manifold::ScreenshotRequest& request : requests) {
         const manifold::PixelSize size = request.size.value_or(window_size);
         try {
             const manifold::OffscreenFramebuffer framebuffer(size);
-            draw_game(renderer, game, request.view, size);
+            draw_game(renderer, overlay_renderer, game, request.view, size);
             manifold::save_screenshot(request.path, size.width, size.height);
             manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
         } catch (const std::runtime_error& error) {
@@ -421,7 +431,7 @@ void run(const Options& options) {
         }
 
         const manifold::PixelSize window_size = window.framebuffer_size();
-        draw_game(*renderer, game, state.view, window_size);
+        draw_game(*renderer, overlay_renderer, game, state.view, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = renderer->stats();
         if (state.debug_overlay) {
@@ -432,7 +442,7 @@ void run(const Options& options) {
             overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
                                   viewport);
         }
-        take_screenshots(*renderer, game, state.screenshots, window_size);
+        take_screenshots(*renderer, overlay_renderer, game, state.screenshots, window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;

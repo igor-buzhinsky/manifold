@@ -125,7 +125,9 @@ TEST(GameCommandsTest, SwitchesChangeTheView) {
     EXPECT_FALSE(fixture.state.view.arrow);
     EXPECT_TRUE(fixture.state.view.lighting);
     EXPECT_TRUE(fixture.state.view.shadows);
-    fixture.run("arrow on; lighting off; shadows off");
+    EXPECT_TRUE(fixture.state.view.crosshair);
+    fixture.run("arrow on; lighting off; shadows off; crosshair off");
+    EXPECT_FALSE(fixture.state.view.crosshair);
     EXPECT_TRUE(fixture.state.view.arrow);
     EXPECT_FALSE(fixture.state.view.lighting);
     EXPECT_FALSE(fixture.state.view.shadows);

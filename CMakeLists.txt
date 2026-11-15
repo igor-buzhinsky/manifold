@@ -94,6 +94,7 @@ add_library(manifold_core STATIC
     src/render/texture_image.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
+    src/ui/crosshair.cpp
     src/ui/overlay_mesh.cpp
     src/ui/text_field.cpp
     src/util/frame_times.cpp
@@ -141,6 +142,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/collision_test.cpp
         tests/console_test.cpp
         tests/console_window_test.cpp
+        tests/crosshair_test.cpp
         tests/door_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp

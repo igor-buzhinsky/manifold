@@ -15,6 +15,11 @@
 | F3 | Show or hide the debug overlay, see below |
 | Escape | Close the console if it is open, otherwise quit |
 
+## Screen
+
+A thin white crosshair with a black outline marks the center of the view, which E activates. The `crosshair`
+command hides or shows it.
+
 ## Levels
 
 Each level has an exit: a spinning blue portal cube floating above the floor, whose pulsing light shows
@@ -44,7 +49,7 @@ Console commands inspect the game, e.g. to test a level. There are three ways to
 In `--exec`, a command that fails, or a screenshot that can't be saved, stops the game with an error. When
 typed into the console window or the terminal, it only shows the error. Commands are read from the terminal
 only while the game runs in the foreground of the shell. Words are separated by spaces and can't contain
-any, so neither can file names. Angles are in degrees. Screenshots don't show the console window.
+any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show the crosshair.
 
 Keys of the console window:
 
@@ -76,6 +81,7 @@ it types can't be typed.
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |
 | `arrow [on\|off]` | Show an arrow at the player's feet, pointing where the player faces. It is drawn on top of everything, so it is seen through floors and walls, and also when the player is above a `cutaway` |
+| `crosshair [on\|off]` | Show the crosshair at the center of the player's view, or not. It is hidden while the camera is put in place with `camera` |
 | `lighting [on\|off]` | Turn lights off to see the plain texture colors, or on again |
 | `shadows [on\|off]` | Turn shadows off or on |
 | `imgui [on\|off]` | Show or hide the debug overlay, like F3 |
@@ -95,7 +101,7 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
   of them with shadows, and how many shadow maps were drawn in this frame.
 - **Player**: position, yaw and pitch, vertical speed, whether the player stands on something, and a
   checkbox for noclip.
-- **View**: checkboxes for the arrow, lighting and shadows, as the commands of the same names set them.
+- **View**: checkboxes for the arrow, the crosshair, lighting and shadows, as the commands of the same names set them.
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and
   range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the
   distance over which they fade out before they are left out, and the shadow bias. Reset lights puts them
