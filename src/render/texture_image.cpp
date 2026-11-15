@@ -5,6 +5,7 @@
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
+#include <cstdlib>
 #include <filesystem>
 #include <optional>
 #include <random>
@@ -161,11 +162,15 @@ DoorColor metal_pixel(int x, int y) {
     constexpr int kRibBottom = 47;  // Last row of the rib.
     constexpr int kRivetSpacing = 8;
     if (y >= kRibTop && y <= kRibBottom) {
-        // A rounded rib: lit from above, in shadow below, with a rivet every kRivetSpacing pixels.
-        const int rivet_x = x % kRivetSpacing;
-        const bool rivet = (rivet_x == 3 || rivet_x == 4) && (y == kRibTop + 3 || y == kRibTop + 4);
-        if (rivet) {
-            return steel(y == kRibTop + 3 ? 1.9f : 1.1f);
+        // A rounded rib: lit from above, in shadow below, with a rivet every kRivetSpacing pixels. A rivet is a small
+        // dome of 3 x 3 pixels without corners, lit on its top and left, in shadow on its bottom and right.
+        const int rivet_x = (x % kRivetSpacing) - 4;
+        const int rivet_y = y - (kRibTop + 3);
+        if (std::abs(rivet_x) + std::abs(rivet_y) <= 1) {
+            if (rivet_y < 0 || rivet_x < 0) {
+                return steel(2.2f);
+            }
+            return steel(rivet_y > 0 || rivet_x > 0 ? 0.6f : 1.6f);
         }
         constexpr std::array<float, kRibBottom - kRibTop + 1> kRibShade{1.8f, 1.5f, 1.3f, 1.2f,
                                                                         1.1f, 1.0f, 0.8f, 0.45f};

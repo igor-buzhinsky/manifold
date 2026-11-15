@@ -287,8 +287,8 @@ closes them with E, which acts on what the center of the view points at.
   leaves room for the player (1.2 m wide).
 - **Door**: two halves with a door texture, made on the CPU as an image, slide into the walls next to the opening,
   behind the frames, within one second. All doors of a level have the same look, chosen at random with a chance of 50%
-  each: wood (planks with an iron band) or metal (brushed steel plates with a riveted rib). The halves are opaque, so that closed doors can later
-  block light and monsters.
+  each: wood (planks with an iron band) or metal (brushed steel plates with a riveted rib), repeated up the door. The
+  halves are opaque, so that closed doors can later block light and monsters.
 - **State**: the shape of a door belongs to the static `World`. How far it is open and whether it moves live in `Game`,
   like the player.
 - **Collision**: a door that is not fully open is one box between the frames, as thick as the door. It is passed to

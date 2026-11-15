@@ -162,7 +162,11 @@ void add_door_commands(Console& console, Game& game) {
                             std::format("\nDoor {} at ({:.2f}, {:.2f}, {:.2f}), wall along {:.0f} deg: {}", i, center.x,
                                         center.y, center.z, to_degrees(doors[i].yaw), door_state_name(game.doors()[i]));
                     }
-                    log_info("{} doors of {}{}", doors.size(), door_look_name(game.world().door_look()), list);
+                    if (doors.empty()) {
+                        log_info("No doors");
+                    } else {
+                        log_info("{} doors of {}{}", doors.size(), door_look_name(game.world().door_look()), list);
+                    }
                 });
 
     const std::string door_usage = "door N open|close";

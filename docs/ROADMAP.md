@@ -136,10 +136,11 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   make the renderer draw the shadow maps of nearby lights again. Done, except shadows (see
   [DECISIONS.md](DECISIONS.md)): each opening of a room level gets a door with a chance chosen for the level from
   10% to 100%. A door is two halves with a texture made in code, between two dark frames that are static
-  obstacles. All doors of a level are of wood or all of metal, each with a chance of 50%. E (or the `activate` command) casts a ray from the eyes up to 2 m: on a closed door it opens it, on
-  a frame it opens or closes the door, and on a moving door it does nothing. The halves slide into the walls in one
-  second, and the door blocks the player until it is fully open. It doesn't close while the player stands in it.
-  The `doors` and `door` commands list and move doors. Next: the halves cast no shadows yet, so light goes through
+  obstacles. All doors of a level are of wood or all of metal, each with a chance of 50%. E (or the `activate`
+  command) casts a ray from the eyes up to 2 m: on a closed door it opens it, on a frame it opens or closes the door,
+  and on a moving door it does nothing. The halves slide into the walls in one second, and the door blocks the player
+  until it is fully open. It doesn't close while the player stands in it. The `doors` and `door` commands list and
+  move doors. Next: the halves cast no shadows yet, so light goes through
   closed doors. A thin white crosshair with a black outline marks the center of the view that E activates; the
   `crosshair` command hides it.
 - **Multiple point lights**: static light sources placed in the level (torches for now; braziers and glowing
