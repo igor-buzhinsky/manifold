@@ -310,7 +310,8 @@ manifold::PlayerInput read_input() {
 /// \param framebuffer Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
 void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const manifold::ViewSettings& view,
                const manifold::PixelSize& framebuffer) {
-    // The light spell at the player's eyes, a little ambient light, and the torches nearest to the camera.
+    // The light spell at the player's eyes, a little ambient light, and the lights of the torches and the exit
+    // nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
     manifold::Lighting lighting =
         manifold::scene_lighting(view.lights, game.player().eye_position(), game.world().torches(), game.world().exit(),

@@ -17,8 +17,8 @@
 ## Levels
 
 Each level has an exit: for now a glowing blue cube floating above the floor, whose pulsing light shows
-the way to it. In room levels it is on another layer
-than the start. Touching it, also with noclip, starts the next level.
+the way to it. In room levels it is on another layer than the start. Touching it, also with noclip, starts
+the next level.
 
 ## Console
 
@@ -88,8 +88,9 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
   checkbox for noclip.
 - **View**: checkboxes for the arrow, lighting and shadows, as the commands of the same names set them.
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and
-  range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the distance over which they fade out before they
-  are left out, and the shadow bias. Reset lights puts them back as they were at the start.
+  range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the
+  distance over which they fade out before they are left out, and the shadow bias. Reset lights puts them
+  back as they were at the start.
 
 Ctrl+click on a slider to type a value. While a value is typed, or a control is held with the mouse, the
 keys don't move the player and don't open the console; only F3 still works. The overlay can't be used while

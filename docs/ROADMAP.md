@@ -140,8 +140,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   room (5–10% of them, random for each level), debug levels on their outer walls. All torches of a level have
   one flame color: orange (50%), blue or green (25% each). A torch is a six-sided handle in the world mesh
   (untextured, with a per-vertex color) and a flame sprite: an upright quad facing the camera, painted by a
-  shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torches nearest to the
-  player (by distance minus range) go to the shader in a uniform buffer. Torch lights flicker and fade out
+  shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torch lights nearest to
+  the player (by distance minus range) go to the shader in a uniform buffer; the light of the level exit
+  competes with the torches for these places. Torch lights flicker and fade out
   smoothly at 6 m. The player's light now also has a range (15 m), and every light treats surfaces closer than
   0.3 m as 0.3 m away, so the wall behind a flame doesn't turn white. Lights don't pop when they enter or
   leave the nearest 31: when lights are left out, the gap (distance minus range) of the first one left out is
@@ -150,7 +151,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
-  Done for torch lights, up to 31 at once. The player's light casts none, because it is at
+  Done for torch lights and the light of the level exit, up to 31 at once. The player's light casts none, because it is at
   the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
   move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept in
   one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.

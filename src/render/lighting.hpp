@@ -99,6 +99,9 @@ inline constexpr float kExitRange = 5.0f;
 /// this large.
 inline constexpr std::uint32_t kExitShadowId = std::numeric_limits<std::uint32_t>::max();
 
+/// Length of one pulse of the exit's light, in seconds.
+inline constexpr float kExitPulsePeriod = 2.0f;
+
 /// How bright and how far the light of the level exit shines.
 struct ExitLightParams {
     float intensity = kExitIntensity;  ///< Brightness at 1 m, at the peak of the pulse.
@@ -110,9 +113,6 @@ struct ExitLightParams {
 /// \param time Seconds since the start of the game.
 /// \return A factor in [0.6, 1], which goes from the peak down and back once every kExitPulsePeriod.
 float exit_pulse(float time);
-
-/// Length of one pulse of the exit's light, in seconds.
-inline constexpr float kExitPulsePeriod = 2.0f;
 
 /// The light of the level exit at a moment: at the center of its cube, pulsing, see exit_pulse().
 ///
