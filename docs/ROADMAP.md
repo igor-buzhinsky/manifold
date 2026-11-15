@@ -172,6 +172,7 @@ and tools for inspecting the game. Done:
   ambient light of the hue of the level's texture (its mean linear color scaled to a set luminance, so that
   light and dark textures give equally bright light), which lights the level with no visible source.
   `level_info` shows it.
+- Optimize collision code, checking only nearby obstacles.
 - Saving the game in the beginning and when reaching a new level (at most one save, so no way to return to
   the previous level), loading previously saved game.
 - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
