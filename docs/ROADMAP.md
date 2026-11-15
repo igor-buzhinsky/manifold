@@ -195,7 +195,11 @@ and tools for inspecting the game. Done:
   keep a 4.1 render path.
 - **Jolt Physics** (considered, see [DECISIONS.md](DECISIONS.md)): replace our collision code with Jolt, with the
   player as a `CharacterVirtual`. Keep the current behavior: sliding, ramps, gravity, jumping and noclip.
-- **Static 3D props** loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
+- **Static 3D props** loaded from glTF, with simple collision shapes (boxes, cylinders, hulls): furniture and
+  decoration such as tables, crates, pillars and statues, and models for braziers, crystals and items, made in
+  Blender or taken from free packs. Props don't move, so they can join the level mesh and cast shadows like walls.
+  This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
+  and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
 - **Level exit far from the start**: place the exit where it is far from the start and surely reachable.
 - **Different textures** for walls, floor and ceiling.
 - **Fewer shadow maps per frame**: a limit on how many shadow maps are drawn in one frame, so that many torches at
