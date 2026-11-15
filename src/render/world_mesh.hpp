@@ -20,9 +20,6 @@ struct Vertex {
     glm::vec3 color{1.0f};  ///< Linear RGB that multiplies the texture, or replaces it, see `texture_weight`.
     /// How much of the texture shows: 1 for the texture times `color`, 0 for `color` alone.
     float texture_weight = 1.0f;
-    /// Light the surface gives off itself, in units of the light that would make it as bright as its color
-    /// without other light, before tonemapping. 0 for surfaces that only reflect light.
-    float emission = 0.0f;
 };
 
 /// Width and height of one copy of the level texture on a surface, in metres.
@@ -32,12 +29,6 @@ constexpr float kTextureTileSize = 2.0f;
 inline constexpr glm::vec3 kTorchHandleColor{0.2f, 0.1f, 0.04f};
 /// Color of the charred, burning end of a torch, linear RGB.
 inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
-
-/// Color of the level exit, linear RGB: bright blue.
-inline constexpr glm::vec3 kExitColor{0.05f, 0.2f, 1.0f};
-/// How much light the exit gives off itself, see Vertex::emission. It glows also where no light reaches it,
-/// including from its own light inside it.
-inline constexpr float kExitEmission = 2.0f;
 
 /// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles and the ramps of a world.
 ///
@@ -74,9 +65,21 @@ std::vector<Vertex> build_shadow_faces(const World& world, float thickness);
 /// renderer draws them as sprites.
 std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches);
 
-/// Creates triangles for the cube of the level exit, untextured in kExitColor, glowing with kExitEmission.
+/// Creates triangles for the cube of the level exit, centered on the origin. The renderer spins it and moves it
+/// into place, see exit_spin_angle().
 ///
-/// Triangles are counter-clockwise as in build_world_mesh(), with normals pointing out of the cube.
-std::vector<Vertex> build_exit_mesh(const LevelExit& exit);
+/// The cube is LevelExit::kSize wide. Triangles are counter-clockwise as in build_world_mesh(), with normals
+/// pointing out of the cube. Each face has its own texture coordinates from (0, 0) to (1, 1), for the portal
+/// pattern that the renderer paints on it. Colors and texture weights are not used.
+std::vector<Vertex> build_exit_mesh();
+
+/// How long the exit cube takes to turn once around the vertical, in seconds.
+inline constexpr float kExitSpinPeriod = 8.0f;
+
+/// How far the exit cube has turned around the vertical through its center at a moment.
+///
+/// \param time Seconds since the start of the game.
+/// \return Radians counter-clockwise from +x, in [0, 2 pi).
+float exit_spin_angle(float time);
 
 }  // namespace manifold

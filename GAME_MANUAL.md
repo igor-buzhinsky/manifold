@@ -16,7 +16,7 @@
 
 ## Levels
 
-Each level has an exit: for now a glowing blue cube floating above the floor, whose pulsing light shows
+Each level has an exit: a spinning blue portal cube floating above the floor, whose pulsing light shows
 the way to it. In room levels it is on another layer than the start. Touching it, also with noclip, starts
 the next level.
 

@@ -56,7 +56,8 @@ struct Ramp {
 
 /// The way out of a level: for now a cube that floats above the floor. Touching it leads to the next level.
 ///
-/// The cube is not rotated and doesn't collide: the player walks into it.
+/// The cube doesn't collide: the player walks into it. The renderer spins it around the vertical, but whether a
+/// body touches it is checked for the cube without rotation.
 struct LevelExit {
     static constexpr float kSize = 0.5f;         ///< Side of the cube, in metres.
     static constexpr float kHoverHeight = 0.6f;  ///< Height of the cube's bottom above the floor, in metres.

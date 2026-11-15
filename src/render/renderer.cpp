@@ -39,7 +39,6 @@ layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec2 a_uv;
 layout(location = 3) in vec3 a_color;
 layout(location = 4) in float a_texture_weight;
-layout(location = 5) in float a_emission;
 
 uniform mat4 u_view_projection;
 uniform float u_cut_height;  // See DrawOptions::cut_height. Only used while GL_CLIP_DISTANCE0 is on.
@@ -49,7 +48,6 @@ out vec3 v_normal;
 out vec2 v_uv;
 out vec3 v_color;
 out float v_texture_weight;
-out float v_emission;
 
 void main() {
     v_position = a_position;
@@ -57,7 +55,6 @@ void main() {
     v_uv = a_uv;
     v_color = a_color;
     v_texture_weight = a_texture_weight;
-    v_emission = a_emission;
     gl_ClipDistance[0] = u_cut_height - a_position.z;
     gl_Position = u_view_projection * vec4(a_position, 1.0);
 }
@@ -76,7 +73,6 @@ in vec3 v_normal;
 in vec2 v_uv;
 in vec3 v_color;
 in float v_texture_weight;
-in float v_emission;  // See Vertex::emission.
 
 struct Light {
     vec4 position_range;   // xyz: position, w: range.
@@ -141,8 +137,7 @@ void main() {
         return;
     }
 
-    // Light the surface gives off counts like light that reaches it, so it shows in the surface's color.
-    vec3 irradiance = u_ambient + vec3(v_emission);
+    vec3 irradiance = u_ambient;
     for (int i = 0; i < u_light_count; ++i) {
         vec3 to_light = u_lights[i].position_range.xyz - v_position;
         float range = u_lights[i].position_range.w;
@@ -277,6 +272,91 @@ void main() {
     // Already sRGB: the flame is as bright as the display allows.
     vec3 color = heat > 0.65 ? kCore[v_flame] : heat > 0.35 ? kMiddle[v_flame] : kEdge[v_flame];
     frag_color = vec4(color, 1.0);
+}
+)glsl";
+
+/// Spins the cube of the level exit around the vertical through its center, and moves it into place.
+constexpr const char* kExitVertexShader = R"glsl(
+#version 410 core
+layout(location = 0) in vec3 a_position;  // Relative to the center of the cube.
+layout(location = 1) in vec3 a_normal;
+layout(location = 2) in vec2 a_uv;
+
+uniform mat4 u_view_projection;
+uniform vec3 u_center;  // Center of the cube in the world.
+uniform float u_angle;  // How far the cube has turned, in radians counter-clockwise.
+uniform float u_cut_height;  // See DrawOptions::cut_height. Only used while GL_CLIP_DISTANCE0 is on.
+
+out vec3 v_position;
+out vec3 v_normal;
+out vec2 v_uv;
+
+void main() {
+    mat2 turn = mat2(cos(u_angle), sin(u_angle), -sin(u_angle), cos(u_angle));
+    v_position = u_center + vec3(turn * a_position.xy, a_position.z);
+    v_normal = vec3(turn * a_normal.xy, a_normal.z);
+    v_uv = a_uv;
+    gl_ClipDistance[0] = u_cut_height - v_position.z;
+    gl_Position = u_view_projection * vec4(v_position, 1.0);
+}
+)glsl";
+
+/// Paints the faces of the exit cube as a pixelated portal: a glowing frame around a swirl of blue that turns
+/// inwards, with sparkles. It glows by itself, without lighting.
+///
+/// The darker bands of the swirl are partly see-through, so the far faces of the cube show behind them. Faces
+/// seen from the side are more see-through than faces seen from the front, which softens the outline.
+constexpr const char* kExitFragmentShader = R"glsl(
+#version 410 core
+in vec3 v_position;
+in vec3 v_normal;
+in vec2 v_uv;  // From (0, 0) to (1, 1) across each face.
+
+uniform vec3 u_camera;  // Where the camera is.
+uniform float u_time;   // Seconds since the start of the game.
+uniform float u_pulse;  // Brightness of the exit's light relative to its peak, see exit_pulse(): 0.6 to 1.
+
+out vec4 frag_color;
+
+const float kPixels = 8.0;  // Big pixels across a face, for the retro look.
+
+// Colors from the brightest to the darkest, already sRGB, and how opaque each is.
+const vec3 kFrame = vec3(0.55, 0.8, 1.0);
+const vec3 kCore = vec3(0.85, 0.95, 1.0);
+const vec3 kMiddle = vec3(0.2, 0.45, 1.0);
+const vec3 kEdge = vec3(0.04, 0.1, 0.55);
+
+float hash(vec2 p) {
+    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+void main() {
+    vec2 cell = floor(v_uv * kPixels);
+    vec2 p = (cell + 0.5) / kPixels - 0.5;
+    vec3 color;
+    float alpha;
+    if (cell.x == 0.0 || cell.y == 0.0 || cell.x == kPixels - 1.0 || cell.y == kPixels - 1.0) {
+        color = kFrame;
+        alpha = 0.9;
+    } else {
+        // Two spiral arms that turn and move inwards over time.
+        float swirl = 0.5 + 0.5 * sin(18.0 * length(p) + 2.0 * atan(p.y, p.x) + 3.0 * u_time);
+        // The noise changes 8 times a second. Wrapping the step keeps the argument of sin() in hash() small.
+        float sparkle = hash(cell + vec2(mod(floor(u_time * 8.0), 256.0), 0.0));
+        if (sparkle > 0.95 || swirl > 0.75) {
+            color = kCore;
+            alpha = 0.85;
+        } else if (swirl > 0.4) {
+            color = kMiddle;
+            alpha = 0.6;
+        } else {
+            color = kEdge;
+            alpha = 0.4;
+        }
+    }
+    float facing = abs(dot(normalize(v_normal), normalize(u_camera - v_position)));
+    alpha *= mix(0.35, 1.0, facing);
+    frag_color = vec4(color * (0.55 + 0.45 * u_pulse), alpha);
 }
 )glsl";
 
@@ -449,21 +529,18 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_framebuffer_(create_shadow_framebuffer(shadow_maps_)),
       shadow_cache_(kShadowSlots),
       shadow_ranges_(kShadowSlots, 0.0f),
+      exit_program_(link_program(kExitVertexShader, kExitFragmentShader)),
       marker_program_(link_program(kMarkerVertexShader, kMarkerFragmentShader)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);
     glGenBuffers(1, &vertex_buffer_);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
-    // One buffer holds the world, then the torch handles and the exit, then the faces only shadow maps need.
-    // The main pass draws the first three, the shadow pass the first and the last.
+    // One buffer holds the world, then the torch handles, then the faces only shadow maps need. The main
+    // pass draws the first two, the shadow pass the first and the last.
     std::vector<Vertex> vertices = build_world_mesh(world);
     world_vertex_count_ = static_cast<GLsizei>(vertices.size());
     const std::vector<Vertex> torch_mesh = build_torch_mesh(world.torches());
     vertices.insert(vertices.end(), torch_mesh.begin(), torch_mesh.end());
-    if (const std::optional<LevelExit>& exit = world.exit()) {
-        const std::vector<Vertex> exit_mesh = build_exit_mesh(*exit);
-        vertices.insert(vertices.end(), exit_mesh.begin(), exit_mesh.end());
-    }
     vertex_count_ = static_cast<GLsizei>(vertices.size());
     const std::vector<Vertex> shadow_faces = build_shadow_faces(world, kShellThickness);
     vertices.insert(vertices.end(), shadow_faces.begin(), shadow_faces.end());
@@ -475,7 +552,6 @@ Renderer::Renderer(const World& world, const Image& texture)
     set_vertex_attribute(2, 2, sizeof(Vertex), offsetof(Vertex, uv));
     set_vertex_attribute(3, 3, sizeof(Vertex), offsetof(Vertex, color));
     set_vertex_attribute(4, 1, sizeof(Vertex), offsetof(Vertex, texture_weight));
-    set_vertex_attribute(5, 1, sizeof(Vertex), offsetof(Vertex, emission));
 
     // Each flame is one instance: its attributes advance once per instance, not per vertex.
     const std::vector<FlameInstance> flames = make_flames(world.torches());
@@ -494,6 +570,22 @@ Renderer::Renderer(const World& world, const Image& texture)
     glVertexAttribDivisor(1, 1);
     glVertexAttribDivisor(2, 1);
     glBindVertexArray(0);
+
+    if (const std::optional<LevelExit>& exit = world.exit()) {
+        exit_center_ = exit->base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f);
+        const std::vector<Vertex> exit_mesh = build_exit_mesh();
+        exit_vertex_count_ = static_cast<GLsizei>(exit_mesh.size());
+        glGenVertexArrays(1, &exit_vertex_array_);
+        glBindVertexArray(exit_vertex_array_);
+        glGenBuffers(1, &exit_buffer_);
+        glBindBuffer(GL_ARRAY_BUFFER, exit_buffer_);
+        glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(std::span(exit_mesh).size_bytes()), exit_mesh.data(),
+                     GL_STATIC_DRAW);
+        set_vertex_attribute(0, 3, sizeof(Vertex), offsetof(Vertex, position));
+        set_vertex_attribute(1, 3, sizeof(Vertex), offsetof(Vertex, normal));
+        set_vertex_attribute(2, 2, sizeof(Vertex), offsetof(Vertex, uv));
+        glBindVertexArray(0);
+    }
 
     glGenVertexArrays(1, &marker_vertex_array_);
     glBindVertexArray(marker_vertex_array_);
@@ -523,6 +615,10 @@ Renderer::~Renderer() {
     glDeleteBuffers(1, &marker_buffer_);
     glDeleteVertexArrays(1, &marker_vertex_array_);
     glDeleteProgram(marker_program_);
+    // Deleting the names 0 does nothing, so this is safe also when the level has no exit.
+    glDeleteBuffers(1, &exit_buffer_);
+    glDeleteVertexArrays(1, &exit_vertex_array_);
+    glDeleteProgram(exit_program_);
     glDeleteFramebuffers(1, &shadow_framebuffer_);
     glDeleteTextures(1, &shadow_maps_);
     glDeleteProgram(shadow_program_);
@@ -573,8 +669,8 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     glUseProgram(shadow_program_);
     glBindVertexArray(vertex_array_);
     // Torch handles cast no shadows: a real flame is much larger than our point light, so the handle under
-    // it would cast a long, hard shadow down the wall that a real torch doesn't. Neither does the exit, which
-    // will look different later. Only the world and the faces from build_shadow_faces() are drawn.
+    // it would cast a long, hard shadow down the wall that a real torch doesn't. Only the world and the faces
+    // from build_shadow_faces() are drawn.
     // Only back faces, as seen from the light, go into the shadow map. A lit surface is then never compared
     // with itself, which would shadow parts of it at random (shadow acne). Surfaces that face away from the
     // light are compared with themselves, but they get no light anyway.
@@ -602,6 +698,34 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     glCullFace(GL_BACK);
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(previous_framebuffer));
     return slots;
+}
+
+void Renderer::draw_exit(const Camera& camera, const glm::mat4& view_projection, float time,
+                         const DrawOptions& options) {
+    if (!exit_center_) {
+        return;
+    }
+    glUseProgram(exit_program_);
+    glUniformMatrix4fv(glGetUniformLocation(exit_program_, "u_view_projection"), 1, GL_FALSE,
+                       glm::value_ptr(view_projection));
+    glUniform3fv(glGetUniformLocation(exit_program_, "u_center"), 1, glm::value_ptr(*exit_center_));
+    glUniform1f(glGetUniformLocation(exit_program_, "u_angle"), exit_spin_angle(time));
+    glUniform1f(glGetUniformLocation(exit_program_, "u_cut_height"), options.cut_height.value_or(0.0f));
+    glUniform3fv(glGetUniformLocation(exit_program_, "u_camera"), 1, glm::value_ptr(camera.position));
+    glUniform1f(glGetUniformLocation(exit_program_, "u_time"), time);
+    glUniform1f(glGetUniformLocation(exit_program_, "u_pulse"), exit_pulse(time));
+    glBindVertexArray(exit_vertex_array_);
+    // The cube is see-through, so it is drawn after everything opaque, without writing depth: the far faces
+    // first, then the near faces over them.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDepthMask(GL_FALSE);
+    glCullFace(GL_FRONT);
+    glDrawArrays(GL_TRIANGLES, 0, exit_vertex_count_);
+    glCullFace(GL_BACK);
+    glDrawArrays(GL_TRIANGLES, 0, exit_vertex_count_);
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
 }
 
 void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time,
@@ -666,6 +790,7 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
         glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, flame_count_);
         glEnable(GL_CULL_FACE);
     }
+    draw_exit(camera, view_projection, time, options);
     glDisable(GL_CLIP_DISTANCE0);
 
     if (!options.marker.empty()) {

@@ -121,13 +121,15 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   with the blocky stb_easy_font in cells of equal width) and `OverlayRenderer`.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
-  version of the linear series of levels. Done for now: the exit is a blue cube floating above the floor. It
-  glows (it is drawn as if lit by its own light) and has a slowly pulsing blue light that casts shadows.
-  Touching it starts the next level, with a seed derived from the current one and the layout chosen as for
-  the first level (`--layout` applies only to the first level). Room levels put it in the center of a random
-  floor tile on another layer than the start, away from holes and openings (`E` on the plan); the debug
-  layout puts it anywhere free. `next_level` starts the next level from the console. Next: a portal look,
-  and placing the exit far from the start where it is surely reachable.
+  version of the linear series of levels. Done for now: the exit is a cube floating above the floor, drawn as
+  a portal in its own draw call: it spins slowly, glows without lighting, and its faces show a pixelated blue
+  swirl with sparkles inside a bright frame. The darker parts of the swirl, and faces seen from the side, are
+  partly see-through. A slowly pulsing blue light, which casts shadows, sits at its center, and the portal
+  pulses with it. Touching the cube starts the next level, with a seed derived from the current one and the
+  layout chosen as for the first level (`--layout` applies only to the first level). Room levels put it in the
+  center of a random floor tile on another layer than the start, away from holes and openings (`E` on the
+  plan); the debug layout puts it anywhere free. `next_level` starts the next level from the console. Next:
+  placing the exit far from the start where it is surely reachable.
 - **Doors between rooms**: some or all openings between rooms get doors that the player can open and
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
   geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must
@@ -151,8 +153,8 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
   array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
   debug output and shorter setup code.
-  Done for torch lights and the light of the level exit, up to 31 at once. The player's light casts none, because it is at
-  the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
+  Done for torch lights and the light of the level exit, up to 31 at once. The player's light casts none,
+  because it is at the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
   move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept in
   one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.
   Drawing all 31 maps on the first frame takes about 0.2 s. A map stores the distance to the faces that

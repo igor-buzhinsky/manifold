@@ -8,6 +8,7 @@
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
@@ -152,7 +153,6 @@ TEST(WorldMeshTest, LevelSurfacesUseTextureAndLeaveOutTorches) {
     for (const Vertex& vertex : mesh) {
         EXPECT_EQ(vertex.color, glm::vec3(1.0f));
         EXPECT_FLOAT_EQ(vertex.texture_weight, 1.0f);
-        EXPECT_FLOAT_EQ(vertex.emission, 0.0f);
     }
 }
 
@@ -171,25 +171,43 @@ TEST(WorldMeshTest, TorchesHaveUntexturedHandleAndHead) {
     }
 }
 
-TEST(WorldMeshTest, ExitIsUntexturedGlowingCubeFacingOutwards) {
-    const LevelExit exit{.floor_point = {1.0f, 2.0f, 0.0f}};
-    const std::vector<Vertex> mesh = build_exit_mesh(exit);
+TEST(WorldMeshTest, ExitIsCubeAroundOriginFacingOutwards) {
+    const std::vector<Vertex> mesh = build_exit_mesh();
     ASSERT_EQ(mesh.size(), 6 * kVerticesPerQuad);
-    const glm::vec3 center = exit.base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f);
     for (std::size_t i = 0; i < mesh.size(); i += 3) {
         // Counter-clockwise around the normal, which points away from the center.
         const glm::vec3 cross =
             glm::cross(mesh[i + 1].position - mesh[i].position, mesh[i + 2].position - mesh[i].position);
         EXPECT_GT(glm::dot(cross, mesh[i].normal), 0.0f);
-        EXPECT_GT(glm::dot(mesh[i].position - center, mesh[i].normal), 0.0f);
+        EXPECT_GT(glm::dot(mesh[i].position, mesh[i].normal), 0.0f);
     }
     for (const Vertex& vertex : mesh) {
-        EXPECT_EQ(vertex.color, kExitColor);
-        EXPECT_FLOAT_EQ(vertex.texture_weight, 0.0f);
-        EXPECT_FLOAT_EQ(vertex.emission, kExitEmission);
-        const glm::vec3 offset = glm::abs(vertex.position - center);
+        const glm::vec3 offset = glm::abs(vertex.position);
         EXPECT_NEAR(std::max({offset.x, offset.y, offset.z}), LevelExit::kSize / 2.0f, 1e-5f);
+        EXPECT_NEAR(std::min({offset.x, offset.y, offset.z}), LevelExit::kSize / 2.0f, 1e-5f);
     }
+}
+
+TEST(WorldMeshTest, ExitFacesHaveTheirOwnTextureSquare) {
+    const std::vector<Vertex> mesh = build_exit_mesh();
+    for (std::size_t face = 0; face < mesh.size(); face += kVerticesPerQuad) {
+        glm::vec2 min_uv(1.0f);
+        glm::vec2 max_uv(0.0f);
+        for (std::size_t i = face; i < face + kVerticesPerQuad; ++i) {
+            min_uv = glm::min(min_uv, mesh[i].uv);
+            max_uv = glm::max(max_uv, mesh[i].uv);
+        }
+        EXPECT_EQ(min_uv, glm::vec2(0.0f));
+        EXPECT_EQ(max_uv, glm::vec2(1.0f));
+    }
+}
+
+TEST(WorldMeshTest, ExitSpinsOnceEveryPeriod) {
+    const float pi = std::numbers::pi_v<float>;
+    EXPECT_FLOAT_EQ(exit_spin_angle(0.0f), 0.0f);
+    EXPECT_NEAR(exit_spin_angle(kExitSpinPeriod / 4.0f), pi / 2.0f, 1e-5f);
+    EXPECT_NEAR(exit_spin_angle(kExitSpinPeriod * 2.5f), pi, 1e-4f);
+    EXPECT_LT(exit_spin_angle(kExitSpinPeriod - 0.001f), 2.0f * pi);
 }
 
 TEST(WorldMeshTest, TorchIsAClosedPrismAlongItsHandle) {

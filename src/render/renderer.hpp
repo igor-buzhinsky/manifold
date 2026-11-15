@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <glad/gl.h>
+#include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
 #include "render/camera.hpp"
@@ -48,7 +49,8 @@ public:
     ///
     /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches and the exit don't:
     /// torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn.
-    /// Torch i flickers with torch_phase(i).
+    /// Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an
+    /// animated, partly see-through portal that pulses with its light (see exit_pulse()).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.
@@ -62,7 +64,7 @@ public:
     Renderer& operator=(Renderer&&) = delete;
 
     /// Draws the shadow maps that are missing, then clears the bound framebuffer to black and draws the world,
-    /// the flames and the marker.
+    /// the flames, the exit and the marker.
     ///
     /// \param camera   Where the world is seen from.
     /// \param lighting The lights to use. Lights after the first kMaxLights are left out.
@@ -76,6 +78,12 @@ public:
     const RenderStats& stats() const { return stats_; }
 
 private:
+    /// Draws the exit, if the level has one, blended over what is drawn already. Leaves GL_CLIP_DISTANCE0 as it
+    /// is, so the exit is cut like the rest.
+    ///
+    /// Changes the current program and the bound vertex array.
+    void draw_exit(const Camera& camera, const glm::mat4& view_projection, float time, const DrawOptions& options);
+
     /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
     ///
     /// Changes the viewport, the current program, the bound vertex array and, if any map is drawn, the
@@ -91,8 +99,8 @@ private:
     GLuint vertex_array_ = 0;
     GLuint vertex_buffer_ = 0;
     GLsizei world_vertex_count_ = 0;  ///< Vertices of the world, which come first in the vertex buffer.
-    GLsizei vertex_count_ = 0;        ///< Vertices of the world, the torch handles and the exit.
-    /// Vertices of build_shadow_faces(), which come after the exit.
+    GLsizei vertex_count_ = 0;        ///< Vertices of the world and the torch handles.
+    /// Vertices of build_shadow_faces(), which come after the torch handles.
     GLsizei shadow_face_vertex_count_ = 0;
     GLuint texture_ = 0;
     GLuint light_buffer_ = 0;  ///< Uniform buffer with the lights, filled on every draw.
@@ -106,6 +114,11 @@ private:
     ShadowCache shadow_cache_;
     /// The range of the light whose shadow map is in each slot, when the map was drawn. Zero for no map.
     std::vector<float> shadow_ranges_;
+    std::optional<glm::vec3> exit_center_;  ///< Center of the exit's cube, or none if the level has no exit.
+    GLuint exit_program_ = 0;
+    GLuint exit_vertex_array_ = 0;
+    GLuint exit_buffer_ = 0;  ///< The cube of build_exit_mesh().
+    GLsizei exit_vertex_count_ = 0;
     GLuint marker_program_ = 0;
     GLuint marker_vertex_array_ = 0;
     GLuint marker_buffer_ = 0;  ///< The marker's triangles, filled on every draw that has a marker.

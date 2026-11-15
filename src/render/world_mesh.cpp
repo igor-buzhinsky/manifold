@@ -40,7 +40,6 @@ glm::vec2 texture_coordinates(const glm::vec3& position, const glm::vec3& normal
 struct Material {
     glm::vec3 color{1.0f};
     float texture_weight = 1.0f;
-    float emission = 0.0f;
 };
 
 /// The material of walls, floors, ceilings, obstacles and ramps: the level texture as it is.
@@ -53,8 +52,7 @@ void add_vertex(std::vector<Vertex>& vertices, const glm::vec3& position, const 
                         .normal = normal,
                         .uv = texture_coordinates(position, normal),
                         .color = material.color,
-                        .texture_weight = material.texture_weight,
-                        .emission = material.emission});
+                        .texture_weight = material.texture_weight});
 }
 
 /// Adds a triangle. The normal is computed from the corner order.
@@ -284,26 +282,40 @@ std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches) {
     return vertices;
 }
 
-std::vector<Vertex> build_exit_mesh(const LevelExit& exit) {
-    constexpr Material kMaterial{.color = kExitColor, .texture_weight = 0.0f, .emission = kExitEmission};
+std::vector<Vertex> build_exit_mesh() {
     const float half = LevelExit::kSize / 2.0f;
-    const glm::vec3 base = exit.base_center();
     // The corners of the bottom, counter-clockwise from above, and the corners of the top right above them.
     std::array<glm::vec3, 4> bottom{};
     std::array<glm::vec3, 4> top{};
     const std::array<glm::vec2, 4> signs{{{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}}};
     for (std::size_t i = 0; i < signs.size(); ++i) {
-        bottom.at(i) = base + glm::vec3(half * signs.at(i), 0.0f);
-        top.at(i) = bottom.at(i) + glm::vec3(0.0f, 0.0f, LevelExit::kSize);
+        bottom.at(i) = glm::vec3(half * signs.at(i), -half);
+        top.at(i) = glm::vec3(half * signs.at(i), half);
     }
-    std::vector<Vertex> vertices;
+    // Each face from its corners, counter-clockwise from outside, which get the texture coordinates (0, 0),
+    // (1, 0), (1, 1) and (0, 1).
+    std::vector<std::array<glm::vec3, 4>> faces;
     for (std::size_t i = 0; i < bottom.size(); ++i) {
         const std::size_t next = (i + 1) % bottom.size();
-        add_quad(vertices, {bottom.at(i), bottom.at(next), top.at(next), top.at(i)}, kMaterial);
+        faces.push_back({bottom.at(i), bottom.at(next), top.at(next), top.at(i)});
     }
-    add_quad(vertices, top, kMaterial);
-    add_quad(vertices, {bottom[0], bottom[3], bottom[2], bottom[1]}, kMaterial);
+    faces.push_back(top);
+    faces.push_back({bottom[0], bottom[3], bottom[2], bottom[1]});
+
+    constexpr std::array<glm::vec2, 4> kCornerUvs{{{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}}};
+    std::vector<Vertex> vertices;
+    for (const std::array<glm::vec3, 4>& corners : faces) {
+        const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
+        for (const std::size_t index : {0U, 1U, 2U, 0U, 2U, 3U}) {
+            vertices.push_back({.position = corners.at(index), .normal = normal, .uv = kCornerUvs.at(index)});
+        }
+    }
     return vertices;
+}
+
+float exit_spin_angle(float time) {
+    // Wrapping the time keeps the angle precise however long the game runs.
+    return 2.0f * std::numbers::pi_v<float> * std::fmod(time, kExitSpinPeriod) / kExitSpinPeriod;
 }
 
 }  // namespace manifold
