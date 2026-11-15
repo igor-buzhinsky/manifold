@@ -14,7 +14,6 @@
 
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
-#include "world/spatial_grid.hpp"
 #include "world/world.hpp"
 
 namespace manifold {

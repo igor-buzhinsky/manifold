@@ -16,7 +16,8 @@ namespace manifold {
 
 namespace {
 
-/// Side of a cell of the grids of obstacles and ramps, in metres: one tile of the room layout.
+/// Side of a cell of the grids of obstacles and ramps, in metres: about the size of a room tile. Any size works,
+/// only the speed depends on it.
 constexpr float kGridCellSize = 2.0f;
 /// The boxes of obstacles and ramps in the grids are this much larger on each side, in metres, so that rounding
 /// errors of their rotation can't leave out a cell that they touch.

@@ -5,13 +5,9 @@
 
 #include <glm/vec2.hpp>
 
-namespace manifold {
+#include "world/geometry.hpp"
 
-/// A horizontal box with sides along x and y: min <= (x, y) <= max.
-struct Box2 {
-    glm::vec2 min{0.0f};
-    glm::vec2 max{0.0f};
-};
+namespace manifold {
 
 /// Finds the items near a place quickly, by sorting the items into the square cells of a grid in the horizontal plane.
 ///

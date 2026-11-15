@@ -11,6 +11,12 @@ struct Circle {
     float radius = 0.0f;
 };
 
+/// A horizontal box with sides along x and y: min <= (x, y) <= max.
+struct Box2 {
+    glm::vec2 min{0.0f};
+    glm::vec2 max{0.0f};
+};
+
 /// A rectangle in the horizontal (x, y) plane, rotated around its center.
 struct RotatedRectangle {
     glm::vec2 center{0.0f};

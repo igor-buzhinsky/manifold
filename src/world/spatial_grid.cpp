@@ -7,6 +7,8 @@
 
 #include <glm/vec2.hpp>
 
+#include "world/geometry.hpp"
+
 namespace manifold {
 
 namespace {

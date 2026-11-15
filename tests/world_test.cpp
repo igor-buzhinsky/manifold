@@ -16,7 +16,6 @@
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
-#include "world/spatial_grid.hpp"
 
 namespace manifold {
 namespace {
@@ -103,13 +102,14 @@ TEST(WorldTest, FindsAllObstaclesAndRampsThatABodyTouches) {
         for (std::size_t index = 0; index < world.obstacles().size(); ++index) {
             if (find_contact(body, world.obstacles()[index])) {
                 ++touching;
-                EXPECT_TRUE(std::ranges::binary_search(obstacles, index)) << "obstacle " << index << " body " << i;
+                EXPECT_TRUE(std::ranges::find(obstacles, index) != obstacles.end())
+                    << "obstacle " << index << " body " << i;
             }
         }
         for (std::size_t index = 0; index < world.ramps().size(); ++index) {
             if (find_contact(body, world.ramps()[index])) {
                 ++touching;
-                EXPECT_TRUE(std::ranges::binary_search(ramps, index)) << "ramp " << index << " body " << i;
+                EXPECT_TRUE(std::ranges::find(ramps, index) != ramps.end()) << "ramp " << index << " body " << i;
             }
         }
         // Far fewer than all are found.

@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include "world/geometry.hpp"
+
 namespace manifold {
 namespace {
 
