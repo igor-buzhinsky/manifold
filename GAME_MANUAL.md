@@ -69,7 +69,7 @@ it types can't be typed.
 | Command | Action |
 |---|---|
 | `help` | List all commands |
-| `level_info` | Describe the level, depending on its layout, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps and the exit |
+| `level_info` | Describe the level, depending on its layout, its ambient light, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps and the exit |
 | `camera` | Show where the camera is |
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
 | `camera player` | Put the camera back at the player's eyes |
@@ -107,7 +107,7 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and
   range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the
   distance over which they fade out before they are left out, and the shadow bias. Reset lights puts them
-  back as they were at the start.
+  back to the defaults, with the level's ambient light. Each new level sets the ambient light again.
 
 Ctrl+click on a slider to type a value. While a value is typed, or a control is held with the mouse, the
 keys don't move the player and don't open the console; only F3 still works. The overlay can't be used while

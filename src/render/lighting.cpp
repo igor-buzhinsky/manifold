@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <numbers>
 #include <optional>
+#include <random>
 #include <span>
 #include <vector>
 
@@ -91,6 +92,15 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
         light.intensity *= std::clamp((cut - gap(light)) / fade, 0.0f, 1.0f);
     }
     return selected;
+}
+
+glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color) {
+    // Mixing the seed keeps the choice independent of the other random choices made from it.
+    constexpr std::uint64_t kAmbientSeedSalt = 0xd1b54a32d192ed03ULL;
+    std::mt19937_64 random(level_seed ^ kAmbientSeedSalt);
+    // The engine's output is the same with every standard library, unlike that of the distributions.
+    const bool lit = (random() >> 63U) != 0;
+    return lit ? texture_color : glm::vec3(0.0f);
 }
 
 Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,

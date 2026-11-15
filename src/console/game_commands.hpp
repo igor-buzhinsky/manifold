@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include <glm/vec3.hpp>
+
 #include "console/console.hpp"
 #include "game.hpp"
 #include "render/camera.hpp"
@@ -24,7 +26,11 @@ struct ViewSettings {
     bool shadows = true;   ///< Whether lights cast shadows.
     /// If set, everything above this height is left out, so that a camera above can see into a layer.
     std::optional<float> cutaway;
-    LightSettings lights;             ///< The lights, which only the debug overlay changes.
+    /// The lights, which only the debug overlay changes, except that each level sets the ambient light.
+    LightSettings lights;
+    /// The ambient light of the level, see level_ambient(), which resetting the lights in the debug overlay
+    /// puts back.
+    glm::vec3 level_ambient{0.0f};
     float shadow_bias = kShadowBias;  ///< See kShadowBias. Only the debug overlay changes it.
 };
 

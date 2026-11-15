@@ -18,6 +18,20 @@
 namespace manifold {
 namespace {
 
+TEST(LightingTest, LevelAmbientIsNoneOrTextureColorForAboutHalfOfSeeds) {
+    const glm::vec3 color{0.3f, 0.2f, 0.1f};
+    int lit = 0;
+    constexpr int kSeeds = 1000;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const glm::vec3 ambient = level_ambient(seed, color);
+        EXPECT_TRUE(ambient == color || ambient == glm::vec3(0.0f)) << "seed " << seed;
+        EXPECT_EQ(level_ambient(seed, color), ambient) << "seed " << seed;
+        lit += ambient == color ? 1 : 0;
+    }
+    EXPECT_GT(lit, 400);
+    EXPECT_LT(lit, 600);
+}
+
 TEST(LightingTest, TorchPhasesAreSpreadOverCircle) {
     std::vector<float> phases;
     for (std::size_t i = 0; i < 10; ++i) {

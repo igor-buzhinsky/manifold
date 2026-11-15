@@ -147,7 +147,7 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
 
 /// The lights of a scene, which the debug overlay can change while the game runs.
 struct LightSettings {
-    glm::vec3 ambient{0.01f};  ///< See Lighting::ambient.
+    glm::vec3 ambient{0.0f};  ///< See Lighting::ambient. Each level sets it, see level_ambient().
     /// Color of the light spell: a light at the player's eyes, linear RGB.
     glm::vec3 player_color{1.0f, 0.85f, 0.6f};
     float player_intensity = 5.0f;  ///< Brightness of the player's light at 1 m.
@@ -159,6 +159,14 @@ struct LightSettings {
     /// fade out, see select_lights().
     std::size_t max_lights = kMaxLights;
 };
+
+/// The ambient light of a level: none for half of the seeds, and for the others the mean color of the level's
+/// texture, so that the level seems lit without a visible source.
+///
+/// \param level_seed    The seed of the level. The choice depends only on it.
+/// \param texture_color The mean color of the level's texture, linear RGB, see mean_linear_color().
+/// \return The ambient light, linear RGB.
+glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color);
 
 /// The light in the scene at a moment: the ambient light, the player's light, and the lights of the torches
 /// and the exit that matter most to the viewer.

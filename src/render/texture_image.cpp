@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -15,6 +16,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/vec3.hpp>
 #include <stb_image.h>
 
 #include "util/log.hpp"
@@ -94,6 +96,32 @@ std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path>
         return PickedTexture{.path = path, .image = std::move(*image)};
     }
     return std::nullopt;
+}
+
+glm::vec3 mean_linear_color(const Image& image) {
+    // The linear value of each of the 256 sRGB byte values.
+    static const std::array<float, 256> linear = [] {
+        std::array<float, 256> table{};
+        for (std::size_t i = 0; i < table.size(); ++i) {
+            const float srgb = static_cast<float>(i) / 255.0f;
+            table[i] = srgb <= 0.04045f ? srgb / 12.92f : std::pow((srgb + 0.055f) / 1.055f, 2.4f);
+        }
+        return table;
+    }();
+    constexpr auto kStride = static_cast<std::size_t>(kChannels);
+    const std::size_t pixel_count = image.pixels.size() / kStride;
+    if (pixel_count == 0) {
+        return glm::vec3(0.0f);
+    }
+    // Sums in double keep the rounding errors small for large images.
+    std::array<double, 3> sum{};
+    for (std::size_t pixel = 0; pixel < pixel_count; ++pixel) {
+        for (std::size_t channel = 0; channel < sum.size(); ++channel) {
+            sum.at(channel) += linear.at(image.pixels[(pixel * kStride) + channel]);
+        }
+    }
+    const auto count = static_cast<double>(pixel_count);
+    return {static_cast<float>(sum[0] / count), static_cast<float>(sum[1] / count), static_cast<float>(sum[2] / count)};
 }
 
 Image fallback_texture() { return {.width = 1, .height = 1, .pixels = {128, 128, 128, 255}}; }

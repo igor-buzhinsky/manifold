@@ -115,6 +115,7 @@ void light_section(ViewSettings& view) {
 
     if (ImGui::Button("Reset lights")) {
         view.lights = LightSettings{};
+        view.lights.ambient = view.level_ambient;
         view.shadow_bias = kShadowBias;
     }
 }

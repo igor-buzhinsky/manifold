@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 #include <stb_image_write.h>
 
@@ -130,6 +131,24 @@ TEST(FallbackTextureTest, IsOneOpaquePixel) {
     ASSERT_EQ(image.pixels.size(), 4U);
     EXPECT_EQ(image.pixels[3], 255);
 }
+
+TEST(MeanLinearColorTest, AveragesInLinearRgb) {
+    // Black and white average to 0.5 in linear RGB, not to sRGB 128 (0.216 linear). Opacity is ignored.
+    const Image image{.width = 2, .height = 1, .pixels = {0, 0, 255, 0, 255, 255, 255, 255}};
+    const glm::vec3 mean = mean_linear_color(image);
+    EXPECT_FLOAT_EQ(mean.r, 0.5f);
+    EXPECT_FLOAT_EQ(mean.g, 0.5f);
+    EXPECT_FLOAT_EQ(mean.b, 1.0f);
+}
+
+TEST(MeanLinearColorTest, ConvertsSrgbToLinear) {
+    const glm::vec3 mean = mean_linear_color({.width = 1, .height = 1, .pixels = {128, 10, 188, 255}});
+    EXPECT_NEAR(mean.r, 0.2158f, 1e-4f);
+    EXPECT_NEAR(mean.g, 10.0f / 255.0f / 12.92f, 1e-6f);
+    EXPECT_NEAR(mean.b, 0.5029f, 1e-4f);
+}
+
+TEST(MeanLinearColorTest, EmptyImageIsBlack) { EXPECT_EQ(mean_linear_color(Image{}), glm::vec3(0.0f)); }
 
 /// The sRGB color of pixel (x, y) of an RGBA image.
 std::array<int, 3> pixel_at(const Image& image, int x, int y) {

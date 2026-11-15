@@ -76,12 +76,16 @@ int parse_screenshot_size(const std::string& text) {
 /// and noclip.
 void add_player_commands(Console& console, Game& game, ConsoleState& state) {
     console.add("level_info", "level_info", "Describes the level, depending on its layout, and the player.",
-                [&game](std::span<const std::string> arguments) {
+                [&game, &state](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "level_info");
                     const Player& player = game.player();
-                    log_info("Level seed {}, layout {}:\n{}Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg",
-                             game.seed(), layout_name(game.level().layout), game.level().info, player.position().x,
-                             player.position().y, player.position().z, to_degrees(player.yaw()));
+                    const glm::vec3& ambient = state.view.level_ambient;
+                    log_info(
+                        "Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})\n"
+                        "Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg",
+                        game.seed(), layout_name(game.level().layout), game.level().info, ambient.r, ambient.g,
+                        ambient.b, player.position().x, player.position().y, player.position().z,
+                        to_degrees(player.yaw()));
                 });
 
     const std::string camera_usage = "camera [X Y Z YAW PITCH | player]";

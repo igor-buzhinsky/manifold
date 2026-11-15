@@ -135,6 +135,15 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
     return std::move(picked->image);
 }
 
+/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`.
+void start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game,
+                 manifold::ViewSettings& view) {
+    const manifold::Image texture = pick_level_texture(game.seed());
+    view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture));
+    view.lights.ambient = view.level_ambient;
+    renderer.emplace(game.world(), texture);
+}
+
 /// Logs the seed, the level and the player.
 void log_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
@@ -314,8 +323,8 @@ manifold::PlayerInput read_input() {
 /// \param framebuffer      Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
 void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
                const manifold::Game& game, const manifold::ViewSettings& view, const manifold::PixelSize& framebuffer) {
-    // The light spell at the player's eyes, a little ambient light, and the lights of the torches and the exit
-    // nearest to the camera.
+    // The light spell at the player's eyes, the level's ambient light if any, and the lights of the torches and the
+    // exit nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
     manifold::Lighting lighting =
         manifold::scene_lighting(view.lights, game.player().eye_position(), game.world().torches(), game.world().exit(),
@@ -393,14 +402,14 @@ void run(const Options& options) {
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
     // The renderer has the meshes of one level, so each level gets a new one.
+    manifold::ConsoleState state;
     std::optional<manifold::Renderer> renderer;
-    renderer.emplace(game.world(), pick_level_texture(game.seed()));
+    start_level(renderer, game, state.view);
     int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
 
     manifold::Console console;
     manifold::CommandQueue commands;
-    manifold::ConsoleState state;
     manifold::add_game_commands(console, commands, game, state);
     commands.add(options.commands, true);
     manifold::TerminalInput terminal;
@@ -426,7 +435,7 @@ void run(const Options& options) {
         // The player reached the exit, or a console command started the next level.
         if (game.level_number() != rendered_level) {
             log_game(game);
-            renderer.emplace(game.world(), pick_level_texture(game.seed()));
+            start_level(renderer, game, state.view);
             rendered_level = game.level_number();
         }
 

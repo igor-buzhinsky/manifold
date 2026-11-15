@@ -6,6 +6,8 @@
 #include <span>
 #include <vector>
 
+#include <glm/vec3.hpp>
+
 #include "world/door.hpp"
 
 namespace manifold {
@@ -49,6 +51,14 @@ std::vector<std::filesystem::path> find_textures(const std::filesystem::path& ro
 ///
 /// \return The first texture that loads and is small enough, or an empty optional if there is none.
 std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed);
+
+/// The mean color of the pixels of `image`, in linear RGB, each component in [0, 1].
+///
+/// The sRGB colors of the pixels are converted to linear RGB before averaging, as the renderer samples them. Opacity
+/// is ignored.
+///
+/// \return The mean color, or black for an empty image.
+glm::vec3 mean_linear_color(const Image& image);
 
 /// A plain grey 1 x 1 image, used when no texture can be loaded.
 Image fallback_texture();
