@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <numbers>
 #include <optional>
 #include <vector>
 
@@ -11,6 +12,8 @@
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <gtest/gtest.h>
+
+#include "world/door.hpp"
 
 namespace manifold {
 namespace {
@@ -142,6 +145,27 @@ TEST(ShadowCacheTest, NeverTakesSlotOfLightInSameRequest) {
     ASSERT_TRUE(assignment.slots[0] && assignment.slots[1]);
     EXPECT_NE(*assignment.slots[0], *assignment.slots[1]);
     EXPECT_FALSE(assignment.slots[2].has_value());
+}
+
+TEST(ShadowMapTest, LightReachesDoorWhereverItsHalvesSlide) {
+    // A door 2 m wide along x, so its open halves reach 1.8 m from its center along x.
+    const Door door{.base_center = {10.0f, 0.0f, 3.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f};
+    // Through the opening, the light is measured from the face of the halves.
+    EXPECT_TRUE(light_reaches_door({10.0f, 5.0f, 4.0f}, 5.0f, door));
+    EXPECT_FALSE(light_reaches_door({10.0f, 5.06f, 4.0f}, 5.0f, door));
+    // Along the wall, from the far end of an open half.
+    EXPECT_TRUE(light_reaches_door({16.7f, 0.0f, 4.0f}, 5.0f, door));
+    EXPECT_FALSE(light_reaches_door({16.9f, 0.0f, 4.0f}, 5.0f, door));
+    // Above and below.
+    EXPECT_TRUE(light_reaches_door({10.0f, 0.0f, 10.9f}, 5.0f, door));
+    EXPECT_FALSE(light_reaches_door({10.0f, 0.0f, 11.1f}, 5.0f, door));
+    EXPECT_FALSE(light_reaches_door({10.0f, 0.0f, -2.1f}, 5.0f, door));
+
+    // Turned to run along y, the door reaches along y instead.
+    Door turned = door;
+    turned.yaw = std::numbers::pi_v<float> / 2.0f;
+    EXPECT_TRUE(light_reaches_door({10.0f, 6.7f, 4.0f}, 5.0f, turned));
+    EXPECT_FALSE(light_reaches_door({16.7f, 0.0f, 4.0f}, 5.0f, turned));
 }
 
 }  // namespace

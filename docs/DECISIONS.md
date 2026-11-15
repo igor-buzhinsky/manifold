@@ -275,7 +275,7 @@ Drawbacks:
 
 ## 2026-11-15: Sliding doors in openings, activated with E by a ray from the camera
 
-Status: **ACCEPTED**. Done in v0.2, without shadows of the halves.
+Status: **ACCEPTED**. Done in v0.2. The halves cast shadows since a later change.
 
 Decision: openings between rooms get doors whose two halves slide sideways into the walls. The player opens and
 closes them with E, which acts on what the center of the view points at.
@@ -300,8 +300,10 @@ closes them with E, which acts on what the center of the view points at.
 - **Drawing**: the halves have their own vertex buffer in the world's vertex format, drawn with the world's program
   and the door texture instead of the level texture. So they are lit and cut away like the world. The buffer is
   built again on the CPU when a door moves.
-- **Shadows**: at first, the halves cast no shadows, like the exit. Later they can be drawn into the shadow maps,
-  whose maps are drawn again for lights that reach a moving door.
+- **Shadows**: at first, the halves cast no shadows, like the exit. Now they are drawn into the shadow maps too.
+  When a door moves, the maps of the lights whose range reaches anywhere its halves can slide are drawn again in
+  that frame, also maps that are kept for lights not drawn now. A torch's map is 256 pixels square and its range
+  6 m, so the few maps near a door are redrawn every frame for the one second the door moves.
 - `Obstacle` gets a rectangular footprint and a choice of surface (textured or dark), which the frames and the
   door boxes need.
 
@@ -314,7 +316,8 @@ Gains:
 
 Drawbacks:
 
-- Until the halves cast shadows, light from a torch goes through a closed door as through an open opening.
+- While a door moves, the shadow maps of the lights near it are drawn in every frame, each with the whole level
+  mesh. With many lights near the door, this could slow these frames down.
 - The ray test checks every obstacle of the level, which is fine once per key press, but not every frame.
 - Closing works only by aiming at a frame, since an open door's halves are hidden in the walls.
 - Alternative: hinged doors that swing. They look more natural, but need rotated, moving collision, which can push

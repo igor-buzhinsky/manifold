@@ -531,6 +531,7 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_framebuffer_(create_shadow_framebuffer(shadow_maps_)),
       shadow_cache_(kShadowSlots),
       shadow_ranges_(kShadowSlots, 0.0f),
+      shadow_positions_(kShadowSlots, glm::vec3(0.0f)),
       exit_program_(link_program(kExitVertexShader, kExitFragmentShader)),
       doors_(world.doors().begin(), world.doors().end()),
       door_texture_(upload_texture(make_door_texture(world.door_look()))),
@@ -667,7 +668,8 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     const ShadowCache::Assignment assignment = shadow_cache_.assign(ids);
     std::vector<std::optional<std::size_t>> slots(count);
     // The lights whose maps are drawn: those with a new slot, and those whose range changed, e.g. in the
-    // debug overlay, because a map stores distances divided by the range.
+    // debug overlay, because a map stores distances divided by the range. A door that moves near a light sets its
+    // stored range to zero, see update_doors().
     std::vector<bool> to_draw(ids.size(), false);
     std::size_t draw_count = 0;
     for (std::size_t k = 0; k < ids.size(); ++k) {
@@ -688,10 +690,9 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     glBindFramebuffer(GL_FRAMEBUFFER, shadow_framebuffer_);
     glViewport(0, 0, kShadowMapSize, kShadowMapSize);
     glUseProgram(shadow_program_);
-    glBindVertexArray(vertex_array_);
     // Torch handles cast no shadows: a real flame is much larger than our point light, so the handle under
-    // it would cast a long, hard shadow down the wall that a real torch doesn't. Only the world and the faces
-    // from build_shadow_faces() are drawn.
+    // it would cast a long, hard shadow down the wall that a real torch doesn't. Only the world, the faces
+    // from build_shadow_faces() and the door halves are drawn.
     // Only back faces, as seen from the light, go into the shadow map. A lit surface is then never compared
     // with itself, which would shadow parts of it at random (shadow acne). Surfaces that face away from the
     // light are compared with themselves, but they get no light anyway.
@@ -703,6 +704,7 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
         const std::size_t slot = *assignment.slots[k];
         const PointLight& light = lights[owners[k]];
         shadow_ranges_[slot] = light.range;
+        shadow_positions_[slot] = light.position;
         glUniform3fv(glGetUniformLocation(shadow_program_, "u_light_position"), 1, glm::value_ptr(light.position));
         glUniform1f(glGetUniformLocation(shadow_program_, "u_range"), light.range);
         for (int face = 0; face < kCubeFaces; ++face) {
@@ -712,8 +714,13 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
             const glm::mat4 view_projection = cube_face_view_projection(light.position, light.range, face);
             glUniformMatrix4fv(glGetUniformLocation(shadow_program_, "u_view_projection"), 1, GL_FALSE,
                                glm::value_ptr(view_projection));
+            glBindVertexArray(vertex_array_);
             glDrawArrays(GL_TRIANGLES, 0, world_vertex_count_);
             glDrawArrays(GL_TRIANGLES, vertex_count_, shadow_face_vertex_count_);
+            if (!doors_.empty()) {
+                glBindVertexArray(door_vertex_array_);
+                glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(doors_.size() * kDoorVertexCount));
+            }
         }
     }
     glCullFace(GL_BACK);
@@ -750,12 +757,24 @@ void Renderer::draw_exit(const Camera& camera, const glm::mat4& view_projection,
 }
 
 void Renderer::update_doors(std::span<const DoorState> doors) {
-    bool moved = door_openness_.size() != doors_.size();
+    // At the first draw, every door counts as moved, so the buffer gets filled.
+    const bool first = door_openness_.size() != doors_.size();
     door_openness_.resize(doors_.size(), 0.0f);
+    bool moved = false;
     for (std::size_t i = 0; i < doors_.size(); ++i) {
         const float openness = i < doors.size() ? doors[i].openness : 0.0f;
-        moved = moved || openness != door_openness_[i];
+        if (!first && openness == door_openness_[i]) {
+            continue;
+        }
+        moved = true;
         door_openness_[i] = openness;
+        // Maps of lights that aren't drawn now are kept for later, so they are marked too.
+        for (std::size_t slot = 0; slot < shadow_ranges_.size(); ++slot) {
+            if (shadow_ranges_[slot] > 0.0f &&
+                light_reaches_door(shadow_positions_[slot], shadow_ranges_[slot], doors_[i])) {
+                shadow_ranges_[slot] = 0.0f;
+            }
+        }
     }
     if (!moved) {
         return;

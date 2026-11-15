@@ -48,11 +48,11 @@ class Renderer {
 public:
     /// Compiles the shaders and uploads the meshes of the world, its texture and the flames to the GPU.
     ///
-    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches, door halves and the exit
-    /// don't: torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn. Door
-    /// halves (see build_door_mesh()) are lit like the world, with the texture of make_door_texture() for the world's
-    /// door look. Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an
-    /// animated, partly see-through portal that pulses with its light (see exit_pulse()).
+    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(), and so do the door halves (see
+    /// build_door_mesh()), which are lit like the world, with the texture of make_door_texture() for the world's door
+    /// look. Torches and the exit don't: torch handles (see build_torch_mesh()), flames and the exit (see
+    /// build_exit_mesh()) are only drawn. Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()),
+    /// and is painted as an animated, partly see-through portal that pulses with its light (see exit_pulse()).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.
@@ -89,6 +89,8 @@ private:
     void draw_exit(const Camera& camera, const glm::mat4& view_projection, float time, const DrawOptions& options);
 
     /// Uploads the door halves again if a door has moved since they were last uploaded.
+    ///
+    /// The shadow maps that see a door that moved are marked to be drawn again, see light_reaches_door().
     void update_doors(std::span<const DoorState> doors);
 
     /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
@@ -119,8 +121,11 @@ private:
     GLuint shadow_maps_ = 0;  ///< Cube map array with the shadow map of each slot of `shadow_cache_`.
     GLuint shadow_framebuffer_ = 0;
     ShadowCache shadow_cache_;
-    /// The range of the light whose shadow map is in each slot, when the map was drawn. Zero for no map.
+    /// The range of the light whose shadow map is in each slot, when the map was drawn. Zero for no map, or for a
+    /// map that must be drawn again because a door moved.
     std::vector<float> shadow_ranges_;
+    /// The position of the light whose shadow map is in each slot, when the map was drawn.
+    std::vector<glm::vec3> shadow_positions_;
     std::optional<glm::vec3> exit_center_;  ///< Center of the exit's cube, or none if the level has no exit.
     GLuint exit_program_ = 0;
     GLuint exit_vertex_array_ = 0;

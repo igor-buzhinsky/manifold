@@ -1,6 +1,7 @@
 #include "render/shadow_map.hpp"
 
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
@@ -8,12 +9,30 @@
 #include <span>
 #include <vector>
 
+#include <glm/common.hpp>
 #include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_transform.hpp>
+#include <glm/geometric.hpp>
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/door.hpp"
+
 namespace manifold {
+
+bool light_reaches_door(const glm::vec3& light, float range, const Door& door) {
+    // In the door's frame, u runs along the wall and v through the opening, as in Door.
+    const glm::vec2 offset = glm::vec2(light - door.base_center);
+    const float cos_yaw = std::cos(door.yaw);
+    const float sin_yaw = std::sin(door.yaw);
+    const glm::vec3 local{(cos_yaw * offset.x) + (sin_yaw * offset.y), (-sin_yaw * offset.x) + (cos_yaw * offset.y),
+                          light.z - door.base_center.z};
+    // Fully open, the outer edge of a half is half the gap beyond the end of the opening.
+    const glm::vec3 low{-(door.width + door.gap()) / 2.0f, -Door::kThickness / 2.0f, 0.0f};
+    const glm::vec3 high{(door.width + door.gap()) / 2.0f, Door::kThickness / 2.0f, door.height};
+    return glm::distance(local, glm::clamp(local, low, high)) < range;
+}
 
 glm::mat4 cube_face_view_projection(const glm::vec3& light, float range, int face) {
     // The direction each face looks in, and its "up", as the OpenGL specification lays out cube map faces.

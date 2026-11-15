@@ -9,6 +9,8 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/door.hpp"
+
 namespace manifold {
 
 /// Number of faces of a cube map.
@@ -35,6 +37,17 @@ inline constexpr float kShadowBias = 0.005f;
 /// \param range Farthest distance that the shadow map records, in metres.
 /// \param face  Index of the face, in [0, kCubeFaces).
 glm::mat4 cube_face_view_projection(const glm::vec3& light, float range, int face);
+
+/// Checks whether a door's halves, wherever they slide, can come within `range` of a light.
+///
+/// The shadow map of such a light shows the halves, so it must be drawn again when the door moves. The halves sweep a
+/// box as thick as the door, from the floor to the top of the opening, and reaching from the middle of the
+/// opening to where the fully open halves end inside the walls, see Door::halves().
+///
+/// \param light Position of the light, in world coordinates.
+/// \param range Farthest distance that the light's shadow map records, in metres.
+/// \param door  The door.
+bool light_reaches_door(const glm::vec3& light, float range, const Door& door);
 
 /// Remembers which lights have a shadow map in which slot of a fixed set of slots.
 ///
