@@ -14,6 +14,7 @@
 #include "render/shadow_map.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
+#include "world/door.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -47,10 +48,11 @@ class Renderer {
 public:
     /// Compiles the shaders and uploads the meshes of the world, its texture and the flames to the GPU.
     ///
-    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches and the exit don't:
-    /// torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn.
-    /// Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an
-    /// animated, partly see-through portal that pulses with its light (see exit_pulse()).
+    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches, door halves and the exit
+    /// don't: torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn. Door
+    /// halves (see build_door_mesh()) are lit like the world, with the gate texture of make_gate_texture(). Torch i
+    /// flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an animated, partly
+    /// see-through portal that pulses with its light (see exit_pulse()).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.
@@ -64,15 +66,17 @@ public:
     Renderer& operator=(Renderer&&) = delete;
 
     /// Draws the shadow maps that are missing, then clears the bound framebuffer to black and draws the world,
-    /// the flames, the exit and the marker.
+    /// the doors, the flames, the exit and the marker.
     ///
     /// \param camera   Where the world is seen from.
     /// \param lighting The lights to use. Lights after the first kMaxLights are left out.
     /// \param viewport Part of the framebuffer to draw into. The rest stays black.
     /// \param time     Seconds since the start of the game, which animates the flames.
+    /// \param doors    How far each door of the world is open, see Game::doors(). Doors without a state are drawn
+    ///                 closed.
     /// \param options  Options for inspecting the level.
     void draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time,
-              const DrawOptions& options = {});
+              std::span<const DoorState> doors, const DrawOptions& options = {});
 
     /// What the last call of draw() did.
     const RenderStats& stats() const { return stats_; }
@@ -83,6 +87,9 @@ private:
     ///
     /// Changes the current program and the bound vertex array.
     void draw_exit(const Camera& camera, const glm::mat4& view_projection, float time, const DrawOptions& options);
+
+    /// Uploads the door halves again if a door has moved since they were last uploaded.
+    void update_doors(std::span<const DoorState> doors);
 
     /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
     ///
@@ -119,6 +126,11 @@ private:
     GLuint exit_vertex_array_ = 0;
     GLuint exit_buffer_ = 0;  ///< The cube of build_exit_mesh().
     GLsizei exit_vertex_count_ = 0;
+    std::vector<Door> doors_;           ///< The doors of the world.
+    std::vector<float> door_openness_;  ///< How far each door was open when the door buffer was filled.
+    GLuint door_vertex_array_ = 0;
+    GLuint door_buffer_ = 0;  ///< The halves of all doors, see build_door_mesh().
+    GLuint door_texture_ = 0;
     GLuint marker_program_ = 0;
     GLuint marker_vertex_array_ = 0;
     GLuint marker_buffer_ = 0;  ///< The marker's triangles, filled on every draw that has a marker.

@@ -61,6 +61,9 @@ public:
     /// Where the camera is: kEyeDepth below the top of the head.
     glm::vec3 eye_position() const { return position_ + glm::vec3(0.0f, 0.0f, height_ - kEyeDepth); }
 
+    /// Unit vector in the direction the player looks, from yaw() and pitch().
+    glm::vec3 view_direction() const;
+
     /// The player's collision body.
     VerticalCylinder body() const { return {.base = position_, .radius = radius_, .height = height_}; }
 

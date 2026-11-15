@@ -16,6 +16,7 @@
 
 #include "level/level.hpp"
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -67,7 +68,7 @@ void place_blocks(const DebugLayoutConfig& config, const Circle& keep_clear, flo
             throw std::runtime_error("level generation failed: no room for an obstacle");
         }
         world.add_obstacle({.base_center = {footprint->center, base_z},
-                            .half_size = half_size.x,
+                            .half_size = half_size,
                             .height = height,
                             .yaw = footprint->yaw});
     }
@@ -179,10 +180,10 @@ float degrees(float radians) { return radians * 180.0f / std::numbers::pi_v<floa
 std::string describe(const World& world) {
     std::string info;
     for (const Obstacle& obstacle : world.obstacles()) {
-        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), size {} m, yaw {:5.1f} deg\n",
+        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), size {} x {} m, yaw {:5.1f} deg\n",
                             obstacle.base_center.z > 0.0f ? "Ceiling block" : "Obstacle", obstacle.base_center.x,
-                            obstacle.base_center.y, obstacle.base_center.z, 2.0f * obstacle.half_size,
-                            degrees(obstacle.yaw));
+                            obstacle.base_center.y, obstacle.base_center.z, 2.0f * obstacle.half_size.x,
+                            2.0f * obstacle.half_size.y, degrees(obstacle.yaw));
     }
     for (const Ramp& ramp : world.ramps()) {
         info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), up towards {:5.1f} deg\n", "Ramp",

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <span>
 
 #include <glm/common.hpp>
 #include <glm/geometric.hpp>
@@ -10,6 +11,7 @@
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -35,11 +37,15 @@ void keep_shallowest(std::optional<Contact>& shallowest, const Contact& contact)
     }
 }
 
-/// Finds the deepest overlap of a body with anything in the world, if any.
-std::optional<Contact> find_deepest_contact(const World& world, const VerticalCylinder& body) {
+/// Finds the deepest overlap of a body with anything in the world or with a blocker, if any.
+std::optional<Contact> find_deepest_contact(const World& world, std::span<const Obstacle> blockers,
+                                            const VerticalCylinder& body) {
     std::optional<Contact> deepest = find_contact(body, world.bounds());
     for (const Obstacle& obstacle : world.obstacles()) {
         keep_deepest(deepest, find_contact(body, obstacle));
+    }
+    for (const Obstacle& blocker : blockers) {
+        keep_deepest(deepest, find_contact(body, blocker));
     }
     for (const Ramp& ramp : world.ramps()) {
         keep_deepest(deepest, find_contact(body, ramp));
@@ -110,7 +116,7 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const Obstacle
     }
     const LocalFrame frame(obstacle.base_center, obstacle.yaw);
     const glm::vec2 local = frame.to_local(body.base);
-    std::optional<Contact> contact = side_contact(frame, local, glm::vec2(obstacle.half_size), body.radius);
+    std::optional<Contact> contact = side_contact(frame, local, obstacle.half_size, body.radius);
     if (!contact) {
         return std::nullopt;
     }
@@ -166,7 +172,8 @@ std::optional<Contact> find_contact(const VerticalCylinder& body, const WorldBou
     return deepest;
 }
 
-SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement) {
+SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement,
+                           std::span<const Obstacle> blockers) {
     const float max_step = kMaxStepFraction * body.radius;
     const int steps = std::max(1, static_cast<int>(std::ceil(glm::length(displacement) / max_step)));
     const glm::vec3 step = displacement / static_cast<float>(steps);
@@ -176,7 +183,7 @@ SlideResult move_and_slide(const World& world, const VerticalCylinder& body, con
     for (int i = 0; i < steps; ++i) {
         moved.base += step;
         for (int iteration = 0; iteration < kMaxResolveIterations; ++iteration) {
-            const std::optional<Contact> contact = find_deepest_contact(world, moved);
+            const std::optional<Contact> contact = find_deepest_contact(world, blockers, moved);
             if (!contact) {
                 break;
             }

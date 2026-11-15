@@ -133,7 +133,14 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Doors between rooms**: some or all openings between rooms get doors that the player can open and
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
   geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must
-  make the renderer draw the shadow maps of nearby lights again.
+  make the renderer draw the shadow maps of nearby lights again. Done, except shadows (see
+  [DECISIONS.md](DECISIONS.md)): each opening of a room level gets a door with a chance chosen for the level from
+  10% to 100%. A door is two halves with a gate texture made in code, between two dark frames that are static
+  obstacles. E (or the `activate` command) casts a ray from the eyes up to 3 m: on a closed door it opens it, on
+  a frame it opens or closes the door, and on a moving door it does nothing. The halves slide into the walls in one
+  second, and the door blocks the player until it is fully open. It doesn't close while the player stands in it.
+  The `doors` and `door` commands list and move doors. Next: the halves cast no shadows yet, so light goes through
+  closed doors.
 - **Multiple point lights**: static light sources placed in the level (torches for now; braziers and glowing
   crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1,
   the lights near the player (a few dozen) go to the shader in a uniform buffer, chosen on the CPU each frame.

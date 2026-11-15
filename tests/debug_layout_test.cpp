@@ -17,6 +17,7 @@
 
 #include "level/level.hpp"
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -72,12 +73,12 @@ TEST(DebugLayoutTest, BlocksAndRampsHaveRoomLayoutSizes) {
     const Level level = generate(make_config(), 2);
     const Blocks blocks = split_blocks(level);
     for (const Obstacle& obstacle : blocks.floor) {
-        EXPECT_FLOAT_EQ(obstacle.half_size, 1.0f);
+        EXPECT_EQ(obstacle.half_size, glm::vec2(1.0f));
         EXPECT_FLOAT_EQ(obstacle.height, 3.0f);
         EXPECT_FLOAT_EQ(obstacle.base_center.z, 0.0f);
     }
     for (const Obstacle& obstacle : blocks.ceiling) {
-        EXPECT_FLOAT_EQ(obstacle.half_size, 1.0f);
+        EXPECT_EQ(obstacle.half_size, glm::vec2(1.0f));
         EXPECT_FLOAT_EQ(obstacle.height, 0.3f);
         EXPECT_FLOAT_EQ(obstacle.base_center.z, 3.0f);
     }

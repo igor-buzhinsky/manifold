@@ -1,13 +1,16 @@
 #include "physics/collision.hpp"
 
+#include <array>
 #include <numbers>
 #include <optional>
 
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -18,7 +21,7 @@ constexpr float kRadius = 0.3f;
 constexpr float kHeight = 1.8f;
 
 // An axis-aligned 2 x 2 m block from the floor to the ceiling, centered at (2, 0).
-constexpr Obstacle kBlock{.base_center = {2.0f, 0.0f, 0.0f}, .half_size = 1.0f, .height = 4.0f, .yaw = 0.0f};
+constexpr Obstacle kBlock{.base_center = {2.0f, 0.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 4.0f, .yaw = 0.0f};
 
 VerticalCylinder body_at(const glm::vec3& base) { return {.base = base, .radius = kRadius, .height = kHeight}; }
 
@@ -217,6 +220,14 @@ TEST(MoveAndSlideTest, BumpsIntoCeiling) {
     const SlideResult result = move_and_slide(make_world(), body_at({-5.0f, 0.0f, 2.0f}), {0.0f, 0.0f, 0.5f});
     expect_near(result.position, {-5.0f, 0.0f, 4.0f - kHeight});
     EXPECT_LT(result.correction.z, 0.0f);
+}
+
+TEST(CollisionTest, BlockersStopTheBodyLikeObstacles) {
+    const World world(kBounds);
+    const VerticalCylinder body = body_at({0.0f, 0.0f, 0.0f});
+    const std::array<Obstacle, 1> blockers{kBlock};
+    EXPECT_FLOAT_EQ(move_and_slide(world, body, {3.0f, 0.0f, 0.0f}).position.x, 3.0f);
+    EXPECT_NEAR(move_and_slide(world, body, {3.0f, 0.0f, 0.0f}, blockers).position.x, 1.0f - kRadius, 1e-5f);
 }
 
 }  // namespace

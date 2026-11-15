@@ -1,6 +1,7 @@
 #include "render/world_mesh.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <numbers>
@@ -12,6 +13,8 @@
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "world/door.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -23,8 +26,9 @@ constexpr std::size_t kVerticesPerQuad = 6;
 
 World make_world() {
     World world(kBounds);
-    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.4f});
-    world.add_obstacle({.base_center = {-2.0f, -1.0f, 0.0f}, .half_size = 1.0f, .height = 3.0f, .yaw = 0.0f});
+    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = glm::vec2(0.5f), .height = 3.0f, .yaw = 0.4f});
+    world.add_obstacle(
+        {.base_center = {-2.0f, -1.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 3.0f, .yaw = 0.0f});
     return world;
 }
 
@@ -70,7 +74,7 @@ TEST(WorldMeshTest, LevelSurfacesFaceInwardsAndObstaclesOutwards) {
 
 TEST(WorldMeshTest, LowObstacleGetsTopFace) {
     World world(kBounds);
-    world.add_obstacle({.base_center = {0.0f, 0.0f, 0.0f}, .half_size = 1.0f, .height = 1.0f, .yaw = 0.3f});
+    world.add_obstacle({.base_center = {0.0f, 0.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 1.0f, .yaw = 0.3f});
     const std::vector<Vertex> mesh = build_world_mesh(world);
     ASSERT_EQ(mesh.size(), (6 + 4 + 1) * kVerticesPerQuad);
     for (std::size_t i = mesh.size() - kVerticesPerQuad; i < mesh.size(); ++i) {
@@ -81,7 +85,7 @@ TEST(WorldMeshTest, LowObstacleGetsTopFace) {
 
 TEST(WorldMeshTest, RaisedObstacleGetsBottomFace) {
     World world(kBounds);
-    world.add_obstacle({.base_center = {0.0f, 0.0f, 1.0f}, .half_size = 1.0f, .height = 2.0f, .yaw = 0.3f});
+    world.add_obstacle({.base_center = {0.0f, 0.0f, 1.0f}, .half_size = glm::vec2(1.0f), .height = 2.0f, .yaw = 0.3f});
     const std::vector<Vertex> mesh = build_world_mesh(world);
     ASSERT_EQ(mesh.size(), (6 + 4 + 1) * kVerticesPerQuad);
     for (std::size_t i = mesh.size() - kVerticesPerQuad; i < mesh.size(); ++i) {
@@ -258,9 +262,9 @@ TEST(WorldMeshTest, ShadowFacesHaveBoundaryShellOutsideFacingOutwards) {
 TEST(WorldMeshTest, ShadowFacesCloseObstaclesAndRampsAtFloorAndCeiling) {
     World world(kBounds);
     // Floor to ceiling: top and bottom are missing from the world mesh.
-    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.4f});
+    world.add_obstacle({.base_center = {2.0f, 1.0f, 0.0f}, .half_size = glm::vec2(0.5f), .height = 3.0f, .yaw = 0.4f});
     // Floating, not reaching the ceiling: nothing is missing.
-    world.add_obstacle({.base_center = {-2.0f, 1.0f, 1.0f}, .half_size = 0.5f, .height = 1.0f, .yaw = 0.0f});
+    world.add_obstacle({.base_center = {-2.0f, 1.0f, 1.0f}, .half_size = glm::vec2(0.5f), .height = 1.0f, .yaw = 0.0f});
     // On the floor: only the bottom is missing.
     world.add_ramp({.base_center = {0.0f, -2.0f, 0.0f}, .half_length = 1.0f, .half_width = 0.5f, .rise = 1.0f});
     const std::vector<Vertex> faces = build_shadow_faces(world, 0.1f);
@@ -286,6 +290,66 @@ TEST(WorldMeshTest, FloorTextureFollowsXAndY) {
     for (std::size_t i = 0; i < kVerticesPerQuad; ++i) {
         EXPECT_FLOAT_EQ(mesh[i].uv.x, mesh[i].position.x / kTextureTileSize);
         EXPECT_FLOAT_EQ(mesh[i].uv.y, -mesh[i].position.y / kTextureTileSize);
+    }
+}
+
+TEST(WorldMeshTest, DarkObstaclesAreUntexturedAndDark) {
+    World world(kBounds);
+    world.add_obstacle(
+        {.base_center = {0.0f, 0.0f, 0.0f}, .half_size = {0.1f, 0.2f}, .height = 3.0f, .surface = Surface::kDark});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    // Floor, ceiling and 4 walls first, then the 4 sides of the obstacle.
+    ASSERT_EQ(mesh.size(), 10 * kVerticesPerQuad);
+    for (std::size_t i = 0; i < mesh.size(); ++i) {
+        const bool obstacle = i >= 6 * kVerticesPerQuad;
+        EXPECT_EQ(mesh[i].color, obstacle ? kDarkSurfaceColor : glm::vec3(1.0f)) << i;
+        EXPECT_FLOAT_EQ(mesh[i].texture_weight, obstacle ? 0.0f : 1.0f) << i;
+    }
+}
+
+TEST(WorldMeshTest, RectangularObstaclesHaveTheirSize) {
+    World world(kBounds);
+    world.add_obstacle({.base_center = {1.0f, 0.0f, 0.0f}, .half_size = {0.5f, 0.2f}, .height = 3.0f});
+    const std::vector<Vertex> mesh = build_world_mesh(world);
+    for (std::size_t i = 6 * kVerticesPerQuad; i < mesh.size(); ++i) {
+        EXPECT_NEAR(std::abs(mesh[i].position.x - 1.0f), 0.5f, 1e-6f);
+        EXPECT_LE(std::abs(mesh[i].position.y), 0.2f + 1e-6f);
+    }
+}
+
+TEST(WorldMeshTest, DoorHalvesAreBoxesThatMoveWithOpenness) {
+    const std::array<Door, 2> doors{
+        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f},
+        Door{.base_center = {0.0f, 3.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f}};
+    const std::array<DoorState, 1> states{DoorState{.openness = 1.0f, .target = 1.0f}};
+    const std::vector<Vertex> mesh = build_door_mesh(doors, states);
+    ASSERT_EQ(mesh.size(), 2 * kDoorVertexCount);
+    for (std::size_t i = 0; i < mesh.size(); ++i) {
+        const glm::vec3& position = mesh[i].position;
+        EXPECT_NEAR(std::abs(position.y - (i < kDoorVertexCount ? 0.0f : 3.0f)), Door::kThickness / 2.0f, 1e-5f) << i;
+        EXPECT_GE(position.z, 0.0f);
+        EXPECT_LE(position.z, 3.0f);
+        if (i < kDoorVertexCount) {
+            // Open, the halves are outside of the opening.
+            EXPECT_GE(std::abs(position.x), 1.0f - 1e-5f) << i;
+        } else {
+            // Without a state, the door is closed: the halves fill the gap between the frames.
+            EXPECT_LE(std::abs(position.x), 0.8f + 1e-5f) << i;
+        }
+    }
+}
+
+TEST(WorldMeshTest, DoorTextureHasItsTopAtTheTopOfTheHalf) {
+    const std::array<Door, 1> doors{
+        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f}};
+    const std::vector<Vertex> mesh = build_door_mesh(doors, {});
+    // One copy of the texture is as wide as a half: 0.8 m.
+    for (std::size_t i = 0; i < kVerticesPerQuad; ++i) {
+        EXPECT_NEAR(mesh[i].uv.y, (3.0f - mesh[i].position.z) / 0.8f, 1e-5f) << i;
+        EXPECT_GE(mesh[i].uv.x, 0.0f);
+        EXPECT_LE(mesh[i].uv.x, 1.0f + 1e-5f);
+        EXPECT_EQ(mesh[i].color, glm::vec3(1.0f));
+        EXPECT_FLOAT_EQ(mesh[i].texture_weight, 1.0f);
     }
 }
 

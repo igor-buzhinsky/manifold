@@ -95,4 +95,72 @@ std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path>
 
 Image fallback_texture() { return {.width = 1, .height = 1, .pixels = {128, 128, 128, 255}}; }
 
+namespace {
+
+/// A pseudo-random number in [0, 1) for a pixel, for the grain of the gate's wood.
+float pixel_noise(int x, int y) {
+    auto hash = static_cast<std::uint32_t>((x * 73856093) ^ (y * 19349663));
+    hash ^= hash >> 13U;
+    hash *= 0x5bd1e995U;
+    hash ^= hash >> 15U;
+    return static_cast<float>(hash & 0xffffU) / 65536.0f;
+}
+
+/// An sRGB color of the gate texture, before it is written as bytes.
+struct GateColor {
+    float r = 0.0f;
+    float g = 0.0f;
+    float b = 0.0f;
+};
+
+/// The color of a pixel of the gate texture, see make_gate_texture().
+GateColor gate_pixel(int x, int y) {
+    constexpr int kPlankWidth = kGateTextureSize / 4;
+    constexpr int kBandTop = 38;     // First row of the iron band.
+    constexpr int kBandBottom = 49;  // Last row of the iron band.
+    constexpr int kRivetTop = 42;    // First of the two rows of the rivets.
+    if (y >= kBandTop && y <= kBandBottom) {
+        const int plank_x = x % kPlankWidth;
+        const bool rivet = (plank_x == kPlankWidth / 2 || plank_x == (kPlankWidth / 2) - 1) &&
+                           (y == kRivetTop || y == kRivetTop + 1 || y == kRivetTop + 3 || y == kRivetTop + 4);
+        if (rivet) {
+            return {.r = 150.0f, .g = 148.0f, .b = 140.0f};
+        }
+        // A lighter top edge and a darker bottom edge make the band stand out from the planks.
+        float shade = 1.0f;
+        if (y == kBandTop) {
+            shade = 1.4f;
+        } else if (y == kBandBottom) {
+            shade = 0.6f;
+        }
+        const float rust = 8.0f * pixel_noise(x, y);
+        return {.r = (66.0f + rust) * shade, .g = (64.0f + (rust / 2.0f)) * shade, .b = 62.0f * shade};
+    }
+    if (x % kPlankWidth == 0) {
+        return {.r = 30.0f, .g = 19.0f, .b = 10.0f};  // The gap between two planks.
+    }
+    // Each plank has its own tint. The grain runs along the planks: it changes slowly upwards and quickly across.
+    const int plank = x / kPlankWidth;
+    const float tint = 0.85f + (0.3f * pixel_noise(plank, 7));
+    const float grain = (0.8f + (0.4f * pixel_noise(x, y / 6))) * (0.95f + (0.1f * pixel_noise(x, y)));
+    const float light = tint * grain;
+    return {.r = 112.0f * light, .g = 74.0f * light, .b = 42.0f * light};
+}
+
+}  // namespace
+
+Image make_gate_texture() {
+    Image image{.width = kGateTextureSize, .height = kGateTextureSize, .pixels = {}};
+    image.pixels.reserve(static_cast<std::size_t>(kGateTextureSize) * kGateTextureSize * kChannels);
+    const auto to_byte = [](float value) { return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 255.0f)); };
+    for (int y = 0; y < kGateTextureSize; ++y) {
+        for (int x = 0; x < kGateTextureSize; ++x) {
+            const GateColor color = gate_pixel(x, y);
+            image.pixels.insert(image.pixels.end(),
+                                {to_byte(color.r), to_byte(color.g), to_byte(color.b), std::uint8_t{255}});
+        }
+    }
+    return image;
+}
+
 }  // namespace manifold

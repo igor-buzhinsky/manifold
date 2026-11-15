@@ -2,33 +2,45 @@
 
 #include <numbers>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
 #include "console/console.hpp"
+#include "door_level.hpp"
 #include "game.hpp"
 #include "level/level.hpp"
 #include "render/camera.hpp"
+#include "world/door.hpp"
 
 namespace manifold {
 namespace {
 
-/// A game in an empty debug level with the game commands.
+/// Settings for a game in an empty debug level.
+GameConfig make_config() {
+    GameConfig config;
+    config.level.debug.obstacle_count = 0;
+    config.level.debug.ramp_count = 0;
+    return config;
+}
+
+/// A game with the game commands, by default in an empty debug level.
 struct Fixture {
-    Game game{[] {
-                  GameConfig config;
-                  config.level.debug.obstacle_count = 0;
-                  config.level.debug.ramp_count = 0;
-                  return config;
-              }(),
-              1, LayoutKind::kDebug};
+    Game game;
     Console console;
     CommandQueue queue;
     ConsoleState state;
 
-    Fixture() { add_game_commands(console, queue, game, state); }
+    Fixture() : Fixture(Game(make_config(), 1, LayoutKind::kDebug)) {}
+    explicit Fixture(Game started) : game(std::move(started)) { add_game_commands(console, queue, game, state); }
+
+    /// Runs a command that must fail.
+    void expect_error(const std::string& text) {
+        queue.add(text, true);
+        EXPECT_THROW(queue.run_frame(console), CommandError) << text;
+    }
 
     /// Runs commands that must succeed, all in one frame.
     void run(const std::string& text) {
@@ -191,6 +203,29 @@ TEST(GameCommandsTest, LevelInfoTakesNoArguments) {
     EXPECT_NO_THROW(fixture.run("level_info"));
     fixture.queue.add("level_info now", true);
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+}
+
+TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {
+    Fixture fixture(Game(make_config(), make_door_level()));
+    EXPECT_NO_THROW(fixture.run("doors"));
+    fixture.run("door 0 open");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
+    fixture.expect_error("door 0 close");  // Still opening.
+    fixture.game.update({}, Door::kMoveTime);
+    fixture.run("door 0 close");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 0.0f);
+    for (const char* command : {"door 1 open", "door -1 open", "door 0 shut", "door 0", "door x open", "doors 0"}) {
+        fixture.expect_error(command);
+    }
+}
+
+TEST(GameCommandsTest, ActivateActsLikeTheKey) {
+    Fixture fixture(Game(make_config(), make_door_level()));
+    fixture.run("activate");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
+    EXPECT_NO_THROW(fixture.run("activate"));  // Ignored while the door moves.
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
+    fixture.expect_error("activate now");
 }
 
 }  // namespace

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <optional>
+#include <span>
 
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -46,7 +48,7 @@ struct SlideResult {
     glm::vec3 correction{0.0f};
 };
 
-/// Moves a body through the world without letting it enter obstacles or ramps, or leave the level.
+/// Moves a body through the world without letting it enter obstacles, ramps or blockers, or leave the level.
 ///
 /// Whenever the body runs into the world geometry, it is pushed back out along the contact normal. This
 /// removes the part of the movement that goes into the surface, so the body slides along walls instead of
@@ -55,6 +57,8 @@ struct SlideResult {
 /// \param world        The geometry to collide with.
 /// \param body         The body at its start position.
 /// \param displacement The wanted movement in metres.
-SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement);
+/// \param blockers     More obstacles to collide with, which are not part of the world, e.g. closed doors.
+SlideResult move_and_slide(const World& world, const VerticalCylinder& body, const glm::vec3& displacement,
+                           std::span<const Obstacle> blockers = {});
 
 }  // namespace manifold

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <limits>
 #include <map>
 #include <numbers>
@@ -24,7 +25,9 @@
 #include "game.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
+#include "world/door.hpp"
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -566,8 +569,14 @@ TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
     const float layer_step = config.height + config.slab_thickness;
     std::size_t walls = 0;
     std::size_t slabs = 0;
+    std::size_t frames = 0;
     for (const Obstacle& obstacle : level.world.obstacles()) {
-        EXPECT_FLOAT_EQ(obstacle.half_size, config.tile_size / 2.0f);
+        if (obstacle.surface == Surface::kDark) {
+            ++frames;  // Door frames are checked by DoorsFillOpeningsAcrossTheWayBetweenRooms.
+            continue;
+        }
+        EXPECT_FLOAT_EQ(obstacle.half_size.x, config.tile_size / 2.0f);
+        EXPECT_FLOAT_EQ(obstacle.half_size.y, config.tile_size / 2.0f);
         EXPECT_FLOAT_EQ(obstacle.yaw, 0.0f);
         const float layer = obstacle.base_center.z / layer_step;
         if (obstacle.height == config.height) {
@@ -585,6 +594,7 @@ TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
         expected_walls += static_cast<std::size_t>(std::count(layer.tiles.begin(), layer.tiles.end(), Tile::kWall));
     }
     EXPECT_EQ(walls, expected_walls);
+    EXPECT_EQ(frames, 2 * level.world.doors().size());
     EXPECT_EQ(slabs, count_slab_tiles(plan, 0) + count_slab_tiles(plan, 1));
 
     const WorldBounds& bounds = level.world.bounds();
@@ -824,6 +834,73 @@ TEST(RoomLayoutTest, ThrowsOnInvalidTorchChances) {
     config.max_torch_chance = 0.1f;
     EXPECT_THROW(generate(1, config), std::invalid_argument);
     config.min_torch_chance = std::numeric_limits<float>::quiet_NaN();
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+}
+
+/// Counts the opening tiles of all layers of a plan.
+std::size_t count_openings(const LayeredPlan& plan) {
+    std::size_t count = 0;
+    for (const RoomPlan& layer : plan.layers) {
+        count += static_cast<std::size_t>(std::count(layer.tiles.begin(), layer.tiles.end(), Tile::kOpening));
+    }
+    return count;
+}
+
+TEST(RoomLayoutTest, DoorsFillOpeningsAcrossTheWayBetweenRooms) {
+    RoomLayoutConfig config = make_config();
+    config.min_door_chance = 1.0f;
+    const Level level = generate(4, config);
+    const LayeredPlan plan = make_layered_plan(4);
+    const World& world = level.world;
+    ASSERT_EQ(world.doors().size(), count_openings(plan));
+    const float layer_step = config.height + config.slab_thickness;
+    for (const Door& door : world.doors()) {
+        EXPECT_FLOAT_EQ(door.width, config.tile_size);
+        EXPECT_FLOAT_EQ(door.height, config.height);
+        const float layer = door.base_center.z / layer_step;
+        EXPECT_NEAR(layer, std::round(layer), 1e-5f);
+        // The wall runs along u: walls are on both sides along it, and rooms on both sides across it.
+        const glm::vec3 along{std::cos(door.yaw), std::sin(door.yaw), 0.0f};
+        const glm::vec3 across{-along.y, along.x, 0.0f};
+        const glm::vec3 middle = door.base_center + glm::vec3(0.0f, 0.0f, 1.0f);
+        EXPECT_TRUE(inside_obstacle(world, middle + (config.tile_size * along)));
+        EXPECT_TRUE(inside_obstacle(world, middle - (config.tile_size * along)));
+        EXPECT_FALSE(inside_obstacle(world, middle + (config.tile_size * across)));
+        EXPECT_FALSE(inside_obstacle(world, middle - (config.tile_size * across)));
+        // The frames are in the opening, and the way between them is free.
+        EXPECT_TRUE(inside_obstacle(world, middle + (0.45f * config.tile_size * along)));
+        EXPECT_TRUE(inside_obstacle(world, middle - (0.45f * config.tile_size * along)));
+        EXPECT_FALSE(inside_obstacle(world, middle));
+    }
+    EXPECT_NE(level.info.find(std::format("Doors in {0} of {0} openings.\n", world.doors().size())), std::string::npos)
+        << level.info;
+}
+
+TEST(RoomLayoutTest, DoorShareVariesBetweenLevelsWithinChances) {
+    const RoomLayoutConfig config = make_config();  // Default chances: 10% to 100%.
+    float lowest = 1.0f;
+    float highest = 0.0f;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const auto doors = static_cast<float>(generate(seed, config).world.doors().size());
+        const auto openings = static_cast<float>(count_openings(make_layered_plan(seed)));
+        ASSERT_GT(openings, 0.0f);
+        lowest = std::min(lowest, doors / openings);
+        highest = std::max(highest, doors / openings);
+    }
+    EXPECT_GT(highest - lowest, 0.3f);
+    EXPECT_GT(lowest, 0.0f);
+}
+
+TEST(RoomLayoutTest, ThrowsOnInvalidDoorChances) {
+    RoomLayoutConfig config = make_config();
+    config.min_door_chance = 0.6f;
+    config.max_door_chance = 0.5f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.min_door_chance = 0.5f;
+    config.max_door_chance = 1.5f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.min_door_chance = std::numeric_limits<float>::quiet_NaN();
+    config.max_door_chance = 1.0f;
     EXPECT_THROW(generate(1, config), std::invalid_argument);
 }
 

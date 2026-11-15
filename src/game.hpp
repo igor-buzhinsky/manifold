@@ -1,13 +1,18 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <numbers>
 #include <optional>
+#include <span>
+#include <vector>
 
 #include <glm/vec3.hpp>
 
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "world/door.hpp"
+#include "world/obstacle.hpp"
 #include "world/player.hpp"
 #include "world/world.hpp"
 
@@ -38,6 +43,16 @@ struct PlayerInput {
     /// Positive jumps, or flies up with noclip. Negative flies down with noclip. A jump needs a new press:
     /// rise must have been <= 0 in the previous frame.
     float rise = 0.0f;
+    /// Whether the activation key is held. A new press activates what the player looks at, see Game::activate().
+    bool activate = false;
+};
+
+/// What Game::activate() did.
+enum class Activation : std::uint8_t {
+    kNothing,  ///< The player doesn't look at anything that can be activated, within reach.
+    kOpened,   ///< A door started to open.
+    kClosed,   ///< A door started to close.
+    kRefused,  ///< The player looks at a door that can't start moving now, see Game::set_door_open().
 };
 
 /// Owns the game state.
@@ -71,6 +86,9 @@ public:
     /// positive, a player who stands on something jumps. Holding it doesn't jump again. With noclip, the player flies:
     /// moves up and down by `input.rise`, doesn't fall, and goes through everything.
     ///
+    /// Doors move first. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
+    /// When `input.activate` becomes true, the player activates what they look at, see activate().
+    ///
     /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
     ///
     /// \param input What the player wants to do.
@@ -86,6 +104,21 @@ public:
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void next_level();
+
+    /// Activates what the center of the player's view points at, within kActivationReach of the eyes.
+    ///
+    /// Aiming at a door that is not passable opens it, and aiming at a frame of a door opens or closes it, see
+    /// set_door_open(). Walls, slabs and doors in front stop the view.
+    Activation activate();
+
+    /// Starts to open or close a door.
+    ///
+    /// \param index Index of the door in World::doors().
+    /// \param open  True to open it, false to close it.
+    /// \return False if the door doesn't start to move: it is moving, it is already open or closed as wanted, or it
+    ///         should close while the player overlaps it, see Door::blocker().
+    /// \throws std::out_of_range if there is no such door.
+    bool set_door_open(std::size_t index, bool open);
 
     /// Moves the player, e.g. to test a level, without checking for obstacles.
     ///
@@ -103,6 +136,8 @@ public:
     const Level& level() const { return level_; }
     const World& world() const { return level_.world; }
     const Player& player() const { return player_; }
+    /// The state of each door of World::doors(), in the same order.
+    std::span<const DoorState> doors() const { return doors_; }
     /// The seed the level was generated from.
     std::uint64_t seed() const { return seed_; }
     /// How many levels came before this one: 0 in the first level.
@@ -117,10 +152,17 @@ public:
 
     /// Length of the cycle of animation_time(), in seconds: one hour.
     static constexpr double kAnimationPeriod = 3600.0;
+    /// How far from the eyes the player can activate things, in metres.
+    static constexpr float kActivationReach = 3.0f;
 
 private:
     /// Turns and moves the player, see update().
-    void move_player(const PlayerInput& input, float dt);
+    ///
+    /// \param blockers Obstacles that are not part of the world, see door_blockers().
+    void move_player(const PlayerInput& input, float dt, std::span<const Obstacle> blockers);
+
+    /// The blockers of the doors that are not passable, see Door::blocker().
+    std::vector<Obstacle> door_blockers() const;
 
     LevelConfig level_config_;
     PlayerParams player_params_;
@@ -130,12 +172,14 @@ private:
     float max_snap_slope_;
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     bool noclip_ = false;
-    bool rise_held_ = false;  ///< Whether input.rise was positive in the previous frame.
+    bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
+    bool activate_held_ = false;  ///< Whether input.activate was true in the previous frame.
     double time_ = 0.0;
     std::uint64_t seed_;
     int level_number_ = 0;
     Level level_;
     Player player_;
+    std::vector<DoorState> doors_;  ///< The state of each door of the level.
 };
 
 }  // namespace manifold

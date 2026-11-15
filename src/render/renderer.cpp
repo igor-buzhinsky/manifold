@@ -24,6 +24,7 @@
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "render/world_mesh.hpp"
+#include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -531,6 +532,8 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_cache_(kShadowSlots),
       shadow_ranges_(kShadowSlots, 0.0f),
       exit_program_(link_program(kExitVertexShader, kExitFragmentShader)),
+      doors_(world.doors().begin(), world.doors().end()),
+      door_texture_(upload_texture(make_gate_texture())),
       marker_program_(link_program(kMarkerVertexShader, kMarkerFragmentShader)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);
@@ -570,6 +573,20 @@ Renderer::Renderer(const World& world, const Image& texture)
     glVertexAttribDivisor(0, 1);
     glVertexAttribDivisor(1, 1);
     glVertexAttribDivisor(2, 1);
+    glBindVertexArray(0);
+
+    // The doors' buffer is filled in draw(), which knows how far they are open.
+    glGenVertexArrays(1, &door_vertex_array_);
+    glBindVertexArray(door_vertex_array_);
+    glGenBuffers(1, &door_buffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, door_buffer_);
+    glBufferData(GL_ARRAY_BUFFER, static_cast<GLsizeiptr>(doors_.size() * kDoorVertexCount * sizeof(Vertex)), nullptr,
+                 GL_DYNAMIC_DRAW);
+    set_vertex_attribute(0, 3, sizeof(Vertex), offsetof(Vertex, position));
+    set_vertex_attribute(1, 3, sizeof(Vertex), offsetof(Vertex, normal));
+    set_vertex_attribute(2, 2, sizeof(Vertex), offsetof(Vertex, uv));
+    set_vertex_attribute(3, 3, sizeof(Vertex), offsetof(Vertex, color));
+    set_vertex_attribute(4, 1, sizeof(Vertex), offsetof(Vertex, texture_weight));
     glBindVertexArray(0);
 
     if (const std::optional<LevelExit>& exit = world.exit()) {
@@ -616,6 +633,9 @@ Renderer::~Renderer() {
     glDeleteBuffers(1, &marker_buffer_);
     glDeleteVertexArrays(1, &marker_vertex_array_);
     glDeleteProgram(marker_program_);
+    glDeleteTextures(1, &door_texture_);
+    glDeleteBuffers(1, &door_buffer_);
+    glDeleteVertexArrays(1, &door_vertex_array_);
     // Deleting the names 0 does nothing, so this is safe also when the level has no exit.
     glDeleteBuffers(1, &exit_buffer_);
     glDeleteVertexArrays(1, &exit_vertex_array_);
@@ -729,8 +749,25 @@ void Renderer::draw_exit(const Camera& camera, const glm::mat4& view_projection,
     glDisable(GL_BLEND);
 }
 
+void Renderer::update_doors(std::span<const DoorState> doors) {
+    bool moved = door_openness_.size() != doors_.size();
+    door_openness_.resize(doors_.size(), 0.0f);
+    for (std::size_t i = 0; i < doors_.size(); ++i) {
+        const float openness = i < doors.size() ? doors[i].openness : 0.0f;
+        moved = moved || openness != door_openness_[i];
+        door_openness_[i] = openness;
+    }
+    if (!moved) {
+        return;
+    }
+    const std::vector<Vertex> vertices = build_door_mesh(doors_, doors);
+    glBindBuffer(GL_ARRAY_BUFFER, door_buffer_);
+    glBufferSubData(GL_ARRAY_BUFFER, 0, static_cast<GLsizeiptr>(std::span(vertices).size_bytes()), vertices.data());
+}
+
 void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewport& viewport, float time,
-                    const DrawOptions& options) {
+                    std::span<const DoorState> doors, const DrawOptions& options) {
+    update_doors(doors);
     // Without lighting, no lights are needed, nor their shadow maps.
     const std::span<const PointLight> used_lights =
         options.lighting ? std::span<const PointLight>(lighting.lights) : std::span<const PointLight>();
@@ -761,21 +798,32 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
     glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY, shadow_maps_);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texture_);
-    glBindVertexArray(vertex_array_);
+    // The world with the level texture, then the door halves with theirs, both with the same lighting.
+    const auto draw_solids = [&options](GLuint vertex_array, GLsizei vertex_count) {
+        glBindVertexArray(vertex_array);
+        if (options.cut_height) {
+            // The insides of cut solids are seen through the cut: their back faces are drawn first, in the cut
+            // color. Neighboring blocks share the planes of their sides, so a block's inside lies in the same
+            // plane as the outside of its neighbor. Pulling the insides a little towards the camera keeps them
+            // in front there, so the cut looks solid.
+            glCullFace(GL_FRONT);
+            glEnable(GL_POLYGON_OFFSET_FILL);
+            glPolygonOffset(0.0f, -4.0f);
+            glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+            glDisable(GL_POLYGON_OFFSET_FILL);
+            glCullFace(GL_BACK);
+        }
+        glDrawArrays(GL_TRIANGLES, 0, vertex_count);
+    };
     if (options.cut_height) {
         glEnable(GL_CLIP_DISTANCE0);
-        // The insides of cut solids are seen through the cut: their back faces are drawn first, in the cut
-        // color. Neighboring blocks share the planes of their sides, so a block's inside lies in the same
-        // plane as the outside of its neighbor. Pulling the insides a little towards the camera keeps them
-        // in front there, so the cut looks solid.
-        glCullFace(GL_FRONT);
-        glEnable(GL_POLYGON_OFFSET_FILL);
-        glPolygonOffset(0.0f, -4.0f);
-        glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
-        glDisable(GL_POLYGON_OFFSET_FILL);
-        glCullFace(GL_BACK);
     }
-    glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
+    draw_solids(vertex_array_, vertex_count_);
+    if (!doors_.empty()) {
+        glBindTexture(GL_TEXTURE_2D, door_texture_);
+        draw_solids(door_vertex_array_, static_cast<GLsizei>(doors_.size() * kDoorVertexCount));
+        glBindTexture(GL_TEXTURE_2D, texture_);
+    }
 
     if (flame_count_ > 0) {
         // Flames turn to the camera only around the vertical, so they stay upright when looking up or down.

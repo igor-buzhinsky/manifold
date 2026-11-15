@@ -1,9 +1,12 @@
 #include "game.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <utility>
+#include <vector>
 
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -12,6 +15,9 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
+#include "physics/raycast.hpp"
+#include "world/door.hpp"
+#include "world/obstacle.hpp"
 #include "world/player.hpp"
 #include "world/world.hpp"
 
@@ -41,7 +47,8 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       seed_(seed),
       level_(std::move(level)),
-      player_(at_start(config.player, level_)) {}
+      player_(at_start(config.player, level_)),
+      doors_(level_.world.doors().size()) {}
 
 void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     player_.set_position(position);
@@ -59,20 +66,67 @@ void Game::next_level() {
     seed_ = seed;
     ++level_number_;
     player_ = Player(at_start(player_params_, level_));
+    doors_.assign(level_.world.doors().size(), DoorState{});
 }
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
 
 void Game::update(const PlayerInput& input, float dt) {
     time_ += dt;
-    move_player(input, dt);
+    for (DoorState& door : doors_) {
+        door.advance(dt);
+    }
+    move_player(input, dt, door_blockers());
+    const bool activate_pressed = input.activate && !activate_held_;
+    activate_held_ = input.activate;
+    if (activate_pressed) {
+        activate();
+    }
     const std::optional<LevelExit>& exit = level_.world.exit();
     if (exit && exit->touches(player_.body())) {
         next_level();
     }
 }
 
-void Game::move_player(const PlayerInput& input, float dt) {
+Activation Game::activate() {
+    const Ray view{.origin = player_.eye_position(), .direction = player_.view_direction()};
+    const std::optional<RayHit> hit = cast_ray(level_.world, doors_, view, kActivationReach);
+    if (!hit || hit->target == RayTarget::kWorld) {
+        return Activation::kNothing;
+    }
+    // A door that isn't passable is closed or moving, and opening it is refused while it moves.
+    const bool open = !doors_.at(hit->door).passable();
+    if (!set_door_open(hit->door, open)) {
+        return Activation::kRefused;
+    }
+    return open ? Activation::kOpened : Activation::kClosed;
+}
+
+bool Game::set_door_open(std::size_t index, bool open) {
+    DoorState& door = doors_.at(index);
+    const float target = open ? 1.0f : 0.0f;
+    if (door.moving() || door.target == target) {
+        return false;
+    }
+    if (!open && find_contact(player_.body(), level_.world.doors()[index].blocker())) {
+        return false;
+    }
+    door.target = target;
+    return true;
+}
+
+std::vector<Obstacle> Game::door_blockers() const {
+    std::vector<Obstacle> blockers;
+    const std::span<const Door> doors = level_.world.doors();
+    for (std::size_t i = 0; i < doors.size(); ++i) {
+        if (!doors_[i].passable()) {
+            blockers.push_back(doors[i].blocker());
+        }
+    }
+    return blockers;
+}
+
+void Game::move_player(const PlayerInput& input, float dt, std::span<const Obstacle> blockers) {
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
     rise_held_ = input.rise > 0.0f;
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
@@ -105,7 +159,7 @@ void Game::move_player(const PlayerInput& input, float dt) {
     // Speed changes before the position (semi-implicit Euler), which keeps falls stable.
     const float vertical_speed = start_speed - (level_.gravity * dt);
     displacement.z = vertical_speed * dt;
-    const SlideResult result = move_and_slide(level_.world, player_.body(), displacement);
+    const SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
     player_.set_position(result.position);
     bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
 
@@ -113,7 +167,7 @@ void Game::move_player(const PlayerInput& input, float dt) {
     // there is ground close below, move down onto it, so the player doesn't fall in small hops.
     if (!landed && player_.on_ground() && vertical_speed <= 0.0f) {
         const float snap = glm::length(glm::vec2(displacement)) * max_snap_slope_;
-        const SlideResult snapped = move_and_slide(level_.world, player_.body(), {0.0f, 0.0f, -snap});
+        const SlideResult snapped = move_and_slide(level_.world, player_.body(), {0.0f, 0.0f, -snap}, blockers);
         if (snapped.correction.z > 0.0f) {
             player_.set_position(snapped.position);
             landed = true;

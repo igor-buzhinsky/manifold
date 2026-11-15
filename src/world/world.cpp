@@ -3,7 +3,9 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/door.hpp"
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 
 namespace manifold {
@@ -11,10 +13,6 @@ namespace manifold {
 bool WorldBounds::contains(const glm::vec3& point) const {
     return point.x >= x_min && point.x <= x_max && point.y >= y_min && point.y <= y_max && point.z >= 0.0f &&
            point.z <= height;
-}
-
-RotatedRectangle Obstacle::footprint() const {
-    return {.center = glm::vec2(base_center), .half_size = glm::vec2(half_size), .yaw = yaw};
 }
 
 RotatedRectangle Ramp::footprint() const {
@@ -38,5 +36,11 @@ void World::add_obstacle(const Obstacle& obstacle) { obstacles_.push_back(obstac
 void World::add_ramp(const Ramp& ramp) { ramps_.push_back(ramp); }
 
 void World::add_torch(const Torch& torch) { torches_.push_back(torch); }
+
+void World::add_door(const Door& door) {
+    doors_.push_back(door);
+    add_obstacle(door.frame(DoorSide::kNegative));
+    add_obstacle(door.frame(DoorSide::kPositive));
+}
 
 }  // namespace manifold

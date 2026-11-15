@@ -11,6 +11,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/door.hpp"
+#include "world/obstacle.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -44,6 +46,14 @@ struct Material {
 
 /// The material of walls, floors, ceilings, obstacles and ramps: the level texture as it is.
 constexpr Material kLevelMaterial{};
+
+/// The material of obstacles with a Surface::kDark surface.
+constexpr Material kDarkMaterial{.color = kDarkSurfaceColor, .texture_weight = 0.0f};
+
+/// The material of an obstacle's surfaces.
+Material obstacle_material(const Obstacle& obstacle) {
+    return obstacle.surface == Surface::kDark ? kDarkMaterial : kLevelMaterial;
+}
 
 /// Adds a vertex with texture coordinates from its position.
 void add_vertex(std::vector<Vertex>& vertices, const glm::vec3& position, const glm::vec3& normal,
@@ -167,8 +177,8 @@ std::array<glm::vec3, 4> obstacle_corners(const Obstacle& obstacle) {
     const std::array<float, 4> local_x{-1.0f, 1.0f, 1.0f, -1.0f};
     const std::array<float, 4> local_y{-1.0f, -1.0f, 1.0f, 1.0f};
     for (std::size_t i = 0; i < corners.size(); ++i) {
-        const float x = local_x.at(i) * obstacle.half_size;
-        const float y = local_y.at(i) * obstacle.half_size;
+        const float x = local_x.at(i) * obstacle.half_size.x;
+        const float y = local_y.at(i) * obstacle.half_size.y;
         corners.at(i) =
             obstacle.base_center + glm::vec3((cos_yaw * x) - (sin_yaw * y), (sin_yaw * x) + (cos_yaw * y), 0.0f);
     }
@@ -179,21 +189,23 @@ std::array<glm::vec3, 4> obstacle_corners(const Obstacle& obstacle) {
 void add_obstacle_top(std::vector<Vertex>& vertices, const Obstacle& obstacle) {
     const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
     const glm::vec3 top{0.0f, 0.0f, obstacle.height};
-    add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top});
+    add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top},
+             obstacle_material(obstacle));
 }
 
 /// Adds the bottom of an obstacle, facing down.
 void add_obstacle_bottom(std::vector<Vertex>& vertices, const Obstacle& obstacle) {
     const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
-    add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]});
+    add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]}, obstacle_material(obstacle));
 }
 
 /// Adds a vertical wall standing on the line from `from` to `to`.
 ///
 /// The wall faces to the left of the direction from `from` to `to`, as seen from above.
-void add_wall(std::vector<Vertex>& vertices, const glm::vec3& from, const glm::vec3& to, float height) {
+void add_wall(std::vector<Vertex>& vertices, const glm::vec3& from, const glm::vec3& to, float height,
+              const Material& material = kLevelMaterial) {
     const glm::vec3 up{0.0f, 0.0f, height};
-    add_quad(vertices, {to, from, from + up, to + up});
+    add_quad(vertices, {to, from, from + up, to + up}, material);
 }
 
 }  // namespace
@@ -222,7 +234,8 @@ std::vector<Vertex> build_world_mesh(const World& world) {
         // The corners are counter-clockwise, so the walls go through them clockwise to face outwards.
         const std::array<glm::vec3, 4> corners = obstacle_corners(obstacle);
         for (std::size_t i = 0; i < corners.size(); ++i) {
-            add_wall(vertices, corners.at((i + 1) % corners.size()), corners.at(i), obstacle.height);
+            add_wall(vertices, corners.at((i + 1) % corners.size()), corners.at(i), obstacle.height,
+                     obstacle_material(obstacle));
         }
         // The top is hidden when the obstacle reaches the ceiling, and the bottom when it stands on the floor.
         if (obstacle.base_center.z + obstacle.height < h) {
@@ -308,6 +321,53 @@ std::vector<Vertex> build_exit_mesh() {
         const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
         for (const std::size_t index : {0U, 1U, 2U, 0U, 2U, 3U}) {
             vertices.push_back({.position = corners.at(index), .normal = normal, .uv = kCornerUvs.at(index)});
+        }
+    }
+    return vertices;
+}
+
+namespace {
+
+/// Adds a box with all six faces and texture coordinates for a door half, see build_door_mesh().
+///
+/// \param[out] vertices The triangles are appended here.
+/// \param box          The half as a block.
+/// \param texture_size Width and height of one copy of the texture on the half, in metres.
+void add_door_half(std::vector<Vertex>& vertices, const Obstacle& box, float texture_size) {
+    const std::array<glm::vec3, 4> bottom = obstacle_corners(box);
+    const glm::vec3 up{0.0f, 0.0f, box.height};
+    const float tall = box.height / texture_size;
+    const auto add_face = [&](const std::array<glm::vec3, 4>& corners, const std::array<glm::vec2, 4>& uvs) {
+        const glm::vec3 normal = glm::normalize(glm::cross(corners[1] - corners[0], corners[2] - corners[0]));
+        for (const std::size_t index : {0U, 1U, 2U, 0U, 2U, 3U}) {
+            vertices.push_back({.position = corners.at(index), .normal = normal, .uv = uvs.at(index)});
+        }
+    };
+    // The sides go along the corners, which are counter-clockwise from above, so they face outwards. The texture's
+    // top, where v is 0, is at the top of the half.
+    for (std::size_t i = 0; i < bottom.size(); ++i) {
+        const std::size_t next = (i + 1) % bottom.size();
+        const float wide = glm::length(bottom.at(next) - bottom.at(i)) / texture_size;
+        add_face({bottom.at(i), bottom.at(next), bottom.at(next) + up, bottom.at(i) + up},
+                 {{{0.0f, tall}, {wide, tall}, {wide, 0.0f}, {0.0f, 0.0f}}});
+    }
+    const float across = 2.0f * box.half_size.x / texture_size;
+    const float through = 2.0f * box.half_size.y / texture_size;
+    add_face({bottom[0] + up, bottom[1] + up, bottom[2] + up, bottom[3] + up},
+             {{{0.0f, 0.0f}, {across, 0.0f}, {across, through}, {0.0f, through}}});
+    add_face({bottom[3], bottom[2], bottom[1], bottom[0]},
+             {{{0.0f, through}, {across, through}, {across, 0.0f}, {0.0f, 0.0f}}});
+}
+
+}  // namespace
+
+std::vector<Vertex> build_door_mesh(std::span<const Door> doors, std::span<const DoorState> states) {
+    std::vector<Vertex> vertices;
+    vertices.reserve(doors.size() * kDoorVertexCount);
+    for (std::size_t i = 0; i < doors.size(); ++i) {
+        const float openness = i < states.size() ? states[i].openness : 0.0f;
+        for (const Obstacle& half : doors[i].halves(openness)) {
+            add_door_half(vertices, half, 2.0f * half.half_size.x);
         }
     }
     return vertices;

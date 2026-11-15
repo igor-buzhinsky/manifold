@@ -14,6 +14,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "level/level.hpp"
@@ -580,7 +581,7 @@ void add_walls(World& world, const LayeredPlan& plan, const GridPlacement& grid,
             for (int x = 0; x < layer.width; ++x) {
                 if (layer.tile(x, y) == Tile::kWall) {
                     world.add_obstacle({.base_center = grid.tile_center(x, y, grid.floor_z[index]),
-                                        .half_size = grid.tile / 2.0f,
+                                        .half_size = glm::vec2(grid.tile / 2.0f),
                                         .height = height,
                                         .yaw = 0.0f});
                 }
@@ -600,7 +601,7 @@ void add_slabs(World& world, const LayeredPlan& plan, const GridPlacement& grid,
                 const bool used = below.tile(x, y) != Tile::kEmpty || above.tile(x, y) != Tile::kEmpty;
                 if (used && !plan.is_hole(static_cast<int>(index), x, y)) {
                     world.add_obstacle({.base_center = grid.tile_center(x, y, slab_z),
-                                        .half_size = grid.tile / 2.0f,
+                                        .half_size = glm::vec2(grid.tile / 2.0f),
                                         .height = thickness,
                                         .yaw = 0.0f});
                 }
@@ -628,18 +629,25 @@ void build_ramps(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
+/// Checks whether `min` and `max` are chances in [0, 1] with min <= max.
+bool valid_chances(float min, float max) {
+    // NaN fails every comparison, so it is checked for separately.
+    return !std::isnan(min) && !std::isnan(max) && min >= 0.0f && max <= 1.0f && min <= max;
+}
+
+/// A chance chosen uniformly from [min, max], which must be valid, see valid_chances().
+float random_chance(float min, float max, LevelRng& rng) {
+    // uniform_real_distribution needs min < max, so equal chances are taken as they are.
+    return min == max ? min : std::uniform_real_distribution<float>(min, max)(rng);
+}
+
 /// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
 ///
 /// The torch chances must be valid, see RoomLayout::generate().
 void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
                  LevelRng& rng) {
     const TorchFlame flame = choose_torch_flame(rng);
-    // uniform_real_distribution needs min < max, so equal chances are taken as they are.
-    const float chance =
-        config.min_torch_chance == config.max_torch_chance
-            ? config.min_torch_chance
-            : std::uniform_real_distribution<float>(config.min_torch_chance, config.max_torch_chance)(rng);
-    std::bernoulli_distribution has_torch(chance);
+    std::bernoulli_distribution has_torch(random_chance(config.min_torch_chance, config.max_torch_chance, rng));
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
         const RoomPlan& layer = plan.layers[index];
         for (int y = 0; y < layer.height; ++y) {
@@ -667,17 +675,53 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
+/// Puts doors into openings, see RoomLayout.
+///
+/// The door chances must be valid, see RoomLayout::generate().
+///
+/// \return The number of doors and the number of openings.
+std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridPlacement& grid,
+                              const RoomLayoutConfig& config, LevelRng& rng) {
+    std::bernoulli_distribution has_door(random_chance(config.min_door_chance, config.max_door_chance, rng));
+    int doors = 0;
+    int openings = 0;
+    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
+        const RoomPlan& layer = plan.layers[index];
+        for (int y = 0; y < layer.height; ++y) {
+            for (int x = 0; x < layer.width; ++x) {
+                if (layer.tile(x, y) != Tile::kOpening) {
+                    continue;
+                }
+                ++openings;
+                if (!has_door(rng)) {
+                    continue;
+                }
+                // An opening connects the rooms on two opposite sides. The wall, along which the halves slide,
+                // runs across that.
+                const bool rooms_along_x = layer.room_at(x - 1, y) >= 0 && layer.room_at(x + 1, y) >= 0;
+                world.add_door({.base_center = grid.tile_center(x, y, grid.floor_z[index]),
+                                .width = grid.tile,
+                                .height = config.height,
+                                .yaw = rooms_along_x ? std::numbers::pi_v<float> / 2.0f : 0.0f});
+                ++doors;
+            }
+        }
+    }
+    return {doors, openings};
+}
+
 /// How far below its ceiling the cut of the `cutaway` console command shows a layer best: low enough to
 /// leave out the ceiling, high enough to keep almost all of the walls.
 constexpr float kCutBelowCeiling = 0.1f;
 
 /// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, where
-/// the exit is, and the plan, see draw_plan().
+/// the exit is, how many openings have doors, and the plan, see draw_plan().
 ///
-/// \param plan   The plan of the level.
-/// \param grid   Where the tiles are in the world.
-/// \param height Height of a layer from its floor to its ceiling.
-std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height) {
+/// \param plan     The plan of the level.
+/// \param grid     Where the tiles are in the world.
+/// \param height   Height of a layer from its floor to its ceiling.
+/// \param doors    The number of doors and the number of openings, see add_doors().
+std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height, std::pair<int, int> doors) {
     constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
     const TileBox box = used_tiles(plan);
     std::string floors;
@@ -690,11 +734,11 @@ std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float h
         "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
         "Floors of the layers at z = {}. To see a layer from above: cutaway {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
-        "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\n{}",
+        "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\nDoors in {} of {} openings.\n{}",
         grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
         grid.y_min + grid.tile, grid.tile, floors, cuts, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
         plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), plan.exit_layer,
-        plan.exit_x, plan.exit_y, draw_plan(plan));
+        plan.exit_x, plan.exit_y, doors.first, doors.second, draw_plan(plan));
 }
 
 }  // namespace
@@ -704,11 +748,11 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     if (config_.tile_size / 2.0f <= clearance) {
         throw std::runtime_error("level generation failed: tiles are too small for the player");
     }
-    // NaN fails every comparison, so it is checked for separately.
-    if (std::isnan(config_.min_torch_chance) || std::isnan(config_.max_torch_chance) ||
-        config_.min_torch_chance < 0.0f || config_.max_torch_chance > 1.0f ||
-        config_.min_torch_chance > config_.max_torch_chance) {
+    if (!valid_chances(config_.min_torch_chance, config_.max_torch_chance)) {
         throw std::invalid_argument("torch chances must be in [0, 1], the smallest first");
+    }
+    if (!valid_chances(config_.min_door_chance, config_.max_door_chance)) {
+        throw std::invalid_argument("door chances must be in [0, 1], the smallest first");
     }
     const LayeredPlan plan = plan_layers(config_, rng);
     const RoomPlan& bottom = plan.layers.at(0);
@@ -732,6 +776,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
     add_torches(world, plan, grid, config_, rng);
+    const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
                                                     grid.floor_z.at(static_cast<std::size_t>(plan.exit_layer)))});
 
@@ -741,7 +786,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .world = std::move(world),
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
-            .info = describe(plan, grid, config_.height)};
+            .info = describe(plan, grid, config_.height, doors)};
 }
 
 }  // namespace manifold

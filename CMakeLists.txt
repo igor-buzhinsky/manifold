@@ -84,6 +84,7 @@ add_library(manifold_core STATIC
     src/level/level.cpp
     src/level/room_layout.cpp
     src/physics/collision.cpp
+    src/physics/raycast.cpp
     src/render/camera.cpp
     src/render/lighting.cpp
     src/render/marker.cpp
@@ -97,7 +98,9 @@ add_library(manifold_core STATIC
     src/ui/text_field.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
+    src/world/door.cpp
     src/world/geometry.cpp
+    src/world/obstacle.cpp
     src/world/player.cpp
     src/world/torch.cpp
     src/world/world.cpp
@@ -138,6 +141,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/collision_test.cpp
         tests/console_test.cpp
         tests/console_window_test.cpp
+        tests/door_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp
         tests/geometry_test.cpp
@@ -149,6 +153,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/log_test.cpp
         tests/marker_test.cpp
         tests/overlay_mesh_test.cpp
+        tests/raycast_test.cpp
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp

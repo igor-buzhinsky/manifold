@@ -1,15 +1,20 @@
 #include "game.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <numbers>
+#include <stdexcept>
 #include <utility>
 
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "door_level.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "world/door.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -213,7 +218,7 @@ TEST(GameTest, StandingOnFloorKeepsVerticalSpeedZero) {
 Level make_ramp_level() {
     World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 6.0f});
     world.add_ramp({.base_center = {0.0f, 0.0f, 0.0f}, .half_length = 2.0f, .half_width = 1.0f, .rise = 2.5f});
-    world.add_obstacle({.base_center = {4.0f, 0.0f, 0.0f}, .half_size = 2.0f, .height = 2.5f, .yaw = 0.0f});
+    world.add_obstacle({.base_center = {4.0f, 0.0f, 0.0f}, .half_size = glm::vec2(2.0f), .height = 2.5f, .yaw = 0.0f});
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = {-4.0f, 0.0f, 0.0f}, .info = ""};
 }
 
@@ -314,7 +319,8 @@ TEST(GameTest, HoldingRiseJumpsOnlyOnce) {
 /// Walks towards a 0.4 m high block for 2 seconds, jumping at `jump_frame` if given, and returns the end.
 glm::vec3 walk_to_low_block(int jump_frame) {
     Level level = make_ramp_level();
-    level.world.add_obstacle({.base_center = {-4.0f, 4.0f, 0.0f}, .half_size = 1.0f, .height = 0.4f, .yaw = 0.0f});
+    level.world.add_obstacle(
+        {.base_center = {-4.0f, 4.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 0.4f, .yaw = 0.0f});
     const GameConfig config = make_config();
     level.player_yaw = kPi / 2.0f;  // Facing the block at +y.
     Game game(config, std::move(level));
@@ -391,6 +397,101 @@ TEST(GameTest, NextLevelChoosesLayoutAtRandomAndFollowsSeeds) {
     // The same seed gives the same level as a new game with it.
     const Game fresh(make_config(), game.seed());
     EXPECT_EQ(game.level().info, fresh.level().info);
+    // Every door of the new level starts closed.
+    EXPECT_EQ(game.doors().size(), game.world().doors().size());
+    EXPECT_FALSE(game.world().doors().empty());
+    for (const DoorState& door : game.doors()) {
+        EXPECT_FLOAT_EQ(door.openness, 0.0f);
+        EXPECT_FALSE(door.moving());
+    }
+}
+
+/// Walks forward for `seconds`, in frames of 0.1 s.
+void walk(Game& game, float seconds) {
+    for (int frame = 0; frame < static_cast<int>(std::round(seconds * 10.0f)); ++frame) {
+        game.update({.forward = 1.0f}, 0.1f);
+    }
+}
+
+TEST(GameTest, ClosedDoorBlocksUntilFullyOpen) {
+    Game game(make_config(), make_door_level());
+    ASSERT_EQ(game.doors().size(), 1U);
+    walk(game, 3.0f);
+    // The player stops a radius before the closed halves.
+    const float stop = -(Door::kThickness / 2.0f) - game.player().radius();
+    EXPECT_NEAR(game.player().position().y, stop, 1e-4f);
+
+    ASSERT_TRUE(game.set_door_open(0, true));
+    walk(game, 0.5f);
+    EXPECT_NEAR(game.player().position().y, stop, 1e-4f);
+    walk(game, 1.0f);
+    EXPECT_GT(game.player().position().y, 0.5f);
+}
+
+TEST(GameTest, ActivatingClosedDoorOpensItInOneSecondAndIsIgnoredWhileItMoves) {
+    Game game(make_config(), make_door_level());
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+    game.update({}, Door::kMoveTime / 2.0f);
+    EXPECT_FLOAT_EQ(game.doors()[0].openness, 0.5f);
+    EXPECT_EQ(game.activate(), Activation::kRefused);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
+    game.update({}, Door::kMoveTime / 2.0f);
+    EXPECT_TRUE(game.doors()[0].passable());
+    // The halves are hidden in the walls, so the view goes through the open door.
+    EXPECT_EQ(game.activate(), Activation::kNothing);
+}
+
+TEST(GameTest, ActivatingFrameOpensAndClosesTheDoor) {
+    Game game(make_config(), make_door_level());
+    game.teleport({0.9f, -2.0f, 0.0f});  // Facing a frame along +y.
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+    game.update({}, Door::kMoveTime);
+    EXPECT_EQ(game.activate(), Activation::kClosed);
+    EXPECT_FALSE(game.doors()[0].passable());
+    game.update({}, Door::kMoveTime);
+    EXPECT_FLOAT_EQ(game.doors()[0].openness, 0.0f);
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+}
+
+TEST(GameTest, ActivationNeedsANewPressOfTheKey) {
+    Game game(make_config(), make_door_level());
+    game.teleport({0.9f, -2.0f, 0.0f});
+    game.update({.activate = true}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
+    for (int frame = 0; frame < 20; ++frame) {
+        game.update({.activate = true}, 0.1f);
+    }
+    EXPECT_TRUE(game.doors()[0].passable());  // Holding the key doesn't close the door again.
+    game.update({}, 0.1f);
+    game.update({.activate = true}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 0.0f);
+}
+
+TEST(GameTest, ActivationIsLimitedByReachAndWalls) {
+    Level level = make_door_level();
+    // A low block between the player and the door, below the eyes when standing on the floor.
+    level.world.add_obstacle({.base_center = {0.0f, -1.5f, 0.0f}, .half_size = {0.2f, 0.2f}, .height = 1.0f});
+    Game game(make_config(), std::move(level));
+    game.teleport({0.0f, -3.1f, 0.0f});
+    EXPECT_EQ(game.activate(), Activation::kNothing);  // The door is 3.05 m from the eyes.
+    // Standing lower, the block is in the way.
+    game.teleport({0.0f, -2.5f, -1.0f});
+    EXPECT_EQ(game.activate(), Activation::kNothing);
+    game.teleport({0.0f, -2.5f, 0.0f});
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+}
+
+TEST(GameTest, DoorDoesNotCloseOnThePlayer) {
+    Game game(make_config(), make_door_level());
+    ASSERT_TRUE(game.set_door_open(0, true));
+    EXPECT_FALSE(game.set_door_open(0, true));  // Already opening.
+    game.update({}, Door::kMoveTime);
+    EXPECT_FALSE(game.set_door_open(0, true));  // Already open.
+    game.teleport({0.0f, 0.5f, 0.0f});
+    EXPECT_FALSE(game.set_door_open(0, false));
+    game.teleport({0.0f, 0.7f, 0.0f});
+    EXPECT_TRUE(game.set_door_open(0, false));
+    EXPECT_THROW(game.set_door_open(1, true), std::out_of_range);
 }
 
 }  // namespace

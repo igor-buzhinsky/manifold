@@ -18,6 +18,7 @@
 #include "render/camera.hpp"
 #include "render/viewport.hpp"
 #include "util/log.hpp"
+#include "world/door.hpp"
 #include "world/player.hpp"
 
 namespace manifold {
@@ -139,6 +140,68 @@ void add_player_commands(Console& console, Game& game, ConsoleState& state) {
         [&game] { return game.noclip(); }, [&game](bool on) { game.set_noclip(on); });
 }
 
+/// What a door is doing, for the log: open, closed, opening or closing.
+const char* door_state_name(const DoorState& door) {
+    if (door.moving()) {
+        return door.target > door.openness ? "opening" : "closing";
+    }
+    return door.openness >= 1.0f ? "open" : "closed";
+}
+
+/// Adds the commands that inspect and use doors: doors, door and activate.
+void add_door_commands(Console& console, Game& game) {
+    console.add("doors", "doors", "Lists the doors: their number, where they are, and whether they are open.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "doors");
+                    const std::span<const Door> doors = game.world().doors();
+                    std::string list;
+                    for (std::size_t i = 0; i < doors.size(); ++i) {
+                        const glm::vec3& center = doors[i].base_center;
+                        list +=
+                            std::format("\nDoor {} at ({:.2f}, {:.2f}, {:.2f}), wall along {:.0f} deg: {}", i, center.x,
+                                        center.y, center.z, to_degrees(doors[i].yaw), door_state_name(game.doors()[i]));
+                    }
+                    log_info("{} doors{}", doors.size(), list);
+                });
+
+    const std::string door_usage = "door N open|close";
+    console.add("door", door_usage, "Starts to open or close door N, see doors.",
+                [&game, door_usage](std::span<const std::string> arguments) {
+                    expect_count(arguments, 2, door_usage);
+                    const int index = parse_int_argument(arguments[0]);
+                    if (index < 0 || static_cast<std::size_t>(index) >= game.world().doors().size()) {
+                        throw CommandError("no such door: " + arguments[0]);
+                    }
+                    if (arguments[1] != "open" && arguments[1] != "close") {
+                        throw CommandError("usage: " + door_usage);
+                    }
+                    const auto door = static_cast<std::size_t>(index);
+                    if (!game.set_door_open(door, arguments[1] == "open")) {
+                        throw CommandError(std::format("door {} can't {} now: it is {}", index, arguments[1],
+                                                       door_state_name(game.doors()[door])));
+                    }
+                });
+
+    console.add("activate", "activate", "Activates what the center of the player's view points at, like the E key.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "activate");
+                    switch (game.activate()) {
+                        case Activation::kNothing:
+                            log_info("Nothing to activate");
+                            break;
+                        case Activation::kOpened:
+                            log_info("A door opens");
+                            break;
+                        case Activation::kClosed:
+                            log_info("A door closes");
+                            break;
+                        case Activation::kRefused:
+                            log_info("The door can't move now");
+                            break;
+                    }
+                });
+}
+
 /// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,
 /// arrow, lighting, shadows, imgui, screenshot, wait and quit.
 void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& state) {
@@ -209,6 +272,7 @@ Camera view_camera(const ViewSettings& view, const Player& player) {
 
 void add_game_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     add_player_commands(console, game, state);
+    add_door_commands(console, game);
     add_view_commands(console, queue, state);
 }
 

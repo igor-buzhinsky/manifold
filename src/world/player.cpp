@@ -4,6 +4,8 @@
 #include <cmath>
 #include <numbers>
 
+#include <glm/vec3.hpp>
+
 namespace manifold {
 
 void Player::rotate(float delta_yaw, float delta_pitch) {
@@ -13,6 +15,10 @@ void Player::rotate(float delta_yaw, float delta_pitch) {
         yaw_ += kFullTurn;
     }
     pitch_ = std::clamp(pitch_ + delta_pitch, -kMaxPitch, kMaxPitch);
+}
+
+glm::vec3 Player::view_direction() const {
+    return {std::cos(pitch_) * std::cos(yaw_), std::cos(pitch_) * std::sin(yaw_), std::sin(pitch_)};
 }
 
 }  // namespace manifold

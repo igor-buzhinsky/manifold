@@ -1,5 +1,6 @@
 #include "render/texture_image.hpp"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -126,6 +127,29 @@ TEST(FallbackTextureTest, IsOneOpaquePixel) {
     EXPECT_EQ(image.height, 1);
     ASSERT_EQ(image.pixels.size(), 4U);
     EXPECT_EQ(image.pixels[3], 255);
+}
+
+TEST(GateTextureTest, IsOpaqueSquareAndTheSameEveryTime) {
+    const Image gate = make_gate_texture();
+    EXPECT_EQ(gate.width, kGateTextureSize);
+    EXPECT_EQ(gate.height, kGateTextureSize);
+    ASSERT_EQ(gate.pixels.size(), static_cast<std::size_t>(kGateTextureSize) * kGateTextureSize * 4);
+    for (std::size_t i = 3; i < gate.pixels.size(); i += 4) {
+        EXPECT_EQ(gate.pixels[i], 255);
+    }
+    EXPECT_EQ(make_gate_texture().pixels, gate.pixels);
+}
+
+TEST(GateTextureTest, WoodIsBrownAndTheBandIsGrey) {
+    const Image gate = make_gate_texture();
+    const auto pixel = [&gate](int x, int y) {
+        const auto index = static_cast<std::size_t>((y * gate.width) + x) * 4;
+        return std::array<int, 3>{gate.pixels[index], gate.pixels[index + 1], gate.pixels[index + 2]};
+    };
+    const std::array<int, 3> wood = pixel(5, 10);
+    EXPECT_GT(wood[0], wood[2] + 30);
+    const std::array<int, 3> band = pixel(5, 45);
+    EXPECT_LT(band[0] - band[2], 20);
 }
 
 }  // namespace

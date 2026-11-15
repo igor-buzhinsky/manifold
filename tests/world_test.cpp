@@ -1,11 +1,15 @@
 #include "world/world.hpp"
 
+#include <cmath>
 #include <numbers>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "world/door.hpp"
 #include "world/geometry.hpp"
+#include "world/obstacle.hpp"
 #include "world/player.hpp"
 
 namespace manifold {
@@ -44,10 +48,31 @@ TEST(WorldTest, RampHeightGrowsAlongSlope) {
 TEST(WorldTest, StoresObstacles) {
     World world(kBounds);
     EXPECT_TRUE(world.obstacles().empty());
-    world.add_obstacle({.base_center = {1.0f, 2.0f, 0.0f}, .half_size = 0.5f, .height = 3.0f, .yaw = 0.25f});
+    world.add_obstacle({.base_center = {1.0f, 2.0f, 0.0f}, .half_size = glm::vec2(0.5f), .height = 3.0f, .yaw = 0.25f});
     ASSERT_EQ(world.obstacles().size(), 1U);
     EXPECT_EQ(world.obstacles()[0].base_center, glm::vec3(1.0f, 2.0f, 0.0f));
     EXPECT_FLOAT_EQ(world.obstacles()[0].footprint().yaw, 0.25f);
+}
+
+TEST(WorldTest, AddingADoorAddsItsFramesAsObstacles) {
+    World world({.x_min = -5.0f, .x_max = 5.0f, .y_min = -5.0f, .y_max = 5.0f, .height = 3.0f});
+    const Door door{.base_center = {1.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.5f};
+    world.add_door(door);
+    ASSERT_EQ(world.doors().size(), 1U);
+    EXPECT_EQ(world.doors()[0].base_center, door.base_center);
+    ASSERT_EQ(world.obstacles().size(), 2U);
+    EXPECT_EQ(world.obstacles()[0].base_center, door.frame(DoorSide::kNegative).base_center);
+    EXPECT_EQ(world.obstacles()[1].base_center, door.frame(DoorSide::kPositive).base_center);
+    EXPECT_EQ(world.obstacles()[0].surface, Surface::kDark);
+}
+
+TEST(PlayerTest, ViewDirectionFollowsYawAndPitch) {
+    Player player({});
+    player.rotate(std::numbers::pi_v<float> / 2.0f, Player::kMaxPitch);
+    const glm::vec3 direction = player.view_direction();
+    EXPECT_NEAR(direction.x, 0.0f, 1e-6f);
+    EXPECT_NEAR(direction.y, std::cos(Player::kMaxPitch), 1e-6f);
+    EXPECT_NEAR(direction.z, std::sin(Player::kMaxPitch), 1e-6f);
 }
 
 TEST(PlayerTest, FootprintIsCircleUnderPlayer) {

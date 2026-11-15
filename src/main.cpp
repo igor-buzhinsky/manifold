@@ -299,6 +299,7 @@ manifold::PlayerInput read_input() {
         .forward = axis(SDL_SCANCODE_W, SDL_SCANCODE_S),
         .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
         .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
+        .activate = keys[SDL_SCANCODE_E],
     };
 }
 
@@ -326,6 +327,7 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
         view.arrow ? manifold::build_arrow(game.player().position(), game.player().yaw()) : std::vector<glm::vec3>();
     renderer.draw(
         camera, lighting, manifold::fit_viewport(framebuffer, manifold::kAspectRatio), game.animation_time(),
+        game.doors(),
         {.lighting = view.lighting, .marker = arrow, .cut_height = view.cutaway, .shadow_bias = view.shadow_bias});
 }
 

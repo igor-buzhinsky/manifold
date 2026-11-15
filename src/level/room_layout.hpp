@@ -34,6 +34,10 @@ struct RoomLayoutConfig {
     /// Largest chance that a side of a wall tile next to the floor of a room gets a torch, in [0, 1].
     float max_torch_chance = 0.1f;
     float torch_height = 1.6f;  ///< Height of a torch's mount above the floor of its layer, in metres.
+    /// Smallest chance that an opening gets a door, in [0, 1].
+    float min_door_chance = 0.1f;
+    /// Largest chance that an opening gets a door, in [0, 1].
+    float max_door_chance = 1.0f;
 };
 
 /// What a tile of the room grid contains.
@@ -184,17 +188,19 @@ std::string draw_plan(const LayeredPlan& plan);
 /// along the wall. Each such side gets a torch with the same chance, chosen for the level uniformly from
 /// [`min_torch_chance`, `max_torch_chance`]. All torches of a level have the same flame, see
 /// choose_torch_flame().
+/// Each opening gets a door with the same chance, chosen for the level uniformly from [`min_door_chance`,
+/// `max_door_chance`]. A door fills its opening, with the wall running across the way between the rooms, see Door.
 /// The player starts in the center of a random tile, facing a random direction, and the exit is in the center
 /// of a random tile of another layer, see plan_layers(). The level info tells how tiles map to world coordinates,
-/// where the player starts and where the exit is, and draws the plan, see draw_plan().
+/// where the player starts and where the exit is, how many openings have doors, and draws the plan, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}
 
     /// \copydoc LevelLayout::generate
     /// \throws std::runtime_error also if the tiles are too narrow for the clearance.
-    /// \throws std::invalid_argument if the torch chances are not in [0, 1] or min_torch_chance >
-    ///         max_torch_chance.
+    /// \throws std::invalid_argument if the torch or door chances are not in [0, 1], or min_torch_chance >
+    ///         max_torch_chance, or min_door_chance > max_door_chance.
     Level generate(float clearance, LevelRng& rng) const override;
 
 private:

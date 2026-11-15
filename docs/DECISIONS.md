@@ -210,3 +210,50 @@ Drawbacks:
 - Alternatives: an emissive low-poly flame (a solid shape, which has to be animated by changing its
   shape on the CPU or GPU, or looks static), or a flame sprite sheet from a CC0 pack (an asset to find and
   credit, and frames to play through).
+
+## 2026-11-15: Sliding doors in openings, activated with E by a ray from the camera
+
+Status: **ACCEPTED**, except shadows of the halves. Done in v0.2.
+
+Decision: openings between rooms get doors whose two halves slide sideways into the walls. The player opens and
+closes them with E, which acts on what the center of the view points at.
+
+- **Placement**: in room levels, each opening gets a door with the same chance, chosen for the level uniformly from
+  10% to 100%.
+- **Frames**: two near-black blocks in the opening, on its left and right, are plain static obstacles of the world.
+  They collide, are part of the world mesh and cast shadows like walls. The gap between them (1.6 m with 2 m tiles)
+  leaves room for the player (1.2 m wide).
+- **Door**: two halves with a gate texture, made on the CPU as an image (planks with iron bands), slide into the walls
+  next to the opening, behind the frames, within one second. The halves are opaque, so that closed doors can later
+  block light and monsters.
+- **State**: the shape of a door belongs to the static `World`. How far it is open and whether it moves live in `Game`,
+  like the player.
+- **Collision**: a door that is not fully open is one box between the frames, as thick as the door. It is passed to
+  `move_and_slide()` next to the world. Passing is possible only when the door is fully open. A door doesn't close
+  while the player overlaps the box.
+- **Activation**: E casts a ray from the eyes along the view, up to 3 m. The ray stops at walls, slabs and closed
+  doors. A hit on a closed door opens it, and a hit on a frame opens or closes its door. While a door moves, E on it
+  does nothing. The ray test and its result are meant to be reused by other things that can be activated.
+- **Drawing**: the halves have their own vertex buffer in the world's vertex format, drawn with the world's program
+  and the gate texture instead of the level texture. So they are lit and cut away like the world. The buffer is
+  built again on the CPU when a door moves.
+- **Shadows**: at first, the halves cast no shadows, like the exit. Later they can be drawn into the shadow maps,
+  whose maps are drawn again for lights that reach a moving door.
+- `Obstacle` gets a rectangular footprint and a choice of surface (textured or dark), which the frames and the
+  door boxes need.
+
+Gains:
+
+- Frames and collision reuse what exists: obstacles and `move_and_slide()`. Only the ray test and the moving mesh are
+  new.
+- No new shader and no new asset file: the gate is an image made in code, bound in place of the level texture.
+- Everything except drawing is in `manifold_core` and can be tested.
+
+Drawbacks:
+
+- Until the halves cast shadows, light from a torch goes through a closed door as through an open opening.
+- The ray test checks every obstacle of the level, which is fine once per key press, but not every frame.
+- Closing works only by aiming at a frame or at a door that is still closed, since an open door's halves are hidden
+  in the walls.
+- Alternative: hinged doors that swing. They look more natural, but need rotated, moving collision, which can push
+  the player, and swing into the room.
