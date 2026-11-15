@@ -76,7 +76,7 @@ rewrites.
 - Retro look: low-res textures with nearest-neighbour filtering, optional low-res render target,
   distance fog, billboard sprites for items and creatures.
 
-## v0.1 — Exploration prototype (current: 2026-11-11, commit 3d75613)
+## v0.1 — Exploration prototype (finished: 2026-11-11, commit 3d75613)
 
 Scope: walk around a randomly generated level in the dark with a light at the player. Done:
 
@@ -101,86 +101,70 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - Logging to stderr with info, warning and error levels.
 - Unit tests for geometry, collision, level generation, game logic and logging.
 
-## v0.2 — Lighting and level structure
+## v0.2 — Lighting and level structure (finished: 2026-11-15, commit bf38f65)
 
-- ~~**OpenGL 4.1**: move the renderer from 3.3 core to 4.1 core, which is as far as macOS goes.~~ Done.
-- ~~Replace libepoxy with glad, which helps Windows and macOS support.~~ Done.
-- To consider (see [DECISIONS.md](DECISIONS.md)):
-  - **OpenGL 4.5**: debug output through the logger, Direct State Access, shader storage buffers and
-    compute shaders. This closes the macOS path unless we keep a 4.1 render path.
-  - **Jolt Physics**: replace our collision code with Jolt, with the player as a `CharacterVirtual`. Keep
-    the current behavior: sliding, ramps, gravity, jumping and noclip.
+Scope: lights, shadows and textures in levels of several layers, a series of levels connected by exits, doors,
+and tools for inspecting the game. Done:
+
+- **OpenGL 4.1**: the renderer moved from 3.3 core to 4.1 core, which is as far as macOS goes, and loads OpenGL
+  with glad instead of libepoxy, which helps Windows and macOS support (see [DECISIONS.md](DECISIONS.md)).
 - **Console**: commands that inspect the game, for testing levels by hand and for scripted checks, see
-  [GAME_MANUAL.md](../GAME_MANUAL.md). Done: typed into the in-game console window (the `/~ key), into
+  [GAME_MANUAL.md](../GAME_MANUAL.md). They are typed into the in-game console window (the `/~ key), into
   the terminal the game was started from, or given with `--exec`; `--screenshot` is short for a script.
   Commands: `help`, `level_info` (its text depends on the layout), `camera`, `teleport`, `next_level`,
   `noclip` (no longer a key of its own), `cutaway` (leaves out everything above a height, to look into a layer
-  from above), `arrow`, `lighting`, `shadows`, `screenshot` (of any size, drawn off screen), `wait` and `quit`. The
-  console window shows the log and has an input line with history. Its parts are reusable for the game's
-  interface later: `TextField` (a line of typed text), `OverlayMesh` (rectangles and text in screen pixels,
-  with the blocky stb_easy_font in cells of equal width) and `OverlayRenderer`.
-- **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
-  reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
-  version of the linear series of levels. Done for now: the exit is a cube floating above the floor, drawn as
-  a portal in its own draw call: it spins slowly, glows without lighting, and its faces show a pixelated blue
-  swirl with sparkles inside a bright frame. The darker parts of the swirl, and faces seen from the side, are
-  partly see-through. A slowly pulsing blue light, which casts shadows, sits at its center, and the portal
-  pulses with it. Touching the cube starts the next level, with a seed derived from the current one and the
-  layout chosen as for the first level (`--layout` applies only to the first level). Room levels put it in the
-  center of a random floor tile on another layer than the start, away from holes and openings (`E` on the
-  plan); the debug layout puts it anywhere free. `next_level` starts the next level from the console. Next:
-  placing the exit far from the start where it is surely reachable.
-- **Doors between rooms**: some or all openings between rooms get doors that the player can open and
-  close. A closed door blocks movement and light (and later monsters). Doors are drawn as their own geometry in the
-  opening. Shadow maps assume that nothing moves, so a door that opens or closes must make the renderer draw the
-  shadow maps of nearby lights again. Done (see [DECISIONS.md](DECISIONS.md)): each opening of a room level gets a
-  door with a chance chosen for the level from 10% to 100%. A door is two halves with a texture made in code, between
-  two dark frames that are static obstacles. All doors of a level are of wood or all of metal, each with a chance of
-  50%. E (or the `activate` command) casts a ray from the eyes up to 2 m: on a closed door it opens it, on a frame it
-  opens or closes the door, and on a moving door it does nothing. The halves slide into the walls in one second, and
-  the door blocks the player until it is fully open. It doesn't close while the player stands in it. The `doors` and
-  `door` commands list and move doors. The halves cast shadows: while a door moves, the shadow maps of the lights
-  that reach it are drawn again in every frame. A thin white crosshair with a black outline marks the center of the
-  view that E activates; the `crosshair` command hides it.
-- **Multiple point lights**: static light sources placed in the level (torches for now; braziers and glowing
-  crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1,
-  the lights near the player (a few dozen) go to the shader in a uniform buffer, chosen on the CPU each frame.
-  With 4.5, a shader storage buffer can hold all lights of the level, and a compute shader can choose the
-  lights for each part of the screen. Done for torches: room levels get torches on random wall sides facing a
-  room (5–10% of them, random for each level), debug levels on their outer walls. All torches of a level have
-  one flame color: orange (50%), blue or green (25% each). A torch is a six-sided handle in the world mesh
-  (untextured, with a per-vertex color) and a flame sprite: an upright quad facing the camera, painted by a
-  shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torch lights nearest to
-  the player (by distance minus range) go to the shader in a uniform buffer; the light of the level exit
-  competes with the torches for these places. Torch lights flicker and fade out
-  smoothly at 6 m. The player's light now also has a range (15 m), and every light treats surfaces closer than
-  0.3 m as 0.3 m away, so the wall behind a flame doesn't turn white. Lights don't pop when they enter or
-  leave the nearest 31: when lights are left out, the gap (distance minus range) of the first one left out is
-  the cut, and chosen lights fade out over the last 2 m before it. A light that is replaced has faded out
-  fully, and the one that takes its place comes in from zero. This needs no state between frames.
-- **Shadows**: cubemap shadow maps for the nearest N lights. With 4.1, all of them fit in one cubemap
-  array texture, and each light's six faces are drawn in separate passes. 4.5 adds little here, apart from
-  debug output and shorter setup code.
-  Done for torch lights and the light of the level exit, up to 31 at once. The player's light casts none,
-  because it is at the camera, where its shadows can't be seen (and the player has no body yet). Torches and the world don't
-  move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept in
-  one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.
-  Drawing all 31 maps on the first frame takes about 0.2 s. A map stores the distance to the faces that
-  point away from the light (back faces), divided by the range, so lit surfaces never shadow themselves
-  and a 5 mm bias is enough. For this, the shadow pass also draws faces that the visible mesh leaves out:
-  a shell behind the one-sided floor, ceiling and boundary walls, and the hidden tops and bottoms of
-  blocks and ramps. Lookups use hardware comparison with 2 × 2 linear filtering. Torch handles and the
-  player cast no shadows (see "Later (unordered, low priority, might not be done)"). Next: a limit on how
-  many shadow maps are drawn in one frame, so that many torches at once don't cause a stutter.
-- First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
-- ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random
-  texture (chosen from the level seed) from the PNG files under `assets/textures/`, at most 128 × 128
-  pixels, with nearest-neighbour filtering. Next: different textures for walls, floor and ceiling.
-- ~~Dear ImGui debug overlay.~~ Done: F3 or `imgui [on|off]` shows a window with the frame times, what the
-  renderer drew, the player's state, the view switches, and sliders for the lights and the shadow bias.
-  The lights are a `LightSettings` in `ViewSettings`, so screenshots use them too. A shadow map is drawn
-  again when the range of its light changes. Next: level and texture inspectors, see "Later (unordered,
-  low priority, might not be done)".
+  from above), `arrow`, `crosshair`, `lighting`, `shadows`, `imgui`, `doors`, `door`, `activate`, `screenshot`
+  (of any size, drawn off screen), `wait` and `quit`. The console window shows the log and has an input line with
+  history. Its parts are reusable for the game's interface later: `TextField` (a line of typed text),
+  `OverlayMesh` (rectangles and text in screen pixels, with the blocky stb_easy_font in cells of equal width) and
+  `OverlayRenderer`.
+- **Level exit**: a cube floating above the floor, drawn as a portal in its own draw call: it spins slowly, glows
+  without lighting, and its faces show a pixelated blue swirl with sparkles inside a bright frame. The darker parts
+  of the swirl, and faces seen from the side, are partly see-through. A slowly pulsing blue light, which casts
+  shadows, sits at its center, and the portal pulses with it. Touching the cube starts the next level, with a seed
+  derived from the current one and the layout chosen as for the first level (`--layout` applies only to the first
+  level), which is a minimal version of the linear series of levels. Room levels put it in the center of a random
+  floor tile on another layer than the start, away from holes and openings (`E` on the plan); the debug layout puts
+  it anywhere free. `next_level` starts the next level from the console.
+- **Doors between rooms** (see [DECISIONS.md](DECISIONS.md)): each opening of a room level gets a door with a
+  chance chosen for the level from 10% to 100%. A closed door blocks movement and light. A door is two halves with
+  a texture made in code, between two dark frames that are static obstacles. All doors of a level are of wood or
+  all of metal, each with a chance of 50%. E (or the `activate` command) casts a ray from the eyes up to 2 m: on a
+  closed door it opens it, on a frame it opens or closes the door, and on a moving door it does nothing. The halves
+  slide into the walls in one second, and the door blocks the player until it is fully open. It doesn't close while
+  the player stands in it. The halves cast shadows: while a door moves, the shadow maps of the lights that reach it
+  are drawn again in every frame. A thin white crosshair with a black outline marks the center of the view that E
+  activates.
+- **Multiple point lights**: torches, static light sources with color and flicker. Room levels get torches on
+  random wall sides facing a room (5–10% of them, random for each level), debug levels on their outer walls. All
+  torches of a level have one flame color: orange (50%), blue or green (25% each). A torch is a six-sided handle in
+  the world mesh (untextured, with a per-vertex color) and a flame sprite: an upright quad facing the camera,
+  painted by a shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torch lights
+  nearest to the player (by distance minus range) go to the shader in a uniform buffer; the light of the level exit
+  competes with the torches for these places. Torch lights flicker and fade out smoothly at 6 m. The player's light
+  also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m away, so the wall behind a
+  flame doesn't turn white. Lights don't pop when they enter or leave the nearest 31: when lights are left out, the
+  gap (distance minus range) of the first one left out is the cut, and chosen lights fade out over the last 2 m
+  before it. A light that is replaced has faded out fully, and the one that takes its place comes in from zero.
+  This needs no state between frames.
+- **Shadows**: cubemap shadow maps for torch lights and the light of the level exit, up to 31 at once, all in one
+  cubemap array texture, with each light's six faces drawn in separate passes. The player's light casts none,
+  because it is at the camera, where its shadows can't be seen (and the player has no body yet). Torches and the
+  world don't move, so each torch's shadow map is drawn once, when the torch becomes one of the nearest, and kept
+  in one of 48 slots of a 256 × 256 depth cube map array (about 38 MB). The slot used longest ago is reused.
+  Drawing all 31 maps on the first frame takes about 0.2 s. A map stores the distance to the faces that point away
+  from the light (back faces), divided by the range, so lit surfaces never shadow themselves and a 5 mm bias is
+  enough. For this, the shadow pass also draws faces that the visible mesh leaves out: a shell behind the
+  one-sided floor, ceiling and boundary walls, and the hidden tops and bottoms of blocks and ramps. Lookups use
+  hardware comparison with 2 × 2 linear filtering. Torch handles and the player cast no shadows (see "Later
+  (unordered, low priority, might not be done)").
+- **Textures**: each level uses one random texture (chosen from the level seed) for walls, floor and ceiling,
+  instead of the checker pattern, from the PNG files under `assets/textures/`, at most 128 × 128 pixels, with
+  nearest-neighbour filtering.
+- **Dear ImGui debug overlay**: F3 or `imgui [on|off]` shows a window with the frame times, what the renderer
+  drew, the player's state, the view switches, and sliders for the lights and the shadow bias. The lights are a
+  `LightSettings` in `ViewSettings`, so screenshots use them too. A shadow map is drawn again when the range of its
+  light changes.
 
 ## v0.3 — Game menu, party and rudimentary spellcasting
 
@@ -205,6 +189,17 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 
 ## Later (unordered)
 
+- **OpenGL 4.5** (considered, see [DECISIONS.md](DECISIONS.md)): debug output through the logger, Direct State
+  Access, shader storage buffers and compute shaders. A shader storage buffer could hold all lights of the level,
+  and a compute shader could choose the lights for each part of the screen. This closes the macOS path unless we
+  keep a 4.1 render path.
+- **Jolt Physics** (considered, see [DECISIONS.md](DECISIONS.md)): replace our collision code with Jolt, with the
+  player as a `CharacterVirtual`. Keep the current behavior: sliding, ramps, gravity, jumping and noclip.
+- **Static 3D props** loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
+- **Level exit far from the start**: place the exit where it is far from the start and surely reachable.
+- **Different textures** for walls, floor and ceiling.
+- **Fewer shadow maps per frame**: a limit on how many shadow maps are drawn in one frame, so that many torches at
+  once don't cause a stutter. While a door moves, only the cube faces that can see it could be drawn again.
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
 - Full-screen mode, and mouse look.
 - Attack spells, spell effects, projectiles that emit light (?).
