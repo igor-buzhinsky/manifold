@@ -98,6 +98,7 @@ TEST(PlayerTest, YawWrapsAround) {
 TEST(LevelExitTest, BodyTouchesCubeFromTheSideAndBelow) {
     const LevelExit exit{.floor_point = {1.0f, 2.0f, 3.3f}};
     EXPECT_EQ(exit.base_center(), glm::vec3(1.0f, 2.0f, 3.3f + LevelExit::kHoverHeight));
+    EXPECT_EQ(exit.center(), exit.base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f));
     const auto body = [](float x, float z) {
         return VerticalCylinder{.base = {x, 2.0f, z}, .radius = 0.6f, .height = 1.8f};
     };

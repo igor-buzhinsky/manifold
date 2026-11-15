@@ -68,7 +68,7 @@ float exit_pulse(float time) {
 }
 
 PointLight exit_light(const LevelExit& exit, float time, const ExitLightParams& params) {
-    return {.position = exit.base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f),
+    return {.position = exit.center(),
             .color = kExitLightColor,
             .intensity = params.intensity * exit_pulse(time),
             .range = params.range,

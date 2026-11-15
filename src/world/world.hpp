@@ -66,6 +66,8 @@ struct LevelExit {
 
     /// Center of the cube's bottom face.
     glm::vec3 base_center() const { return floor_point + glm::vec3(0.0f, 0.0f, kHoverHeight); }
+    /// Center of the cube, where its light is and around which it spins.
+    glm::vec3 center() const { return base_center() + glm::vec3(0.0f, 0.0f, kSize / 2.0f); }
 
     /// The area the cube occupies in the horizontal plane.
     RotatedRectangle footprint() const;

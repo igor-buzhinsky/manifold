@@ -320,7 +320,7 @@ out vec4 frag_color;
 
 const float kPixels = 8.0;  // Big pixels across a face, for the retro look.
 
-// Colors from the brightest to the darkest, already sRGB, and how opaque each is.
+// Colors of the frame and of the swirl from its brightest band to its darkest, already sRGB.
 const vec3 kFrame = vec3(0.55, 0.8, 1.0);
 const vec3 kCore = vec3(0.85, 0.95, 1.0);
 const vec3 kMiddle = vec3(0.2, 0.45, 1.0);
@@ -331,7 +331,8 @@ float hash(vec2 p) {
 }
 
 void main() {
-    vec2 cell = floor(v_uv * kPixels);
+    // Texture coordinates of exactly 1 at the far edges of a face belong to the last cell.
+    vec2 cell = min(floor(v_uv * kPixels), vec2(kPixels - 1.0));
     vec2 p = (cell + 0.5) / kPixels - 0.5;
     vec3 color;
     float alpha;
@@ -572,7 +573,7 @@ Renderer::Renderer(const World& world, const Image& texture)
     glBindVertexArray(0);
 
     if (const std::optional<LevelExit>& exit = world.exit()) {
-        exit_center_ = exit->base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f);
+        exit_center_ = exit->center();
         const std::vector<Vertex> exit_mesh = build_exit_mesh();
         exit_vertex_count_ = static_cast<GLsizei>(exit_mesh.size());
         glGenVertexArrays(1, &exit_vertex_array_);
