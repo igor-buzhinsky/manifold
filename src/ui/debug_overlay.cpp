@@ -90,7 +90,8 @@ void view_section(ViewSettings& view) {
 void light_section(ViewSettings& view) {
     LightSettings& lights = view.lights;
     constexpr ImGuiColorEditFlags kColorFlags = ImGuiColorEditFlags_Float;
-    ImGui::ColorEdit3("Ambient", glm::value_ptr(lights.ambient), kColorFlags);
+    // The ambient light of a level can be above 1, see level_ambient(), which editing must keep.
+    ImGui::ColorEdit3("Ambient", glm::value_ptr(lights.ambient), kColorFlags | ImGuiColorEditFlags_HDR);
 
     ImGui::SeparatorText("Player's light");
     ImGui::ColorEdit3("Color##player", glm::value_ptr(lights.player_color), kColorFlags);

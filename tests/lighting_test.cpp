@@ -18,8 +18,12 @@
 namespace manifold {
 namespace {
 
-/// Rec. 709 luminance of linear RGB.
-float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f)); }
+TEST(LightingTest, LuminanceWeighsGreenMostAndBlueLeast) {
+    EXPECT_FLOAT_EQ(luminance(glm::vec3(1.0f)), 1.0f);
+    EXPECT_FLOAT_EQ(luminance({1.0f, 0.0f, 0.0f}), 0.2126f);
+    EXPECT_FLOAT_EQ(luminance({0.0f, 1.0f, 0.0f}), 0.7152f);
+    EXPECT_FLOAT_EQ(luminance({0.0f, 0.0f, 1.0f}), 0.0722f);
+}
 
 TEST(LightingTest, LevelAmbientIsNoneOrTextureHueForAboutHalfOfSeeds) {
     const glm::vec3 color{0.3f, 0.2f, 0.1f};
@@ -42,13 +46,28 @@ TEST(LightingTest, LevelAmbientIsNoneOrTextureHueForAboutHalfOfSeeds) {
 
 TEST(LightingTest, LevelAmbientIsAsBrightForDarkAndLightTextures) {
     for (std::uint64_t seed = 0; seed < 20; ++seed) {
-        EXPECT_EQ(level_ambient(seed, glm::vec3(0.05f)), level_ambient(seed, glm::vec3(0.8f))) << "seed " << seed;
+        const glm::vec3 dark = level_ambient(seed, glm::vec3(0.05f));
+        const glm::vec3 light = level_ambient(seed, glm::vec3(0.8f));
+        for (int i = 0; i < 3; ++i) {
+            EXPECT_NEAR(dark[i], light[i], 1e-6f) << "seed " << seed;
+        }
     }
 }
 
-TEST(LightingTest, LevelAmbientOfBlackTextureIsGrey) {
+TEST(LightingTest, LevelAmbientKeepsTheHueOfSaturatedTextures) {
     for (std::uint64_t seed = 0; seed < 20; ++seed) {
-        const glm::vec3 ambient = level_ambient(seed, glm::vec3(0.0f));
+        const glm::vec3 ambient = level_ambient(seed, {0.0f, 0.0f, 0.5f});
+        if (ambient != glm::vec3(0.0f)) {
+            EXPECT_EQ(ambient.r, 0.0f);
+            EXPECT_EQ(ambient.g, 0.0f);
+            EXPECT_NEAR(ambient.b, kLevelAmbientLuminance / 0.0722f, 1e-5f);  // Above 1.
+        }
+    }
+}
+
+TEST(LightingTest, LevelAmbientOfNearBlackTextureIsGrey) {
+    for (std::uint64_t seed = 0; seed < 20; ++seed) {
+        const glm::vec3 ambient = level_ambient(seed, {0.005f, 0.0f, 0.0f});
         EXPECT_TRUE(ambient == glm::vec3(0.0f) || ambient == glm::vec3(kLevelAmbientLuminance)) << "seed " << seed;
     }
 }

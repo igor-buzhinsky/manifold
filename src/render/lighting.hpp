@@ -160,6 +160,9 @@ struct LightSettings {
     std::size_t max_lights = kMaxLights;
 };
 
+/// Rec. 709 luminance of a linear RGB color: how bright it looks.
+float luminance(const glm::vec3& color);
+
 /// Luminance of the ambient light of the levels that have it, see level_ambient().
 inline constexpr float kLevelAmbientLuminance = 0.1f;
 
@@ -167,7 +170,8 @@ inline constexpr float kLevelAmbientLuminance = 0.1f;
 /// texture, so that the level seems lit without a visible source.
 ///
 /// The light has the color of the texture scaled to a luminance of kLevelAmbientLuminance, so that light and dark
-/// textures give equally bright light. A black texture gives grey light.
+/// textures give equally bright light. A near-black texture, whose hue is uncertain, gives grey light. A very
+/// saturated texture can give a light with a component above 1, e.g. pure blue gives about 1.39 blue.
 ///
 /// \param level_seed    The seed of the level. The choice depends only on it.
 /// \param texture_color The mean color of the level's texture, linear RGB, see mean_linear_color().

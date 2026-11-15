@@ -94,6 +94,8 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
     return selected;
 }
 
+float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f)); }
+
 glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color) {
     // Mixing the seed keeps the choice independent of the other random choices made from it.
     constexpr std::uint64_t kAmbientSeedSalt = 0xd1b54a32d192ed03ULL;
@@ -103,14 +105,13 @@ glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color
     if (!lit) {
         return glm::vec3(0.0f);
     }
-    // Rec. 709 luminance of linear RGB.
-    const float luminance = glm::dot(texture_color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
-    // Below this, the hue is too uncertain to keep.
-    constexpr float kMinLuminance = 1e-4f;
-    if (luminance < kMinLuminance) {
+    // Below this (about sRGB 9 / 255), the hue is too uncertain to keep.
+    constexpr float kMinLuminance = 3e-3f;
+    const float texture_luminance = luminance(texture_color);
+    if (texture_luminance < kMinLuminance) {
         return glm::vec3(kLevelAmbientLuminance);
     }
-    return texture_color * (kLevelAmbientLuminance / luminance);
+    return texture_color * (kLevelAmbientLuminance / texture_luminance);
 }
 
 Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
