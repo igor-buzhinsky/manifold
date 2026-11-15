@@ -231,7 +231,7 @@ closes them with E, which acts on what the center of the view points at.
 - **Collision**: a door that is not fully open is one box between the frames, as thick as the door. It is passed to
   `move_and_slide()` next to the world. Passing is possible only when the door is fully open. A door doesn't close
   while the player overlaps the box.
-- **Activation**: E casts a ray from the eyes along the view, up to 3 m. The ray stops at walls, slabs and closed
+- **Activation**: E casts a ray from the eyes along the view, up to 2 m. The ray stops at walls, slabs and closed
   doors. A hit on a closed door opens it, and a hit on a frame opens or closes its door. While a door moves, E on it
   does nothing. The ray test and its result are meant to be reused by other things that can be activated.
 - **Drawing**: the halves have their own vertex buffer in the world's vertex format, drawn with the world's program

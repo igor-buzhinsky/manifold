@@ -470,14 +470,14 @@ TEST(GameTest, ActivationNeedsANewPressOfTheKey) {
 TEST(GameTest, ActivationIsLimitedByReachAndWalls) {
     Level level = make_door_level();
     // A low block between the player and the door, below the eyes when standing on the floor.
-    level.world.add_obstacle({.base_center = {0.0f, -1.5f, 0.0f}, .half_size = {0.2f, 0.2f}, .height = 1.0f});
+    level.world.add_obstacle({.base_center = {0.0f, -1.0f, 0.0f}, .half_size = {0.2f, 0.2f}, .height = 1.0f});
     Game game(make_config(), std::move(level));
-    game.teleport({0.0f, -3.1f, 0.0f});
-    EXPECT_EQ(game.activate(), Activation::kNothing);  // The door is 3.05 m from the eyes.
+    game.teleport({0.0f, -2.1f, 0.0f});
+    EXPECT_EQ(game.activate(), Activation::kNothing);  // The door is 2.05 m from the eyes.
     // Standing lower, the block is in the way.
-    game.teleport({0.0f, -2.5f, -1.0f});
+    game.teleport({0.0f, -1.5f, -1.0f});
     EXPECT_EQ(game.activate(), Activation::kNothing);
-    game.teleport({0.0f, -2.5f, 0.0f});
+    game.teleport({0.0f, -1.5f, 0.0f});
     EXPECT_EQ(game.activate(), Activation::kOpened);
 }
 

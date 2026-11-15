@@ -10,7 +10,7 @@
 | Up / Down arrow | Look up / down (at most 30° each way) |
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or levitation (not implemented yet): fly up |
 | Page Down | With noclip or levitation (not implemented yet): fly down |
-| E | Activate what the center of the view points at, up to 3 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
+| E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
 | Escape | Close the console if it is open, otherwise quit |

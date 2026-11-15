@@ -153,7 +153,7 @@ public:
     /// Length of the cycle of animation_time(), in seconds: one hour.
     static constexpr double kAnimationPeriod = 3600.0;
     /// How far from the eyes the player can activate things, in metres.
-    static constexpr float kActivationReach = 3.0f;
+    static constexpr float kActivationReach = 2.0f;
 
 private:
     /// Turns and moves the player, see update().

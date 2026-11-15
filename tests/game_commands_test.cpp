@@ -220,7 +220,7 @@ TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {
     } catch (const CommandError& error) {
         EXPECT_TRUE(std::string(error.what()).ends_with("the player stands in it")) << error.what();
     }
-    fixture.game.teleport({0.0f, -3.0f, 0.0f});
+    fixture.game.teleport({0.0f, -1.9f, 0.0f});
     fixture.run("door 0 close");
     EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 0.0f);
     for (const char* command : {"door 1 open", "door -1 open", "door 0 shut", "door 0", "door x open", "doors 0"}) {
