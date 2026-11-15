@@ -211,6 +211,68 @@ Drawbacks:
   shape on the CPU or GPU, or looks static), or a flame sprite sheet from a CC0 pack (an asset to find and
   credit, and frames to play through).
 
+## 2026-11-15: Level exit as a spinning, see-through portal cube that leads to a new level
+
+Status: **ACCEPTED**. Done in v0.2. Placing the exit far from the start, where it is surely reachable, is
+left for later.
+
+Decision: every level has one exit, a portal cube floating above the floor. Touching it generates the next
+level, which is a minimal version of the linear series of levels.
+
+- **Placement**: in room levels, the exit is in the center of a random floor tile on another layer than the
+  start, so the player has to find the way there. The tile is not part of a hole in its floor or ceiling, and
+  doesn't share a side with an opening, where it would stand in the way between rooms. With a single layer,
+  it is on the start layer, but not on the start tile. If no tile fits, the level is planned again, like when
+  the holes don't fit. In debug levels, it is at a random place away from the start, the ramps and the
+  obstacles that reach its height. The text plan shows it as `E`.
+- **Shape and trigger**: a 0.5 m cube whose bottom is 0.6 m above the floor. It belongs to the static
+  `World`, but doesn't collide: the player walks into it. The level changes when the player's cylinder
+  overlaps or touches the cube without rotation, also with noclip.
+- **Next level**: its seed comes from the current one through a SplitMix64 step, so a series of levels
+  repeats from the same first seed. Its layout is chosen at random as for the first level; `--layout`
+  applies only to the first level. The player starts at the new start, standing still; noclip and the game
+  time stay. The main loop builds a new renderer, with the meshes and texture of the new level.
+  `next_level` does the same from the console.
+- **Light**: a blue point light at the center of the cube, 5 m in range, whose brightness pulses between
+  60% and 100% every 2 s. Only the brightness changes, so its shadow map, drawn once like a torch's, stays
+  valid. It casts shadows and competes with the torch lights for the 31 places by distance.
+- **Portal look**: the cube has its own vertex buffer, program and draw call, after the opaque world and
+  the flames. Its vertex shader spins it once every 8 s around the vertical through its center. Its
+  fragment shader paints each face as 8 × 8 big pixels: a bright frame around a turning, two-armed blue
+  swirl with sparkles. It is unlit, so it glows in the dark, and pulses with the light. It is blended without
+  writing depth, far faces first, then near faces. The darker bands of the swirl, and faces seen from the
+  side, are partly see-through, so the far faces show behind the near ones. The cube casts no shadows.
+
+Gains:
+
+- **Easy to find**: the blue, pulsing light shows the way from a distance and around corners, and stands out
+  against the orange torches.
+- **No light needed on the cube**: a lit cube around its own light would face away from it and stay dark.
+  An unlit shader avoids this, like the torch flames do.
+- **Blending is easy here**: with one see-through object, drawn last, nothing needs sorting by depth. Back
+  faces before front faces is a correct order for a convex shape, also with the camera inside it.
+- **No asset**: the pattern is made in the shader, so it needs no texture file.
+- **Reproducible**: the series of levels depends only on the first seed, and placement, the trigger, the
+  light and the spin angle are plain code in `manifold_core`, with unit tests.
+
+Drawbacks:
+
+- **No reachability check**: in room levels, the exit should be reachable by how they are built (the rooms
+  of a layer are connected, and neighboring layers have holes and, with the default settings, ramps), but
+  nothing checks it. In debug levels, obstacles may enclose the exit. It may also be close to the start, e.g.
+  right below it.
+- **Failed generation quits the game**: when the next level can't be generated, the game stops with the
+  error, see "Error-proof level generation" in [ROADMAP.md](ROADMAP.md).
+- **The trigger doesn't spin**: it is checked for the cube without rotation, so a corner of the spinning
+  cube can reach up to about 10 cm past it.
+- **A new renderer per level** compiles all shaders again and drops all shadow maps. This is a short pause
+  at the level change, which is fine as long as levels change rarely.
+- **Blending works only for this one object**: more see-through things (water, glass) will need sorting, or
+  order-independent transparency.
+- Alternatives: a lit or emissive cube in the world mesh (the first two steps of this change: simple, but it
+  can't move or be see-through), or a sprite that faces the camera like the flames (cheap, but flat when
+  the player walks around it).
+
 ## 2026-11-15: Sliding doors in openings, activated with E by a ray from the camera
 
 Status: **ACCEPTED**. Done in v0.2, without shadows of the halves.
