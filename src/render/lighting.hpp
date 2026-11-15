@@ -160,8 +160,14 @@ struct LightSettings {
     std::size_t max_lights = kMaxLights;
 };
 
-/// The ambient light of a level: none for half of the seeds, and for the others the mean color of the level's
+/// Luminance of the ambient light of the levels that have it, see level_ambient().
+inline constexpr float kLevelAmbientLuminance = 0.1f;
+
+/// The ambient light of a level: none for half of the seeds, and for the others light of the hue of the level's
 /// texture, so that the level seems lit without a visible source.
+///
+/// The light has the color of the texture scaled to a luminance of kLevelAmbientLuminance, so that light and dark
+/// textures give equally bright light. A black texture gives grey light.
 ///
 /// \param level_seed    The seed of the level. The choice depends only on it.
 /// \param texture_color The mean color of the level's texture, linear RGB, see mean_linear_color().

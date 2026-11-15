@@ -18,18 +18,39 @@
 namespace manifold {
 namespace {
 
-TEST(LightingTest, LevelAmbientIsNoneOrTextureColorForAboutHalfOfSeeds) {
+/// Rec. 709 luminance of linear RGB.
+float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f)); }
+
+TEST(LightingTest, LevelAmbientIsNoneOrTextureHueForAboutHalfOfSeeds) {
     const glm::vec3 color{0.3f, 0.2f, 0.1f};
     int lit = 0;
     constexpr int kSeeds = 1000;
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const glm::vec3 ambient = level_ambient(seed, color);
-        EXPECT_TRUE(ambient == color || ambient == glm::vec3(0.0f)) << "seed " << seed;
         EXPECT_EQ(level_ambient(seed, color), ambient) << "seed " << seed;
-        lit += ambient == color ? 1 : 0;
+        if (ambient == glm::vec3(0.0f)) {
+            continue;
+        }
+        ++lit;
+        EXPECT_NEAR(luminance(ambient), kLevelAmbientLuminance, 1e-6f) << "seed " << seed;
+        EXPECT_NEAR(ambient.r / ambient.b, 3.0f, 1e-5f) << "seed " << seed;
+        EXPECT_NEAR(ambient.g / ambient.b, 2.0f, 1e-5f) << "seed " << seed;
     }
     EXPECT_GT(lit, 400);
     EXPECT_LT(lit, 600);
+}
+
+TEST(LightingTest, LevelAmbientIsAsBrightForDarkAndLightTextures) {
+    for (std::uint64_t seed = 0; seed < 20; ++seed) {
+        EXPECT_EQ(level_ambient(seed, glm::vec3(0.05f)), level_ambient(seed, glm::vec3(0.8f))) << "seed " << seed;
+    }
+}
+
+TEST(LightingTest, LevelAmbientOfBlackTextureIsGrey) {
+    for (std::uint64_t seed = 0; seed < 20; ++seed) {
+        const glm::vec3 ambient = level_ambient(seed, glm::vec3(0.0f));
+        EXPECT_TRUE(ambient == glm::vec3(0.0f) || ambient == glm::vec3(kLevelAmbientLuminance)) << "seed " << seed;
+    }
 }
 
 TEST(LightingTest, TorchPhasesAreSpreadOverCircle) {

@@ -100,7 +100,17 @@ glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color
     std::mt19937_64 random(level_seed ^ kAmbientSeedSalt);
     // The engine's output is the same with every standard library, unlike that of the distributions.
     const bool lit = (random() >> 63U) != 0;
-    return lit ? texture_color : glm::vec3(0.0f);
+    if (!lit) {
+        return glm::vec3(0.0f);
+    }
+    // Rec. 709 luminance of linear RGB.
+    const float luminance = glm::dot(texture_color, glm::vec3(0.2126f, 0.7152f, 0.0722f));
+    // Below this, the hue is too uncertain to keep.
+    constexpr float kMinLuminance = 1e-4f;
+    if (luminance < kMinLuminance) {
+        return glm::vec3(kLevelAmbientLuminance);
+    }
+    return texture_color * (kLevelAmbientLuminance / luminance);
 }
 
 Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
