@@ -51,8 +51,10 @@ bool light_reaches_door(const glm::vec3& light, float range, const Door& door);
 
 /// Remembers which lights have a shadow map in which slot of a fixed set of slots.
 ///
-/// Lights are static, so a shadow map stays valid as long as its light keeps its slot. When more lights
-/// need a slot than are free, the slots of the lights that were used longest ago are reused.
+/// Lights are static, so a shadow map stays valid as long as its light keeps its slot, unless something in its
+/// range moves, such as a door. The cache doesn't track that: the renderer draws such maps again, see
+/// light_reaches_door(). When more lights need a slot than are free, the slots of the lights that were used longest
+/// ago are reused.
 class ShadowCache {
 public:
     /// What a call of assign() decided.

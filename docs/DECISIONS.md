@@ -316,8 +316,9 @@ Gains:
 
 Drawbacks:
 
-- While a door moves, the shadow maps of the lights near it are drawn in every frame, each with the whole level
-  mesh. With many lights near the door, this could slow these frames down.
+- While a door moves, the shadow maps of the lights near it are drawn in every frame, each with all 6 cube faces and
+  the whole level mesh. Next to a door with a torch 2 m away, this took about 3 ms more per frame. If it gets too
+  slow, only the cube faces that can see the door could be drawn again, which is usually 1 to 3 of them.
 - The ray test checks every obstacle of the level, which is fine once per key press, but not every frame.
 - Closing works only by aiming at a frame, since an open door's halves are hidden in the walls.
 - Alternative: hinged doors that swing. They look more natural, but need rotated, moving collision, which can push

@@ -93,7 +93,8 @@ private:
     /// The shadow maps that see a door that moved are marked to be drawn again, see light_reaches_door().
     void update_doors(std::span<const DoorState> doors);
 
-    /// Gives each light that casts shadows a shadow map, and draws the maps that are new.
+    /// Gives each light that casts shadows a shadow map, and draws the maps that are new, whose light's range
+    /// changed, or that update_doors() marked.
     ///
     /// Changes the viewport, the current program, the bound vertex array and, if any map is drawn, the
     /// depth attachment of the shadow framebuffer. The framebuffer that was bound before is bound again at the

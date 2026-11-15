@@ -159,6 +159,7 @@ TEST(ShadowMapTest, LightReachesDoorWhereverItsHalvesSlide) {
     // Above and below.
     EXPECT_TRUE(light_reaches_door({10.0f, 0.0f, 10.9f}, 5.0f, door));
     EXPECT_FALSE(light_reaches_door({10.0f, 0.0f, 11.1f}, 5.0f, door));
+    EXPECT_TRUE(light_reaches_door({10.0f, 0.0f, -1.9f}, 5.0f, door));
     EXPECT_FALSE(light_reaches_door({10.0f, 0.0f, -2.1f}, 5.0f, door));
 
     // Turned to run along y, the door reaches along y instead.
