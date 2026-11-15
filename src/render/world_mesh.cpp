@@ -282,4 +282,26 @@ std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches) {
     return vertices;
 }
 
+std::vector<Vertex> build_exit_mesh(const LevelExit& exit) {
+    constexpr Material kMaterial{.color = kExitColor, .texture_weight = 0.0f};
+    const float half = LevelExit::kSize / 2.0f;
+    const glm::vec3 base = exit.base_center();
+    // The corners of the bottom, counter-clockwise from above, and the corners of the top right above them.
+    std::array<glm::vec3, 4> bottom{};
+    std::array<glm::vec3, 4> top{};
+    const std::array<glm::vec2, 4> signs{{{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}}};
+    for (std::size_t i = 0; i < signs.size(); ++i) {
+        bottom.at(i) = base + glm::vec3(half * signs.at(i), 0.0f);
+        top.at(i) = bottom.at(i) + glm::vec3(0.0f, 0.0f, LevelExit::kSize);
+    }
+    std::vector<Vertex> vertices;
+    for (std::size_t i = 0; i < bottom.size(); ++i) {
+        const std::size_t next = (i + 1) % bottom.size();
+        add_quad(vertices, {bottom.at(i), bottom.at(next), top.at(next), top.at(i)}, kMaterial);
+    }
+    add_quad(vertices, top, kMaterial);
+    add_quad(vertices, {bottom[0], bottom[3], bottom[2], bottom[1]}, kMaterial);
+    return vertices;
+}
+
 }  // namespace manifold

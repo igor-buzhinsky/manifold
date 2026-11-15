@@ -95,5 +95,32 @@ TEST(PlayerTest, YawWrapsAround) {
     EXPECT_NEAR(player.yaw(), 0.5f, 1e-4f);
 }
 
+TEST(LevelExitTest, BodyTouchesCubeFromTheSideAndBelow) {
+    const LevelExit exit{.floor_point = {1.0f, 2.0f, 3.3f}};
+    EXPECT_EQ(exit.base_center(), glm::vec3(1.0f, 2.0f, 3.3f + LevelExit::kHoverHeight));
+    const auto body = [](float x, float z) {
+        return VerticalCylinder{.base = {x, 2.0f, z}, .radius = 0.6f, .height = 1.8f};
+    };
+    const float reach = (LevelExit::kSize / 2.0f) + 0.6f;
+    EXPECT_TRUE(exit.touches(body(1.0f, 3.3f)));
+    EXPECT_TRUE(exit.touches(body(1.0f + reach - 0.01f, 3.3f)));
+    EXPECT_FALSE(exit.touches(body(1.0f + reach + 0.01f, 3.3f)));
+    // Below the cube: the head must reach its bottom.
+    const float bottom = 3.3f + LevelExit::kHoverHeight;
+    EXPECT_TRUE(exit.touches(body(1.0f, bottom - 1.79f)));
+    EXPECT_FALSE(exit.touches(body(1.0f, bottom - 1.81f)));
+    // Above the cube.
+    EXPECT_TRUE(exit.touches(body(1.0f, bottom + LevelExit::kSize - 0.01f)));
+    EXPECT_FALSE(exit.touches(body(1.0f, bottom + LevelExit::kSize + 0.01f)));
+}
+
+TEST(WorldTest, HasNoExitUntilSet) {
+    World world(kBounds);
+    EXPECT_FALSE(world.exit().has_value());
+    world.set_exit({.floor_point = {1.0f, 2.0f, 0.0f}});
+    ASSERT_TRUE(world.exit().has_value());
+    EXPECT_EQ(world.exit()->floor_point, glm::vec3(1.0f, 2.0f, 0.0f));
+}
+
 }  // namespace
 }  // namespace manifold

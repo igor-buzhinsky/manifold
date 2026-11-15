@@ -376,7 +376,10 @@ void run(const Options& options) {
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
-    manifold::Renderer renderer(game.world(), pick_level_texture(game.seed()));
+    // The renderer has the meshes of one level, so each level gets a new one.
+    std::optional<manifold::Renderer> renderer;
+    renderer.emplace(game.world(), pick_level_texture(game.seed()));
+    int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
 
     manifold::Console console;
@@ -404,11 +407,17 @@ void run(const Options& options) {
         // instead of moving the player.
         const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
         game.update(keys_taken ? manifold::PlayerInput{} : read_input(), std::min(frame_time, kMaxFrameTime));
+        // The player reached the exit, or a console command started the next level.
+        if (game.level_number() != rendered_level) {
+            log_game(game);
+            renderer.emplace(game.world(), pick_level_texture(game.seed()));
+            rendered_level = game.level_number();
+        }
 
         const manifold::PixelSize window_size = window.framebuffer_size();
-        draw_game(renderer, game, state.view, window_size);
+        draw_game(*renderer, game, state.view, window_size);
         // The stats of this draw, before screenshots draw again.
-        const manifold::RenderStats render_stats = renderer.stats();
+        const manifold::RenderStats render_stats = renderer->stats();
         if (state.debug_overlay) {
             overlay.draw(game, state.view, render_stats, frame_times);
         }
@@ -417,7 +426,7 @@ void run(const Options& options) {
             overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
                                   viewport);
         }
-        take_screenshots(renderer, game, state.screenshots, window_size);
+        take_screenshots(*renderer, game, state.screenshots, window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;

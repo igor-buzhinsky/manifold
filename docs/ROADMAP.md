@@ -113,7 +113,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
 - **Console**: commands that inspect the game, for testing levels by hand and for scripted checks, see
   [GAME_MANUAL.md](../GAME_MANUAL.md). Done: typed into the in-game console window (the `/~ key), into
   the terminal the game was started from, or given with `--exec`; `--screenshot` is short for a script.
-  Commands: `help`, `level_info` (its text depends on the layout), `camera`, `teleport`, `noclip` (no longer
+  Commands: `help`, `level_info` (its text depends on the layout), `camera`, `teleport`, `next_level`, `noclip` (no longer
   a key of its own), `cutaway` (leaves out everything above a height, to look into a layer from above),
   `arrow`, `lighting`, `shadows`, `screenshot` (of any size, drawn off screen), `wait` and `quit`. The
   console window shows the log and has an input line with history. Its parts are reusable for the game's
@@ -121,7 +121,12 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   with the blocky stb_easy_font in cells of equal width) and `OverlayRenderer`.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
-  version of the linear series of levels.
+  version of the linear series of levels. Done for now: the exit is a blue cube floating above the floor,
+  and touching it starts the next level, with a seed derived from the current one and the layout chosen
+  as for the first level (or the one given with `--layout`). Room levels put it in the center of a random
+  floor tile on another layer than the start, away from holes and openings (`E` on the plan); the debug
+  layout puts it anywhere free. `next_level` starts the next level from the console. Next: a portal look,
+  and placing the exit far from the start where it is surely reachable.
 - **Doors between rooms**: some or all openings between rooms get doors that the player can open and
   close. A closed door blocks movement (and later light and monsters). Doors are drawn as their own
   geometry in the opening. Shadow maps assume that nothing moves, so a door that opens or closes must

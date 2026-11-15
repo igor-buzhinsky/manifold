@@ -23,6 +23,18 @@ TEST(LayoutFactoryTest, MakesLayoutsOfRequestedKind) {
     }
 }
 
+TEST(LayoutFactoryTest, NextLevelSeedsDiffer) {
+    std::set<std::uint64_t> seeds;
+    std::uint64_t seed = 0;
+    for (int level = 0; level < 100; ++level) {
+        seeds.insert(seed);
+        seed = next_level_seed(seed);
+    }
+    EXPECT_EQ(seeds.size(), 100U);
+    EXPECT_EQ(next_level_seed(42), next_level_seed(42));
+    EXPECT_NE(next_level_seed(1), next_level_seed(2));
+}
+
 TEST(LayoutFactoryTest, NamesRoundTrip) {
     for (const LayoutKind kind : {LayoutKind::kDebug, LayoutKind::kRooms}) {
         EXPECT_EQ(parse_layout_name(layout_name(kind)), kind);

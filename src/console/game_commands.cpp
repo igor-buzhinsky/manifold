@@ -6,6 +6,7 @@
 #include <numbers>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
 
@@ -70,7 +71,8 @@ int parse_screenshot_size(const std::string& text) {
     return size;
 }
 
-/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport and noclip.
+/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, next_level
+/// and noclip.
 void add_player_commands(Console& console, Game& game, ConsoleState& state) {
     console.add("level_info", "level_info", "Describes the level, depending on its layout, and the player.",
                 [&game](std::span<const std::string> arguments) {
@@ -120,6 +122,16 @@ void add_player_commands(Console& console, Game& game, ConsoleState& state) {
                         yaw = to_radians(parse_float_argument(arguments[3]));
                     }
                     game.teleport(position, yaw);
+                });
+
+    console.add("next_level", "next_level", "Starts the next level, as if the player reached the exit.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "next_level");
+                    try {
+                        game.next_level();
+                    } catch (const std::runtime_error& error) {
+                        throw CommandError(error.what());
+                    }
                 });
 
     add_switch(

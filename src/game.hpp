@@ -50,15 +50,17 @@ public:
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation. The same seed gives the same level.
-    /// \param layout The level layout. If not given, one is chosen at random, see LevelConfig.
+    /// \param layout The layout of this level and the next ones. If not given, each is chosen at random, see
+    ///               LevelConfig.
     /// \throws std::runtime_error if the level can't be generated.
     Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout = std::nullopt);
 
     /// Starts a game in a level that is already generated, e.g. one built by hand in a test.
     ///
-    /// \param config Game settings. The level settings are not used.
+    /// \param config Game settings. The level settings are used for the next levels, with layouts chosen at
+    ///               random.
     /// \param level  The level. The player starts at its start.
-    /// \param seed   The seed reported by seed().
+    /// \param seed   The seed reported by seed(). The next level is generated from next_level_seed() of it.
     Game(const GameConfig& config, Level level, std::uint64_t seed = 0);
 
     /// Advances the game by one frame.
@@ -69,9 +71,19 @@ public:
     /// positive, a player who stands on something jumps. Holding it doesn't jump again. With noclip, the player flies:
     /// moves up and down by `input.rise`, doesn't fall, and goes through everything.
     ///
+    /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
+    ///
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
+    /// \throws std::runtime_error if the next level can't be generated.
     void update(const PlayerInput& input, float dt);
+
+    /// Generates the next level from next_level_seed() of the current seed, and puts the player at its start.
+    ///
+    /// The player stands still and looks straight ahead. Noclip and the game time stay as they are.
+    ///
+    /// \throws std::runtime_error if the level can't be generated. The current level then stays.
+    void next_level();
 
     /// Moves the player, e.g. to test a level, without checking for obstacles.
     ///
@@ -91,6 +103,8 @@ public:
     const Player& player() const { return player_; }
     /// The seed the level was generated from.
     std::uint64_t seed() const { return seed_; }
+    /// How many levels came before this one: 0 in the first level.
+    int level_number() const { return level_number_; }
     /// Seconds of game time since the start: the sum of the durations passed to update().
     double time() const { return time_; }
     /// Game time for animations, such as the flicker of torches: time() wrapped into [0, kAnimationPeriod).
@@ -103,6 +117,12 @@ public:
     static constexpr double kAnimationPeriod = 3600.0;
 
 private:
+    /// Turns and moves the player, see update().
+    void move_player(const PlayerInput& input, float dt);
+
+    LevelConfig level_config_;
+    std::optional<LayoutKind> layout_;  ///< The layout of all levels, or none to choose each at random.
+    PlayerParams player_params_;
     float turn_speed_;
     float look_speed_;
     float move_speed_;
@@ -112,6 +132,7 @@ private:
     bool rise_held_ = false;  ///< Whether input.rise was positive in the previous frame.
     double time_ = 0.0;
     std::uint64_t seed_;
+    int level_number_ = 0;
     Level level_;
     Player player_;
 };

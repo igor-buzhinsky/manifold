@@ -38,8 +38,11 @@ struct DebugLayoutConfig {
 /// - Torches hang on the level walls, `torch_spacing` apart, except where an obstacle or a ramp is in the way.
 ///   All of them have the same flame, see choose_torch_flame().
 ///
+/// - The exit floats at a random place, see LevelExit. It doesn't overlap obstacles that reach its height, or
+///   ramps.
+///
 /// Everything lies fully inside the bounds, and the start in the center of the level stays free. The level
-/// info lists all obstacles, ceiling blocks and ramps.
+/// info lists all obstacles, ceiling blocks, ramps and the exit.
 class DebugLayout final : public LevelLayout {
 public:
     explicit DebugLayout(const DebugLayoutConfig& config) : config_(config) {}

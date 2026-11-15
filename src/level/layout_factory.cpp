@@ -82,6 +82,14 @@ std::optional<LayoutKind> parse_layout_name(std::string_view name) {
     return std::nullopt;
 }
 
+std::uint64_t next_level_seed(std::uint64_t seed) {
+    // The SplitMix64 generator: a step of a Weyl sequence, then a finalizer that mixes the bits.
+    std::uint64_t z = seed + 0x9e3779b97f4a7c15ULL;
+    z = (z ^ (z >> 30U)) * 0xbf58476d1ce4e5b9ULL;
+    z = (z ^ (z >> 27U)) * 0x94d049bb133111ebULL;
+    return z ^ (z >> 31U);
+}
+
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed) {
     LevelRng rng(seed);
     const LayoutKind kind = layout ? *layout : choose_layout(config, rng);

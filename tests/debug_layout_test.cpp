@@ -5,8 +5,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
+#include <set>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <glm/vec2.hpp>
@@ -227,15 +229,43 @@ TEST(DebugLayoutTest, DifferentSeedsGiveDifferentLevels) {
     EXPECT_NE(first.world.obstacles()[0].base_center, second.world.obstacles()[0].base_center);
 }
 
-TEST(DebugLayoutTest, PlanListsObstaclesCeilingBlocksAndRamps) {
+TEST(DebugLayoutTest, PlanListsObstaclesCeilingBlocksRampsAndExit) {
     const Level level = generate(make_config(), 1);
     std::size_t lines = 0;
     for (const char c : level.info) {
         lines += c == '\n' ? 1 : 0;
     }
-    EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size());
+    EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size() + 1);
     EXPECT_NE(level.info.find("Ceiling block"), std::string::npos);
     EXPECT_NE(level.info.find("Ramp"), std::string::npos);
+    EXPECT_NE(level.info.find("Exit"), std::string::npos);
+}
+
+TEST(DebugLayoutTest, ExitIsInsideAwayFromStartObstaclesAndRamps) {
+    std::set<std::pair<float, float>> places;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(make_config(), seed);
+        ASSERT_TRUE(level.world.exit().has_value());
+        const LevelExit& exit = *level.world.exit();
+        places.insert({exit.floor_point.x, exit.floor_point.y});
+        EXPECT_FLOAT_EQ(exit.floor_point.z, 0.0f);
+        const RotatedRectangle footprint = exit.footprint();
+        const WorldBounds& bounds = level.world.bounds();
+        EXPECT_GE(footprint.center.x - footprint.half_size.x, bounds.x_min);
+        EXPECT_LE(footprint.center.x + footprint.half_size.x, bounds.x_max);
+        EXPECT_GE(footprint.center.y - footprint.half_size.y, bounds.y_min);
+        EXPECT_LE(footprint.center.y + footprint.half_size.y, bounds.y_max);
+        EXPECT_FALSE(exit.touches({.base = level.player_start, .radius = kClearance, .height = 1.8f}))
+            << "seed " << seed;
+        // Ceiling blocks are above the exit, so it may be under them.
+        for (const Obstacle& obstacle : split_blocks(level).floor) {
+            EXPECT_FALSE(intersects(footprint, obstacle.footprint())) << "seed " << seed;
+        }
+        for (const Ramp& ramp : level.world.ramps()) {
+            EXPECT_FALSE(intersects(footprint, ramp.footprint())) << "seed " << seed;
+        }
+    }
+    EXPECT_GT(places.size(), 1U);
 }
 
 TEST(DebugLayoutTest, ThrowsWhenThereIsNoRoom) {

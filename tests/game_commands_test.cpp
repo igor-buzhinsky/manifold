@@ -74,6 +74,15 @@ TEST(GameCommandsTest, TeleportMovesThePlayerInDegrees) {
     }
 }
 
+TEST(GameCommandsTest, NextLevelStartsTheNextLevel) {
+    Fixture fixture;
+    fixture.run("next_level");
+    EXPECT_EQ(fixture.game.level_number(), 1);
+    EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
+    fixture.queue.add("next_level 2", true);
+    EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+}
+
 TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     Fixture fixture;
     EXPECT_FALSE(fixture.game.noclip());

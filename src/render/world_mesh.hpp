@@ -30,6 +30,9 @@ inline constexpr glm::vec3 kTorchHandleColor{0.2f, 0.1f, 0.04f};
 /// Color of the charred, burning end of a torch, linear RGB.
 inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 
+/// Color of the level exit, linear RGB: bright blue.
+inline constexpr glm::vec3 kExitColor{0.05f, 0.2f, 1.0f};
+
 /// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles and the ramps of a world.
 ///
 /// Every three vertices form a triangle, counter-clockwise when seen from the side the normal points to.
@@ -40,7 +43,7 @@ inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 /// Texture coordinates come from the position on the surface's plane, so the texture is never stretched,
 /// also on ramp slopes. On vertical surfaces the texture is upright: its top is up.
 ///
-/// The torches are left out, see build_torch_mesh().
+/// The torches and the exit are left out, see build_torch_mesh() and build_exit_mesh().
 std::vector<Vertex> build_world_mesh(const World& world);
 
 /// Creates the faces that only shadow maps need, which build_world_mesh() leaves out.
@@ -64,5 +67,10 @@ std::vector<Vertex> build_shadow_faces(const World& world, float thickness);
 /// Triangles are counter-clockwise as in build_world_mesh(). The flames are not part of the mesh: the
 /// renderer draws them as sprites.
 std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches);
+
+/// Creates triangles for the cube of the level exit, untextured in kExitColor.
+///
+/// Triangles are counter-clockwise as in build_world_mesh(), with normals pointing out of the cube.
+std::vector<Vertex> build_exit_mesh(const LevelExit& exit);
 
 }  // namespace manifold

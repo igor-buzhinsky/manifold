@@ -26,7 +26,7 @@ namespace {
 /// Tries random positions and rotations for a footprint until it fits into the level and `fits` accepts it.
 ///
 /// \param half_size Half of the footprint's side lengths.
-/// \param max_yaw   Rotations are uniform in [0, max_yaw).
+/// \param max_yaw   Rotations are uniform in [0, max_yaw), or zero if max_yaw is zero.
 /// \param fits      Called with a candidate footprint, returns whether it may be placed there.
 /// \return The footprint, or nothing if no attempt fitted.
 template <typename Fits>
@@ -34,7 +34,8 @@ std::optional<RotatedRectangle> place_randomly(const DebugLayoutConfig& config, 
                                                float max_yaw, LevelRng& rng, Fits fits) {
     std::uniform_real_distribution<float> yaw_distribution(0.0f, max_yaw);
     for (int attempt = 0; attempt < config.max_attempts_per_block; ++attempt) {
-        RotatedRectangle footprint{.half_size = half_size, .yaw = yaw_distribution(rng)};
+        // uniform_real_distribution needs min < max to be called.
+        RotatedRectangle footprint{.half_size = half_size, .yaw = max_yaw > 0.0f ? yaw_distribution(rng) : 0.0f};
         // Keep the box around the rotated footprint inside the level.
         const glm::vec2 extent = bounding_half_size(footprint);
         if (config.x_max - config.x_min < 2.0f * extent.x || config.y_max - config.y_min < 2.0f * extent.y) {
@@ -97,6 +98,30 @@ void place_ramps(const DebugLayoutConfig& config, const Circle& keep_clear, Worl
     }
 }
 
+/// Places the level exit at random, away from the start, the obstacles at its height and the ramps.
+///
+/// \throws std::runtime_error if the exit doesn't fit.
+void place_exit(const DebugLayoutConfig& config, const Circle& keep_clear, World& world, LevelRng& rng) {
+    const auto fits = [&](const RotatedRectangle& candidate) {
+        const LevelExit exit{.floor_point = {candidate.center, 0.0f}};
+        const float bottom = exit.base_center().z;
+        const auto blocks = [&](const Obstacle& obstacle) {
+            return obstacle.base_center.z <= bottom + LevelExit::kSize &&
+                   obstacle.base_center.z + obstacle.height >= bottom && intersects(candidate, obstacle.footprint());
+        };
+        const auto ramp_blocks = [&](const Ramp& ramp) { return intersects(candidate, ramp.footprint()); };
+        return !intersects(candidate, keep_clear) && !std::ranges::any_of(world.obstacles(), blocks) &&
+               !std::ranges::any_of(world.ramps(), ramp_blocks);
+    };
+    // The exit is not rotated.
+    const std::optional<RotatedRectangle> footprint =
+        place_randomly(config, glm::vec2(LevelExit::kSize / 2.0f), 0.0f, rng, fits);
+    if (!footprint) {
+        throw std::runtime_error("level generation failed: no room for the exit");
+    }
+    world.set_exit({.floor_point = {footprint->center, 0.0f}});
+}
+
 /// Checks whether an obstacle or a ramp is in the way of a torch: too close to its handle or flame.
 bool torch_blocked(const World& world, const Torch& torch) {
     // A box around the handle and the flame, from the mount up to the top of the flame.
@@ -150,7 +175,7 @@ void place_torches(const DebugLayoutConfig& config, TorchFlame flame, World& wor
 /// Converts radians to degrees, for the level info.
 float degrees(float radians) { return radians * 180.0f / std::numbers::pi_v<float>; }
 
-/// Lists the obstacles, ceiling blocks and ramps, one per line.
+/// Lists the obstacles, ceiling blocks, ramps and the exit, one per line.
 std::string describe(const World& world) {
     std::string info;
     for (const Obstacle& obstacle : world.obstacles()) {
@@ -162,6 +187,10 @@ std::string describe(const World& world) {
     for (const Ramp& ramp : world.ramps()) {
         info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), up towards {:5.1f} deg\n", "Ramp",
                             ramp.base_center.x, ramp.base_center.y, ramp.base_center.z, degrees(ramp.yaw));
+    }
+    if (const std::optional<LevelExit>& exit = world.exit()) {
+        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}) on the floor\n", "Exit", exit->floor_point.x,
+                            exit->floor_point.y, exit->floor_point.z);
     }
     return info;
 }
@@ -187,6 +216,7 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     place_blocks(config_, keep_clear, config_.obstacle_height, config_.ceiling_thickness, world, rng);
     place_ramps(config_, keep_clear, world, rng);
     place_torches(config_, choose_torch_flame(rng), world);
+    place_exit(config_, keep_clear, world, rng);
     std::string info = describe(world);
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .info = std::move(info)};
 }

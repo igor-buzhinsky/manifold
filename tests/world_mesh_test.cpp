@@ -1,10 +1,12 @@
 #include "render/world_mesh.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <numbers>
 #include <vector>
 
+#include <glm/common.hpp>
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
@@ -165,6 +167,26 @@ TEST(WorldMeshTest, TorchesHaveUntexturedHandleAndHead) {
         const bool handle = (i / kPrismVertices) % 2 == 0;
         EXPECT_EQ(mesh[i].color, handle ? kTorchHandleColor : kTorchHeadColor);
         EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
+    }
+}
+
+TEST(WorldMeshTest, ExitIsUntexturedCubeFacingOutwards) {
+    const LevelExit exit{.floor_point = {1.0f, 2.0f, 0.0f}};
+    const std::vector<Vertex> mesh = build_exit_mesh(exit);
+    ASSERT_EQ(mesh.size(), 6 * kVerticesPerQuad);
+    const glm::vec3 center = exit.base_center() + glm::vec3(0.0f, 0.0f, LevelExit::kSize / 2.0f);
+    for (std::size_t i = 0; i < mesh.size(); i += 3) {
+        // Counter-clockwise around the normal, which points away from the center.
+        const glm::vec3 cross =
+            glm::cross(mesh[i + 1].position - mesh[i].position, mesh[i + 2].position - mesh[i].position);
+        EXPECT_GT(glm::dot(cross, mesh[i].normal), 0.0f);
+        EXPECT_GT(glm::dot(mesh[i].position - center, mesh[i].normal), 0.0f);
+    }
+    for (const Vertex& vertex : mesh) {
+        EXPECT_EQ(vertex.color, kExitColor);
+        EXPECT_FLOAT_EQ(vertex.texture_weight, 0.0f);
+        const glm::vec3 offset = glm::abs(vertex.position - center);
+        EXPECT_NEAR(std::max({offset.x, offset.y, offset.z}), LevelExit::kSize / 2.0f, 1e-5f);
     }
 }
 

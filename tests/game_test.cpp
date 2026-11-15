@@ -336,5 +336,61 @@ TEST(GameTest, JumpingOntoLowBlock) {
     EXPECT_GT(jumped.y, 3.0f);
 }
 
+// An empty level with the exit 3 m ahead of the start, where the player faces +x.
+Level make_exit_level() {
+    World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 6.0f});
+    world.set_exit({.floor_point = {3.0f, 0.0f, 0.0f}});
+    return {.layout = LayoutKind::kDebug, .world = std::move(world), .info = ""};
+}
+
+TEST(GameTest, TouchingExitStartsNextLevel) {
+    Game game(make_config(), make_exit_level(), 5);
+    EXPECT_EQ(game.level_number(), 0);
+    // The player stops 0.6 m, the radius, before the exit, and touches it after walking 2.15 m at 2 m/s.
+    for (int frame = 0; frame < 10; ++frame) {
+        game.update({.forward = 1.0f}, 0.1f);
+    }
+    EXPECT_EQ(game.level_number(), 0);
+    game.update({.forward = 1.0f}, 0.1f);
+    EXPECT_EQ(game.level_number(), 1);
+    EXPECT_EQ(game.seed(), next_level_seed(5));
+    // The level settings choose the layout of the next level: rooms by default.
+    EXPECT_EQ(game.level().layout, LayoutKind::kRooms);
+    EXPECT_TRUE(game.world().exit().has_value());
+    EXPECT_EQ(game.player().position(), game.level().player_start);
+    EXPECT_FLOAT_EQ(game.player().yaw(), game.level().player_yaw);
+    EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
+    EXPECT_FLOAT_EQ(static_cast<float>(game.time()), 1.1f);
+}
+
+TEST(GameTest, NoclipTouchesExitToo) {
+    Game game(make_config(), make_exit_level());
+    game.set_noclip(true);
+    game.teleport({3.0f, 0.0f, 0.5f});
+    game.update({}, 0.01f);
+    EXPECT_EQ(game.level_number(), 1);
+    EXPECT_TRUE(game.noclip());
+}
+
+TEST(GameTest, FlyingOverExitDoesNotTouchIt) {
+    Game game(make_config(), make_exit_level());
+    game.set_noclip(true);
+    game.teleport({3.0f, 0.0f, LevelExit::kHoverHeight + LevelExit::kSize + 0.01f});
+    game.update({}, 0.01f);
+    EXPECT_EQ(game.level_number(), 0);
+}
+
+TEST(GameTest, NextLevelKeepsGivenLayoutAndFollowsSeeds) {
+    Game game(make_config(), 7, LayoutKind::kDebug);
+    game.next_level();
+    game.next_level();
+    EXPECT_EQ(game.level_number(), 2);
+    EXPECT_EQ(game.seed(), next_level_seed(next_level_seed(7)));
+    EXPECT_EQ(game.level().layout, LayoutKind::kDebug);
+    // The same seed gives the same level as a new game with it.
+    const Game fresh(make_config(), game.seed(), LayoutKind::kDebug);
+    EXPECT_EQ(game.level().info, fresh.level().info);
+}
+
 }  // namespace
 }  // namespace manifold

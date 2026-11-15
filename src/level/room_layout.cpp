@@ -357,6 +357,36 @@ bool add_ramps(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, Lev
     return true;
 }
 
+/// Chooses the tile of the level exit, see plan_layers(). The player start must be chosen already.
+///
+/// \param[out] plan  The plan, which gets the exit.
+/// \param tiles      The floor tiles without holes, as layer index and tile.
+/// \param rng        Random number generator.
+/// \return False if no tile fits.
+bool choose_exit(LayeredPlan& plan, const std::vector<std::pair<int, TilePosition>>& tiles, LevelRng& rng) {
+    // The exit is on another layer, so the player has to find the way there. Next to an opening it would
+    // stand in the way between two rooms.
+    const bool one_layer = plan.layers.size() == 1;
+    std::vector<std::pair<int, TilePosition>> exits;
+    for (const auto& [layer_number, tile] : tiles) {
+        const bool other_layer = layer_number != plan.start_layer;
+        const bool other_tile = tile.x != plan.start_x || tile.y != plan.start_y;
+        if ((other_layer || (one_layer && other_tile)) &&
+            !near_opening(plan.layers.at(static_cast<std::size_t>(layer_number)), tile.x, tile.y)) {
+            exits.emplace_back(layer_number, tile);
+        }
+    }
+    if (exits.empty()) {
+        return false;
+    }
+    const auto& [exit_layer, exit] =
+        exits.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(exits.size()) - 1)));
+    plan.exit_layer = exit_layer;
+    plan.exit_x = exit.x;
+    plan.exit_y = exit.y;
+    return true;
+}
+
 /// Plans all layers and the holes between them once.
 ///
 /// \return The plan, or nothing if the holes don't fit.
@@ -418,6 +448,9 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     }
     plan.start_direction =
         directions.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(directions.size()) - 1)));
+    if (!choose_exit(plan, starts, rng)) {
+        return std::nullopt;
+    }
     return plan;
 }
 
@@ -485,14 +518,16 @@ LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng) {
         }
         plan->attempts = attempt;
         if (attempt > 2) {
-            log_warning("Room layout: the holes between layers and the player start fit only after {} attempts",
-                        attempt);
+            log_warning(
+                "Room layout: the holes between layers, the player start and the exit fit only after {} attempts",
+                attempt);
         } else {
             log_info("Room layout: planned in {} attempt(s)", attempt);
         }
         return std::move(*plan);
     }
-    throw std::runtime_error("level generation failed: the holes between layers or the player start don't fit");
+    throw std::runtime_error(
+        "level generation failed: the holes between layers, the player start or the exit don't fit");
 }
 
 std::string draw_plan(const LayeredPlan& plan) {
@@ -506,6 +541,8 @@ std::string draw_plan(const LayeredPlan& plan) {
             for (int x = box.x_min; x <= box.x_max; ++x) {
                 if (layer_number == plan.start_layer && x == plan.start_x && y == plan.start_y) {
                     text += '@';
+                } else if (layer_number == plan.exit_layer && x == plan.exit_x && y == plan.exit_y) {
+                    text += 'E';
                 } else if (const std::optional<Hole> hole = find_hole(plan, layer_number, x, y)) {
                     text += hole_symbol(*hole);
                 } else {
@@ -634,8 +671,8 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
 /// leave out the ceiling, high enough to keep almost all of the walls.
 constexpr float kCutBelowCeiling = 0.1f;
 
-/// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, and
-/// the plan, see draw_plan().
+/// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, where
+/// the exit is, and the plan, see draw_plan().
 ///
 /// \param plan   The plan of the level.
 /// \param grid   Where the tiles are in the world.
@@ -653,10 +690,11 @@ std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float h
         "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
         "Floors of the layers at z = {}. To see a layer from above: cutaway {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
-        "Start: layer {}, tile ({}, {}), facing {}.\n{}",
+        "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\n{}",
         grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
         grid.y_min + grid.tile, grid.tile, floors, cuts, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
-        plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), draw_plan(plan));
+        plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), plan.exit_layer,
+        plan.exit_x, plan.exit_y, draw_plan(plan));
 }
 
 }  // namespace
@@ -694,6 +732,8 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
     add_torches(world, plan, grid, config_, rng);
+    world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
+                                                    grid.floor_z.at(static_cast<std::size_t>(plan.exit_layer)))});
 
     const glm::vec3 start =
         grid.tile_center(plan.start_x, plan.start_y, grid.floor_z.at(static_cast<std::size_t>(plan.start_layer)));

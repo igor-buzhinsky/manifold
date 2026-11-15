@@ -401,10 +401,60 @@ TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWallOrHole) {
     EXPECT_GT(directions.size(), 1U);
 }
 
-TEST(LayeredPlanTest, StartFacesAnyDirectionWhenWallsAreAllAround) {
-    // A single room of one tile has walls on all sides and no openings.
+/// Checks whether tile (x, y) of `layer` or one of the four tiles that share a side with it is an opening.
+bool next_to_opening(const RoomPlan& layer, int x, int y) {
+    return layer.tile(x, y) == Tile::kOpening || layer.tile(x - 1, y) == Tile::kOpening ||
+           layer.tile(x + 1, y) == Tile::kOpening || layer.tile(x, y - 1) == Tile::kOpening ||
+           layer.tile(x, y + 1) == Tile::kOpening;
+}
+
+TEST(LayeredPlanTest, ExitIsOnFloorTileOfAnotherLayerAwayFromHolesAndOpenings) {
+    std::set<int> exit_layers;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        exit_layers.insert(plan.exit_layer);
+        ASSERT_GE(plan.exit_layer, 0);
+        ASSERT_LT(plan.exit_layer, static_cast<int>(plan.layers.size()));
+        EXPECT_NE(plan.exit_layer, plan.start_layer) << "seed " << seed;
+        const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(plan.exit_layer));
+        EXPECT_EQ(layer.tile(plan.exit_x, plan.exit_y), Tile::kFloor) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.exit_layer, plan.exit_x, plan.exit_y)) << "seed " << seed;
+        EXPECT_FALSE(plan.is_hole(plan.exit_layer - 1, plan.exit_x, plan.exit_y)) << "seed " << seed;
+        EXPECT_FALSE(next_to_opening(layer, plan.exit_x, plan.exit_y)) << "seed " << seed;
+    }
+    EXPECT_GT(exit_layers.size(), 1U);
+}
+
+TEST(LayeredPlanTest, ExitOfSingleLayerIsNotOnStart) {
     RoomLayoutConfig config = make_config();
     config.layer_count = 1;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed, config);
+        EXPECT_EQ(plan.exit_layer, 0);
+        EXPECT_TRUE(plan.exit_x != plan.start_x || plan.exit_y != plan.start_y) << "seed " << seed;
+    }
+}
+
+TEST(LayeredPlanTest, ThrowsWhenExitNeverFits) {
+    // A single room of one tile has room for the start, but not for the exit.
+    RoomLayoutConfig config = make_config();
+    config.layer_count = 1;
+    config.min_room_size = 1;
+    config.max_room_size = 1;
+    config.placement_attempts = 0;
+    config.min_holes = 0;
+    config.max_holes = 0;
+    config.min_ramps = 0;
+    config.max_ramps = 0;
+    config.max_plan_attempts = 3;
+    EXPECT_THROW(make_layered_plan(1, config), std::runtime_error);
+}
+
+TEST(LayeredPlanTest, StartFacesAnyDirectionWhenWallsAreAllAround) {
+    // Each layer has a single room of one tile, with walls on all sides and no openings. The second layer
+    // has room for the exit.
+    RoomLayoutConfig config = make_config();
+    config.layer_count = 2;
     config.min_room_size = 1;
     config.max_room_size = 1;
     config.placement_attempts = 0;
@@ -451,10 +501,15 @@ TEST(LayeredPlanTest, ThrowsOnInvalidHoleCounts) {
     EXPECT_THROW(make_layered_plan(1, config), std::invalid_argument);
 }
 
-TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartAndHoles) {
+TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartExitAndHoles) {
     const LayeredPlan plan = make_layered_plan(3);
     const std::string text = draw_plan(plan);
     EXPECT_EQ(std::count(text.begin(), text.end(), '@'), 1);
+    EXPECT_EQ(std::count(text.begin(), text.end(), 'E'), 1);
+    // The exit is drawn in its layer: after the heading of its layer, and before the heading of the next one.
+    const std::size_t exit = text.find('E');
+    EXPECT_GT(exit, text.find("Layer " + std::to_string(plan.exit_layer) + ":\n"));
+    EXPECT_LT(exit, text.find("Layer " + std::to_string(plan.exit_layer + 1) + ":\n"));
     for (int layer = 0; layer < static_cast<int>(plan.layers.size()); ++layer) {
         EXPECT_NE(text.find("Layer " + std::to_string(layer) + ":\n"), std::string::npos);
     }
@@ -538,7 +593,7 @@ TEST(RoomLayoutTest, WallTilesAndFloorsBetweenLayersBecomeBlocks) {
     EXPECT_FLOAT_EQ(bounds.height, (3.0f * config.height) + (2.0f * config.slab_thickness));
 }
 
-TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
+TEST(RoomLayoutTest, InfoTellsTheGridTheStartAndTheExitAndDrawsThePlan) {
     const Level level = generate(2);
     const LayeredPlan plan = make_layered_plan(2);
     constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
@@ -546,6 +601,9 @@ TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
                               std::to_string(plan.start_x) + ", " + std::to_string(plan.start_y) + "), facing " +
                               kDirections.at(static_cast<std::size_t>(plan.start_direction)) + ".\n";
     EXPECT_NE(level.info.find(start), std::string::npos) << level.info;
+    const std::string exit = "Exit: layer " + std::to_string(plan.exit_layer) + ", tile (" +
+                             std::to_string(plan.exit_x) + ", " + std::to_string(plan.exit_y) + ").\n";
+    EXPECT_NE(level.info.find(exit), std::string::npos) << level.info;
     EXPECT_NE(
         level.info.find(
             "Tiles of 2 m: tile (x, y) covers world x from -40 + 2 x to -38 + 2 x and y from -30 + 2 y to -28 + 2 y."),
@@ -556,6 +614,22 @@ TEST(RoomLayoutTest, InfoTellsTheGridAndTheStartAndDrawsThePlan) {
               std::string::npos)
         << level.info;
     EXPECT_TRUE(level.info.ends_with(draw_plan(plan)));
+}
+
+TEST(RoomLayoutTest, ExitFloatsAboveCenterOfExitTile) {
+    const RoomLayoutConfig config = make_config();
+    for (std::uint64_t seed = 0; seed < 5; ++seed) {
+        const Level level = generate(seed);
+        const LayeredPlan plan = make_layered_plan(seed);
+        ASSERT_TRUE(level.world.exit().has_value());
+        const glm::vec3& point = level.world.exit()->floor_point;
+        const WorldBounds& bounds = level.world.bounds();
+        EXPECT_FLOAT_EQ(point.x, bounds.x_min + ((static_cast<float>(plan.exit_x) + 0.5f) * config.tile_size));
+        EXPECT_FLOAT_EQ(point.y, bounds.y_min + ((static_cast<float>(plan.exit_y) + 0.5f) * config.tile_size));
+        EXPECT_NEAR(point.z, static_cast<float>(plan.exit_layer) * (config.height + config.slab_thickness), 1e-4f);
+        // The player doesn't touch the exit at the start.
+        EXPECT_FALSE(level.world.exit()->touches({.base = level.player_start, .radius = 0.6f, .height = 1.8f}));
+    }
 }
 
 TEST(RoomLayoutTest, PlayerStartsInCenterOfStartTileWithoutCollisions) {

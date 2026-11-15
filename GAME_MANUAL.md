@@ -14,6 +14,11 @@
 | F3 | Show or hide the debug overlay, see below |
 | Escape | Close the console if it is open, otherwise quit |
 
+## Levels
+
+Each level has an exit: for now a blue cube floating above the floor. In room levels it is on another layer
+than the start. Touching it, also with noclip, starts the next level.
+
 ## Console
 
 Console commands inspect the game, e.g. to test a level. There are three ways to run them:
@@ -51,11 +56,12 @@ it types can't be typed.
 | Command | Action |
 |---|---|
 | `help` | List all commands |
-| `level_info` | Describe the level, depending on its layout, and where the player is. For rooms: how tiles map to world coordinates, the start, and a plan of all layers. For the debug layout: all obstacles and ramps |
+| `level_info` | Describe the level, depending on its layout, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps and the exit |
 | `camera` | Show where the camera is |
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
 | `camera player` | Put the camera back at the player's eyes |
 | `teleport X Y Z [YAW]` | Move the player's feet to (X, Y, Z), facing YAW if given. Obstacles are not checked, and the player falls from there unless noclip is on |
+| `next_level` | Start the next level, as if the player reached the exit |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

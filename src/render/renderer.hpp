@@ -46,8 +46,9 @@ class Renderer {
 public:
     /// Compiles the shaders and uploads the meshes of the world, its texture and the flames to the GPU.
     ///
-    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches don't: their
-    /// handles (see build_torch_mesh()) and flames are only drawn. Torch i flickers with torch_phase(i).
+    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches and the exit don't:
+    /// torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn.
+    /// Torch i flickers with torch_phase(i).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.
@@ -90,8 +91,8 @@ private:
     GLuint vertex_array_ = 0;
     GLuint vertex_buffer_ = 0;
     GLsizei world_vertex_count_ = 0;  ///< Vertices of the world, which come first in the vertex buffer.
-    GLsizei vertex_count_ = 0;        ///< Vertices of the world and the torch handles.
-    /// Vertices of build_shadow_faces(), which come after the torch handles.
+    GLsizei vertex_count_ = 0;        ///< Vertices of the world, the torch handles and the exit.
+    /// Vertices of build_shadow_faces(), which come after the exit.
     GLsizei shadow_face_vertex_count_ = 0;
     GLuint texture_ = 0;
     GLuint light_buffer_ = 0;  ///< Uniform buffer with the lights, filled on every draw.

@@ -112,7 +112,10 @@ struct LayeredPlan {
     /// Direction the player faces at the start, in quarter turns counter-clockwise from +x: 0 is +x, 1 is +y,
     /// 2 is -x and 3 is -y.
     int start_direction = 0;
-    int attempts = 0;  ///< How many times the level was planned until the holes and the player start fit.
+    int exit_layer = 0;  ///< Index in `layers` of the layer with the level exit.
+    int exit_x = 0;      ///< Tile of the level exit along x.
+    int exit_y = 0;      ///< Tile of the level exit along y.
+    int attempts = 0;    ///< How many times the level was planned until the holes and the player start fit.
 
     /// The hole in the ceiling of `layer` that tile (x, y) is part of, if any.
     std::optional<Hole> hole_at(int layer, int x, int y) const;
@@ -145,25 +148,30 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng);
 /// a ramp. The low end of a ramp must lead into the room of the lower layer, and its high end into the room
 /// of the upper layer. If both directions are possible, one is chosen at random.
 ///
-/// If the holes or ramps don't fit, or there is no tile to start on, all layers are planned again. The number of
-/// attempts is logged, as a warning when more than two were needed.
+/// If the holes or ramps don't fit, or there is no tile to start on or for the exit, all layers are planned again.
+/// The number of attempts is logged, as a warning when more than two were needed.
 ///
 /// The player starts in the center of a random floor tile that is not part of a hole, neither in its floor
 /// nor in its ceiling (where a ramp may be). All such tiles have the same chance. The player faces along +x,
 /// +y, -x or -y at random, but not a tile right next to the start that is a wall or part of a hole in its
 /// floor or ceiling, unless all four neighbors are such tiles.
 ///
+/// The level exit is in the center of a random floor tile of another layer than the start. The tile is not part
+/// of a hole in its floor or ceiling, and doesn't share a side with an opening, so the exit doesn't block a way
+/// between rooms. All such tiles have the same chance. With only one layer, the exit is on the start layer, but
+/// not on the start tile.
+///
 /// \throws std::invalid_argument if the settings are invalid or can't be met, e.g. min_holes > max_holes,
 ///         or min_ramps > min_holes.
-/// \throws std::runtime_error if the grid is too small for a room, or the holes or the player start don't fit after
-///         `config.max_plan_attempts` attempts.
+/// \throws std::runtime_error if the grid is too small for a room, or the holes, the player start or the exit don't
+///         fit after `config.max_plan_attempts` attempts.
 LayeredPlan plan_layers(const RoomLayoutConfig& config, LevelRng& rng);
 
 /// Draws the plan as text: each layer from the bottom up, one character per tile, with +y up and +x right.
 ///
 /// Uses `#` for walls, `.` for floor, `+` for openings, `O` for holes to the layer below or above, `>`,
-/// `<`, `^` and `v` for ramps, pointing up the ramp, and `@` for the player start. Empty tiles around the rooms of all
-/// layers are cropped.
+/// `<`, `^` and `v` for ramps, pointing up the ramp, `@` for the player start and `E` for the level exit. Empty tiles
+/// around the rooms of all layers are cropped.
 std::string draw_plan(const LayeredPlan& plan);
 
 /// Layers of rooms on a grid of square tiles, connected by openings in their walls and by holes in the
@@ -176,9 +184,9 @@ std::string draw_plan(const LayeredPlan& plan);
 /// along the wall. Each such side gets a torch with the same chance, chosen for the level uniformly from
 /// [`min_torch_chance`, `max_torch_chance`]. All torches of a level have the same flame, see
 /// choose_torch_flame().
-/// The player starts in the center of a random tile, facing a random direction, see plan_layers(). The level
-/// info tells how tiles map to world coordinates and where the player starts, and draws the plan, see
-/// draw_plan().
+/// The player starts in the center of a random tile, facing a random direction, and the exit is in the center
+/// of a random tile of another layer, see plan_layers(). The level info tells how tiles map to world coordinates,
+/// where the player starts and where the exit is, and draws the plan, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}

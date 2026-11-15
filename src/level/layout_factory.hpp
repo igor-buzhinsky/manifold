@@ -38,6 +38,11 @@ std::string_view layout_name(LayoutKind kind);
 /// \return The kind, or nothing if no layout has this name.
 std::optional<LayoutKind> parse_layout_name(std::string_view name);
 
+/// The seed of the level after the one generated from `seed`.
+///
+/// It is a mix of all bits of `seed`, so a series of levels repeats only with the same first seed.
+std::uint64_t next_level_seed(std::uint64_t seed);
+
 /// Generates a level.
 ///
 /// \param config    Settings for all layouts.

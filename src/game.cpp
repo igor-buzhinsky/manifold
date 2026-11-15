@@ -12,7 +12,9 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
+#include "util/log.hpp"
 #include "world/player.hpp"
+#include "world/world.hpp"
 
 namespace manifold {
 
@@ -28,10 +30,14 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
-    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {}
+    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {
+    layout_ = layout;
+}
 
 Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
-    : turn_speed_(config.turn_speed),
+    : level_config_(config.level),
+      player_params_(config.player),
+      turn_speed_(config.turn_speed),
       look_speed_(config.look_speed),
       move_speed_(config.move_speed),
       max_snap_slope_(config.max_snap_slope),
@@ -49,10 +55,28 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     }
 }
 
+void Game::next_level() {
+    const std::uint64_t seed = next_level_seed(seed_);
+    Level level = generate_level(level_config_, layout_, player_params_.radius, seed);
+    level_ = std::move(level);
+    seed_ = seed;
+    ++level_number_;
+    player_ = Player(at_start(player_params_, level_));
+    log_info("Level {}: seed {}, layout {}", level_number_, seed_, layout_name(level_.layout));
+}
+
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
 
 void Game::update(const PlayerInput& input, float dt) {
     time_ += dt;
+    move_player(input, dt);
+    const std::optional<LevelExit>& exit = level_.world.exit();
+    if (exit && exit->touches(player_.body())) {
+        next_level();
+    }
+}
+
+void Game::move_player(const PlayerInput& input, float dt) {
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
     rise_held_ = input.rise > 0.0f;
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
