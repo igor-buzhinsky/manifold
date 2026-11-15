@@ -45,7 +45,7 @@ Rejected alternatives:
 - **raylib**: the fastest start, but HDR and multi-light shadows would mean working around it.
 - **Godot**: gives most features for free, but most code would be GDScript instead of C++.
 
-### Architecture principles: keep 3D paths open
+### Architecture principles
 
 The core is fully 3D, so that water, levitation and arbitrary 3D objects can be added later without
 rewrites.
@@ -172,7 +172,6 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   blocks and ramps. Lookups use hardware comparison with 2 × 2 linear filtering. Torch handles and the
   player cast no shadows (see "Later (unordered, low priority, might not be done)"). Next: a limit on how
   many shadow maps are drawn in one frame, so that many torches at once don't cause a stutter.
-- Pixelation (of textures or the entire visible region as a whole).
 - First static 3D props loaded from glTF, with simple collision shapes (boxes, cylinders, hulls).
 - ~~Textured walls, floor and ceiling instead of the checker pattern.~~ Done: each level uses one random
   texture (chosen from the level seed) from the PNG files under `assets/textures/`, at most 128 × 128
@@ -183,24 +182,32 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   again when the range of its light changes. Next: level and texture inspectors, see "Later (unordered,
   low priority, might not be done)".
 
-## v0.3 — Party and rudimentary spellcasting
+## v0.3 — Game menu, party and rudimentary spellcasting
 
+- Levels can have ambient light with some probability.
+- Saving the game in the beginning and when reaching a new level (at most one save, so no way to return to
+  the previous level), loading previously saved game.
+- Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
+  keyboard shortcut (e.g., Shift+Esc).
+- Audio: footsteps (2+ version depending on level texture), entering portals.
 - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
   stamina, sanity. The party has shared mana.
 - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
   but with collision.
 - The party's light becomes a spell that can be toggled, with an intensity or radius.
-- Audio: footsteps.
+
+## v0.4 - Water, rudimentary monsters and inventory
+
+- Monsters as billboard sprites, with Recast/Detour navigation.
+- **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint,
+- **Swimming and diving** (including breath), buoyancy for floating objects.
+- Items and inventory. Items lying on the level are implemented either as 3D objects or billboard sprites.
 
 ## Later (unordered)
 
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
-- **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint,
-- **Swimming and diving** (including breath), buoyancy for floating objects.
 - Full-screen mode, and mouse look.
-- Monsters as billboard sprites, with Recast/Detour navigation.
 - Attack spells, spell effects, projectiles that emit light (?).
-- Items and inventory.
 - Audio: ambient sound, spell sounds.
 - Visibility culling (rooms and portals) if levels get large.
 - **macOS support**: possible as long as the renderer runs on OpenGL 4.1 (Apple's newest, and
@@ -218,6 +225,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   block or the exit. Generation then throws, and the game quits, also when the player reaches the exit of a
   level that was fine. Trying again with the same seed fails again. Generation should always give a level,
   e.g. by trying other seeds or relaxing the settings, or by construction.
+- Pixelation (of textures or the entire visible region as a whole).
 
 ## Later (unordered, low priority, might not be done)
 
