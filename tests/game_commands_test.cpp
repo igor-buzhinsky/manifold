@@ -212,6 +212,15 @@ TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {
     EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
     fixture.expect_error("door 0 close");  // Still opening.
     fixture.game.update({}, Door::kMoveTime);
+    fixture.game.teleport({0.0f, 0.0f, 0.0f});  // In the doorway.
+    fixture.queue.add("door 0 close", true);
+    try {
+        fixture.queue.run_frame(fixture.console);
+        ADD_FAILURE() << "door 0 close should fail while the player stands in the door";
+    } catch (const CommandError& error) {
+        EXPECT_TRUE(std::string(error.what()).ends_with("the player stands in it")) << error.what();
+    }
+    fixture.game.teleport({0.0f, -3.0f, 0.0f});
     fixture.run("door 0 close");
     EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 0.0f);
     for (const char* command : {"door 1 open", "door -1 open", "door 0 shut", "door 0", "door x open", "doors 0"}) {

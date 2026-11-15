@@ -198,7 +198,8 @@ public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}
 
     /// \copydoc LevelLayout::generate
-    /// \throws std::runtime_error also if the tiles are too narrow for the clearance.
+    /// \throws std::runtime_error also if the tiles are too narrow for the clearance, or if doors can appear and the
+    ///         gap between their frames (see Door::gap()) is too narrow for it.
     /// \throws std::invalid_argument if the torch or door chances are not in [0, 1], or min_torch_chance >
     ///         max_torch_chance, or min_door_chance > max_door_chance.
     Level generate(float clearance, LevelRng& rng) const override;

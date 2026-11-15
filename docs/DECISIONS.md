@@ -213,7 +213,7 @@ Drawbacks:
 
 ## 2026-11-15: Sliding doors in openings, activated with E by a ray from the camera
 
-Status: **ACCEPTED**, except shadows of the halves. Done in v0.2.
+Status: **ACCEPTED**. Done in v0.2, without shadows of the halves.
 
 Decision: openings between rooms get doors whose two halves slide sideways into the walls. The player opens and
 closes them with E, which acts on what the center of the view points at.
@@ -253,7 +253,6 @@ Drawbacks:
 
 - Until the halves cast shadows, light from a torch goes through a closed door as through an open opening.
 - The ray test checks every obstacle of the level, which is fine once per key press, but not every frame.
-- Closing works only by aiming at a frame or at a door that is still closed, since an open door's halves are hidden
-  in the walls.
+- Closing works only by aiming at a frame, since an open door's halves are hidden in the walls.
 - Alternative: hinged doors that swing. They look more natural, but need rotated, moving collision, which can push
   the player, and swing into the room.

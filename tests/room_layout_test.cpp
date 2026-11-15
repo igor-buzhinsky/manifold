@@ -907,6 +907,12 @@ TEST(RoomLayoutTest, ThrowsOnInvalidDoorChances) {
 TEST(RoomLayoutTest, ThrowsWhenTilesAreTooSmallForClearance) {
     LevelRng rng(1);
     EXPECT_THROW(RoomLayout(make_config()).generate(1.0f, rng), std::runtime_error);
+    // A 2 m tile leaves 1.6 m between the frames of a door: enough for a radius of 0.6 m, too little for 0.85 m.
+    EXPECT_THROW(RoomLayout(make_config()).generate(0.85f, rng), std::runtime_error);
+    RoomLayoutConfig no_doors = make_config();
+    no_doors.min_door_chance = 0.0f;
+    no_doors.max_door_chance = 0.0f;
+    EXPECT_NO_THROW(RoomLayout(no_doors).generate(0.85f, rng));
 }
 
 }  // namespace

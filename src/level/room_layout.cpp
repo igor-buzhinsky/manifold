@@ -19,6 +19,7 @@
 
 #include "level/level.hpp"
 #include "util/log.hpp"
+#include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -747,6 +748,10 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     // The player starts in the center of a tile, which is at least half a tile away from any wall.
     if (config_.tile_size / 2.0f <= clearance) {
         throw std::runtime_error("level generation failed: tiles are too small for the player");
+    }
+    // A door's frames narrow its opening.
+    if (config_.max_door_chance > 0.0f && (config_.tile_size - (2.0f * Door::kFrameWidth)) / 2.0f <= clearance) {
+        throw std::runtime_error("level generation failed: doors are too narrow for the player");
     }
     if (!valid_chances(config_.min_torch_chance, config_.max_torch_chance)) {
         throw std::invalid_argument("torch chances must be in [0, 1], the smallest first");

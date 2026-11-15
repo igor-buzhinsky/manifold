@@ -343,9 +343,9 @@ TEST(WorldMeshTest, DoorTextureHasItsTopAtTheTopOfTheHalf) {
     const std::array<Door, 1> doors{
         Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f}};
     const std::vector<Vertex> mesh = build_door_mesh(doors, {});
-    // One copy of the texture is as wide as a half: 0.8 m.
+    // One copy of the texture is as wide as a half, 0.8 m, and a quarter of its height, 0.75 m.
     for (std::size_t i = 0; i < kVerticesPerQuad; ++i) {
-        EXPECT_NEAR(mesh[i].uv.y, (3.0f - mesh[i].position.z) / 0.8f, 1e-5f) << i;
+        EXPECT_NEAR(mesh[i].uv.y, (3.0f - mesh[i].position.z) / 0.75f, 1e-5f) << i;
         EXPECT_GE(mesh[i].uv.x, 0.0f);
         EXPECT_LE(mesh[i].uv.x, 1.0f + 1e-5f);
         EXPECT_EQ(mesh[i].color, glm::vec3(1.0f));

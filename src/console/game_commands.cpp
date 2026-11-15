@@ -176,9 +176,14 @@ void add_door_commands(Console& console, Game& game) {
                         throw CommandError("usage: " + door_usage);
                     }
                     const auto door = static_cast<std::size_t>(index);
-                    if (!game.set_door_open(door, arguments[1] == "open")) {
-                        throw CommandError(std::format("door {} can't {} now: it is {}", index, arguments[1],
-                                                       door_state_name(game.doors()[door])));
+                    const bool open = arguments[1] == "open";
+                    if (!game.set_door_open(door, open)) {
+                        const DoorState& state = game.doors()[door];
+                        // A door that rests in the other state than asked for only fails to close on the player.
+                        const bool player_inside = !state.moving() && (state.target >= 1.0f) != open;
+                        throw CommandError(std::format("door {} can't {} now: {}", index, arguments[1],
+                                                       player_inside ? std::string("the player stands in it")
+                                                                     : "it is " + std::string(door_state_name(state))));
                     }
                 });
 
