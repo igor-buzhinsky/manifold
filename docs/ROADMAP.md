@@ -201,7 +201,6 @@ and tools for inspecting the game. Done:
 - **Jolt Physics** (considered, see [DECISIONS.md](DECISIONS.md)): replace our collision code with Jolt, with the
   player as a `CharacterVirtual`. Keep the current behavior: sliding, ramps, gravity, jumping and noclip.
 - **Level exit far from the start**: place the exit where it is far from the start and surely reachable.
-- **Different textures** for walls, floor and ceiling.
 - **Fewer shadow maps per frame**: a limit on how many shadow maps are drawn in one frame, so that many torches at
   once don't cause a stutter. While a door moves, only the cube faces that can see it could be drawn again.
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
@@ -241,3 +240,4 @@ and tools for inspecting the game. Done:
 - **Shadows of the player**: the player's light is at the camera, so its own shadows can't be seen, and
   the player has no body to cast shadows from other lights. Once there is a body (or a party), it could
   cast shadows from torches, which needs shadow maps that are drawn again whenever it moves.
+- **Different textures** for walls, floor and ceiling.
