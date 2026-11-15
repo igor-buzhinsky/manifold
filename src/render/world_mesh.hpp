@@ -88,7 +88,7 @@ inline constexpr std::size_t kDoorVertexCount = 72;
 /// Each half is a box with all six faces, kDoorVertexCount / 2 vertices. Triangles are counter-clockwise as in
 /// build_world_mesh(), with normals pointing out of the box. The texture is not tiled in world coordinates but moves
 /// with the half: one copy of it is as wide as the half, with its top at the top of the half, and a whole number of
-/// copies is as high as the half, each about as high as it is wide. See make_gate_texture(). Colors are white and the
+/// copies is as high as the half, each about as high as it is wide. See make_door_texture(). Colors are white and the
 /// texture weight is 1.
 ///
 /// \param doors  The doors.

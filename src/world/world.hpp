@@ -83,6 +83,8 @@ public:
     std::span<const Ramp> ramps() const { return ramps_; }
     std::span<const Torch> torches() const { return torches_; }
     std::span<const Door> doors() const { return doors_; }
+    /// What all doors of the level are made of. Wood unless set.
+    DoorLook door_look() const { return door_look_; }
     /// The exit, or none, e.g. in a level built by hand for a test.
     const std::optional<LevelExit>& exit() const { return exit_; }
 
@@ -91,6 +93,7 @@ public:
     void add_torch(const Torch& torch);
     /// Adds a door, and its two frames as obstacles, see Door::frame().
     void add_door(const Door& door);
+    void set_door_look(DoorLook look) { door_look_ = look; }
     void set_exit(const LevelExit& exit) { exit_ = exit; }
 
 private:
@@ -99,6 +102,7 @@ private:
     std::vector<Ramp> ramps_;
     std::vector<Torch> torches_;
     std::vector<Door> doors_;
+    DoorLook door_look_ = DoorLook::kWood;
     std::optional<LevelExit> exit_;
 };
 

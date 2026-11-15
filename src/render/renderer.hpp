@@ -50,9 +50,9 @@ public:
     ///
     /// The world casts shadows, see build_world_mesh() and build_shadow_faces(). Torches, door halves and the exit
     /// don't: torch handles (see build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn. Door
-    /// halves (see build_door_mesh()) are lit like the world, with the gate texture of make_gate_texture(). Torch i
-    /// flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an animated, partly
-    /// see-through portal that pulses with its light (see exit_pulse()).
+    /// halves (see build_door_mesh()) are lit like the world, with the texture of make_door_texture() for the world's
+    /// door look. Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an
+    /// animated, partly see-through portal that pulses with its light (see exit_pulse()).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.

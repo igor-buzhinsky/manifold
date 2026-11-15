@@ -872,7 +872,9 @@ TEST(RoomLayoutTest, DoorsFillOpeningsAcrossTheWayBetweenRooms) {
         EXPECT_TRUE(inside_obstacle(world, middle - (0.45f * config.tile_size * along)));
         EXPECT_FALSE(inside_obstacle(world, middle));
     }
-    EXPECT_NE(level.info.find(std::format("Doors in {0} of {0} openings.\n", world.doors().size())), std::string::npos)
+    EXPECT_NE(level.info.find(std::format("Doors of {0} in {1} of {1} openings.\n", door_look_name(world.door_look()),
+                                          world.doors().size())),
+              std::string::npos)
         << level.info;
 }
 
@@ -889,6 +891,16 @@ TEST(RoomLayoutTest, DoorShareVariesBetweenLevelsWithinChances) {
     }
     EXPECT_GT(highest - lowest, 0.3f);
     EXPECT_GT(lowest, 0.0f);
+}
+
+TEST(RoomLayoutTest, DoorsAreOfWoodOrMetalAtRandom) {
+    int metal = 0;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        metal += generate(seed).world.door_look() == DoorLook::kMetal ? 1 : 0;
+    }
+    // Half of the levels on average: 20 seeds give from 4 to 16 with a chance of over 99.5%.
+    EXPECT_GE(metal, 4);
+    EXPECT_LE(metal, 16);
 }
 
 TEST(RoomLayoutTest, ThrowsOnInvalidDoorChances) {

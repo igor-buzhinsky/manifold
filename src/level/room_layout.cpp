@@ -676,7 +676,7 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
     }
 }
 
-/// Puts doors into openings, see RoomLayout.
+/// Puts doors into openings and chooses what they are made of, see RoomLayout.
 ///
 /// The door chances must be valid, see RoomLayout::generate().
 ///
@@ -708,6 +708,7 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
             }
         }
     }
+    world.set_door_look(std::bernoulli_distribution(0.5)(rng) ? DoorLook::kMetal : DoorLook::kWood);
     return {doors, openings};
 }
 
@@ -716,13 +717,15 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
 constexpr float kCutBelowCeiling = 0.1f;
 
 /// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, where
-/// the exit is, how many openings have doors, and the plan, see draw_plan().
+/// the exit is, how many openings have doors and what the doors are made of, and the plan, see draw_plan().
 ///
-/// \param plan     The plan of the level.
-/// \param grid     Where the tiles are in the world.
-/// \param height   Height of a layer from its floor to its ceiling.
-/// \param doors    The number of doors and the number of openings, see add_doors().
-std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height, std::pair<int, int> doors) {
+/// \param plan   The plan of the level.
+/// \param grid   Where the tiles are in the world.
+/// \param height Height of a layer from its floor to its ceiling.
+/// \param doors  The number of doors and the number of openings, see add_doors().
+/// \param look   What the doors are made of.
+std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height, std::pair<int, int> doors,
+                     DoorLook look) {
     constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
     const TileBox box = used_tiles(plan);
     std::string floors;
@@ -735,11 +738,12 @@ std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float h
         "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
         "Floors of the layers at z = {}. To see a layer from above: cutaway {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
-        "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\nDoors in {} of {} openings.\n{}",
+        "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\nDoors of {} in {} of {} "
+        "openings.\n{}",
         grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
         grid.y_min + grid.tile, grid.tile, floors, cuts, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
         plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), plan.exit_layer,
-        plan.exit_x, plan.exit_y, doors.first, doors.second, draw_plan(plan));
+        plan.exit_x, plan.exit_y, door_look_name(look), doors.first, doors.second, draw_plan(plan));
 }
 
 }  // namespace
@@ -782,6 +786,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     build_ramps(world, plan, grid);
     add_torches(world, plan, grid, config_, rng);
     const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
+    std::string info = describe(plan, grid, config_.height, doors, world.door_look());
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
                                                     grid.floor_z.at(static_cast<std::size_t>(plan.exit_layer)))});
 
@@ -791,7 +796,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .world = std::move(world),
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
-            .info = describe(plan, grid, config_.height, doors)};
+            .info = std::move(info)};
 }
 
 }  // namespace manifold

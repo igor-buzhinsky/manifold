@@ -533,7 +533,7 @@ Renderer::Renderer(const World& world, const Image& texture)
       shadow_ranges_(kShadowSlots, 0.0f),
       exit_program_(link_program(kExitVertexShader, kExitFragmentShader)),
       doors_(world.doors().begin(), world.doors().end()),
-      door_texture_(upload_texture(make_gate_texture())),
+      door_texture_(upload_texture(make_door_texture(world.door_look()))),
       marker_program_(link_program(kMarkerVertexShader, kMarkerFragmentShader)) {
     glGenVertexArrays(1, &vertex_array_);
     glBindVertexArray(vertex_array_);

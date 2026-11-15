@@ -1,6 +1,7 @@
 #include "render/texture_image.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -16,6 +17,7 @@
 #include <stb_image.h>
 
 #include "util/log.hpp"
+#include "world/door.hpp"
 
 namespace manifold {
 
@@ -97,7 +99,7 @@ Image fallback_texture() { return {.width = 1, .height = 1, .pixels = {128, 128,
 
 namespace {
 
-/// A pseudo-random number in [0, 1) for a pixel, for the grain of the gate's wood.
+/// A pseudo-random number in [0, 1) for a pixel, for the grain of wood and metal.
 float pixel_noise(int x, int y) {
     auto hash = static_cast<std::uint32_t>((x * 73856093) ^ (y * 19349663));
     hash ^= hash >> 13U;
@@ -106,16 +108,21 @@ float pixel_noise(int x, int y) {
     return static_cast<float>(hash & 0xffffU) / 65536.0f;
 }
 
-/// An sRGB color of the gate texture, before it is written as bytes.
-struct GateColor {
+/// An sRGB color of a door texture, in [0, 255] before it is written as bytes.
+struct DoorColor {
     float r = 0.0f;
     float g = 0.0f;
     float b = 0.0f;
 };
 
-/// The color of a pixel of the gate texture, see make_gate_texture().
-GateColor gate_pixel(int x, int y) {
-    constexpr int kPlankWidth = kGateTextureSize / 4;
+/// A grey with a slight blue tint, for steel and iron, `brightness` times a base grey.
+DoorColor steel(float brightness) {
+    return {.r = 100.0f * brightness, .g = 103.0f * brightness, .b = 110.0f * brightness};
+}
+
+/// The color of a pixel of the wooden door texture, see make_door_texture().
+DoorColor wood_pixel(int x, int y) {
+    constexpr int kPlankWidth = kDoorTextureSize / 4;
     constexpr int kBandTop = 38;     // First row of the iron band.
     constexpr int kBandBottom = 49;  // Last row of the iron band.
     constexpr int kRivetTop = 42;    // First of the two rows of the rivets.
@@ -147,15 +154,46 @@ GateColor gate_pixel(int x, int y) {
     return {.r = 112.0f * light, .g = 74.0f * light, .b = 42.0f * light};
 }
 
+/// The color of a pixel of the metal door texture, see make_door_texture().
+DoorColor metal_pixel(int x, int y) {
+    constexpr int kPlateWidth = kDoorTextureSize / 2;
+    constexpr int kRibTop = 40;     // First row of the rib.
+    constexpr int kRibBottom = 47;  // Last row of the rib.
+    constexpr int kRivetSpacing = 8;
+    if (y >= kRibTop && y <= kRibBottom) {
+        // A rounded rib: lit from above, in shadow below, with a rivet every kRivetSpacing pixels.
+        const int rivet_x = x % kRivetSpacing;
+        const bool rivet = (rivet_x == 3 || rivet_x == 4) && (y == kRibTop + 3 || y == kRibTop + 4);
+        if (rivet) {
+            return steel(y == kRibTop + 3 ? 1.9f : 1.1f);
+        }
+        constexpr std::array<float, kRibBottom - kRibTop + 1> kRibShade{1.8f, 1.5f, 1.3f, 1.2f,
+                                                                        1.1f, 1.0f, 0.8f, 0.45f};
+        return steel(kRibShade.at(static_cast<std::size_t>(y - kRibTop)) * (0.97f + (0.06f * pixel_noise(x, y))));
+    }
+    // A seam between two plates: a dark gap with a lit edge on its right.
+    const int plate_x = x % kPlateWidth;
+    if (plate_x == 0) {
+        return steel(0.35f);
+    }
+    if (plate_x == 1) {
+        return steel(1.5f);
+    }
+    // Brushed steel: fine streaks that run up the plate, and a slight difference between the plates.
+    const float tint = 0.95f + (0.1f * pixel_noise(x / kPlateWidth, 3));
+    const float streak = (0.92f + (0.16f * pixel_noise(x, 5))) * (0.97f + (0.06f * pixel_noise(x, y)));
+    return steel(1.15f * tint * streak);
+}
+
 }  // namespace
 
-Image make_gate_texture() {
-    Image image{.width = kGateTextureSize, .height = kGateTextureSize, .pixels = {}};
-    image.pixels.reserve(static_cast<std::size_t>(kGateTextureSize) * kGateTextureSize * kChannels);
+Image make_door_texture(DoorLook look) {
+    Image image{.width = kDoorTextureSize, .height = kDoorTextureSize, .pixels = {}};
+    image.pixels.reserve(static_cast<std::size_t>(kDoorTextureSize) * kDoorTextureSize * kChannels);
     const auto to_byte = [](float value) { return static_cast<std::uint8_t>(std::clamp(value, 0.0f, 255.0f)); };
-    for (int y = 0; y < kGateTextureSize; ++y) {
-        for (int x = 0; x < kGateTextureSize; ++x) {
-            const GateColor color = gate_pixel(x, y);
+    for (int y = 0; y < kDoorTextureSize; ++y) {
+        for (int x = 0; x < kDoorTextureSize; ++x) {
+            const DoorColor color = look == DoorLook::kMetal ? metal_pixel(x, y) : wood_pixel(x, y);
             image.pixels.insert(image.pixels.end(),
                                 {to_byte(color.r), to_byte(color.g), to_byte(color.b), std::uint8_t{255}});
         }

@@ -9,6 +9,15 @@
 
 namespace manifold {
 
+/// What the halves of the doors of a level are made of, which sets their texture, see make_door_texture().
+enum class DoorLook : std::uint8_t {
+    kWood,   ///< Upright wooden planks with iron bands.
+    kMetal,  ///< Steel plates with riveted ribs.
+};
+
+/// The name of a door look, for the log: `wood` or `metal`.
+const char* door_look_name(DoorLook look);
+
 /// Which of the two sides of a door, along the wall.
 enum class DoorSide : std::uint8_t {
     kNegative,  ///< Towards -u: the side the door's own u axis points away from.

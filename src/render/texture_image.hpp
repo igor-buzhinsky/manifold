@@ -6,6 +6,8 @@
 #include <span>
 #include <vector>
 
+#include "world/door.hpp"
+
 namespace manifold {
 
 /// Textures larger than this in either dimension, in pixels, are not used.
@@ -51,13 +53,15 @@ std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path>
 /// A plain grey 1 x 1 image, used when no texture can be loaded.
 Image fallback_texture();
 
-/// Width and height of the image of make_gate_texture(), in pixels.
-inline constexpr int kGateTextureSize = 64;
+/// Width and height of the images of make_door_texture(), in pixels.
+inline constexpr int kDoorTextureSize = 64;
 
-/// Makes the texture of door halves: an opaque gate of four upright wooden planks with an iron band across them.
+/// Makes the texture of door halves, which are opaque:
+/// - wood: four upright wooden planks with an iron band across them;
+/// - metal: two brushed steel plates side by side, with a riveted rib across them.
 ///
-/// The image is kGateTextureSize pixels square and repeats seamlessly upwards. It is made in code, so it doesn't
-/// depend on an asset file, and is the same every time.
-Image make_gate_texture();
+/// The image is kDoorTextureSize pixels square and repeats seamlessly upwards and sideways. It is made in code, so it
+/// doesn't depend on an asset file, and is the same every time.
+Image make_door_texture(DoorLook look);
 
 }  // namespace manifold

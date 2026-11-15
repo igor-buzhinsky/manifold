@@ -12,6 +12,8 @@
 #include <gtest/gtest.h>
 #include <stb_image_write.h>
 
+#include "world/door.hpp"
+
 namespace manifold {
 namespace {
 
@@ -129,27 +131,43 @@ TEST(FallbackTextureTest, IsOneOpaquePixel) {
     EXPECT_EQ(image.pixels[3], 255);
 }
 
-TEST(GateTextureTest, IsOpaqueSquareAndTheSameEveryTime) {
-    const Image gate = make_gate_texture();
-    EXPECT_EQ(gate.width, kGateTextureSize);
-    EXPECT_EQ(gate.height, kGateTextureSize);
-    ASSERT_EQ(gate.pixels.size(), static_cast<std::size_t>(kGateTextureSize) * kGateTextureSize * 4);
-    for (std::size_t i = 3; i < gate.pixels.size(); i += 4) {
-        EXPECT_EQ(gate.pixels[i], 255);
-    }
-    EXPECT_EQ(make_gate_texture().pixels, gate.pixels);
+/// The sRGB color of pixel (x, y) of an RGBA image.
+std::array<int, 3> pixel_at(const Image& image, int x, int y) {
+    const auto index = static_cast<std::size_t>((y * image.width) + x) * 4;
+    return {image.pixels.at(index), image.pixels.at(index + 1), image.pixels.at(index + 2)};
 }
 
-TEST(GateTextureTest, WoodIsBrownAndTheBandIsGrey) {
-    const Image gate = make_gate_texture();
-    const auto pixel = [&gate](int x, int y) {
-        const auto index = static_cast<std::size_t>((y * gate.width) + x) * 4;
-        return std::array<int, 3>{gate.pixels[index], gate.pixels[index + 1], gate.pixels[index + 2]};
-    };
-    const std::array<int, 3> wood = pixel(5, 10);
-    EXPECT_GT(wood[0], wood[2] + 30);
-    const std::array<int, 3> band = pixel(5, 45);
+TEST(DoorTextureTest, IsOpaqueSquareAndTheSameEveryTime) {
+    for (const DoorLook look : {DoorLook::kWood, DoorLook::kMetal}) {
+        const Image door = make_door_texture(look);
+        EXPECT_EQ(door.width, kDoorTextureSize);
+        EXPECT_EQ(door.height, kDoorTextureSize);
+        ASSERT_EQ(door.pixels.size(), static_cast<std::size_t>(kDoorTextureSize) * kDoorTextureSize * 4);
+        for (std::size_t i = 3; i < door.pixels.size(); i += 4) {
+            EXPECT_EQ(door.pixels[i], 255);
+        }
+        EXPECT_EQ(make_door_texture(look).pixels, door.pixels);
+    }
+    EXPECT_NE(make_door_texture(DoorLook::kWood).pixels, make_door_texture(DoorLook::kMetal).pixels);
+}
+
+TEST(DoorTextureTest, WoodIsBrownAndTheBandIsGrey) {
+    const Image wood = make_door_texture(DoorLook::kWood);
+    const std::array<int, 3> plank = pixel_at(wood, 5, 10);
+    EXPECT_GT(plank[0], plank[2] + 30);
+    const std::array<int, 3> band = pixel_at(wood, 5, 45);
     EXPECT_LT(band[0] - band[2], 20);
+}
+
+TEST(DoorTextureTest, MetalIsGreyWithALitRibAndDarkSeams) {
+    const Image metal = make_door_texture(DoorLook::kMetal);
+    const std::array<int, 3> plate = pixel_at(metal, 10, 10);
+    EXPECT_LE(plate[0], plate[2]);  // Grey, slightly blue.
+    EXPECT_LT(plate[2] - plate[0], 20);
+    const std::array<int, 3> seam = pixel_at(metal, 32, 10);
+    EXPECT_LT(seam[0], plate[0] / 2);
+    const std::array<int, 3> rib_top = pixel_at(metal, 10, 40);
+    EXPECT_GT(rib_top[0], plate[0]);
 }
 
 }  // namespace

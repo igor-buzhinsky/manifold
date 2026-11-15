@@ -150,7 +150,8 @@ const char* door_state_name(const DoorState& door) {
 
 /// Adds the commands that inspect and use doors: doors, door and activate.
 void add_door_commands(Console& console, Game& game) {
-    console.add("doors", "doors", "Lists the doors: their number, where they are, and whether they are open.",
+    console.add("doors", "doors",
+                "Lists the doors: what they are made of, their number, where they are, and whether they are open.",
                 [&game](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "doors");
                     const std::span<const Door> doors = game.world().doors();
@@ -161,7 +162,7 @@ void add_door_commands(Console& console, Game& game) {
                             std::format("\nDoor {} at ({:.2f}, {:.2f}, {:.2f}), wall along {:.0f} deg: {}", i, center.x,
                                         center.y, center.z, to_degrees(doors[i].yaw), door_state_name(game.doors()[i]));
                     }
-                    log_info("{} doors{}", doors.size(), list);
+                    log_info("{} doors of {}{}", doors.size(), door_look_name(game.world().door_look()), list);
                 });
 
     const std::string door_usage = "door N open|close";

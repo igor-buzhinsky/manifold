@@ -27,7 +27,8 @@ the way to it. In room levels it is on another layer than the start. Touching it
 the next level.
 
 In room levels, some openings between rooms (10% to 100% of them, random for each level) have doors: two
-wooden halves between two dark frames. A closed door blocks the way. E on the door opens it: the halves slide
+halves between two dark frames. All doors of a level are wooden or all are metal, each with a chance of 50%.
+A closed door blocks the way. E on the door opens it: the halves slide
 into the walls within a second, and only then can the player pass. To close an open door, aim at one of its
 frames and press E. A door that is moving ignores E, and a door doesn't close while the player stands in it.
 

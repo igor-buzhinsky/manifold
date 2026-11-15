@@ -285,8 +285,9 @@ closes them with E, which acts on what the center of the view points at.
 - **Frames**: two near-black blocks in the opening, on its left and right, are plain static obstacles of the world.
   They collide, are part of the world mesh and cast shadows like walls. The gap between them (1.6 m with 2 m tiles)
   leaves room for the player (1.2 m wide).
-- **Door**: two halves with a gate texture, made on the CPU as an image (planks with iron bands), slide into the walls
-  next to the opening, behind the frames, within one second. The halves are opaque, so that closed doors can later
+- **Door**: two halves with a door texture, made on the CPU as an image, slide into the walls next to the opening,
+  behind the frames, within one second. All doors of a level have the same look, chosen at random with a chance of 50%
+  each: wood (planks with an iron band) or metal (brushed steel plates with a riveted rib). The halves are opaque, so that closed doors can later
   block light and monsters.
 - **State**: the shape of a door belongs to the static `World`. How far it is open and whether it moves live in `Game`,
   like the player.
@@ -297,7 +298,7 @@ closes them with E, which acts on what the center of the view points at.
   doors. A hit on a closed door opens it, and a hit on a frame opens or closes its door. While a door moves, E on it
   does nothing. The ray test and its result are meant to be reused by other things that can be activated.
 - **Drawing**: the halves have their own vertex buffer in the world's vertex format, drawn with the world's program
-  and the gate texture instead of the level texture. So they are lit and cut away like the world. The buffer is
+  and the door texture instead of the level texture. So they are lit and cut away like the world. The buffer is
   built again on the CPU when a door moves.
 - **Shadows**: at first, the halves cast no shadows, like the exit. Later they can be drawn into the shadow maps,
   whose maps are drawn again for lights that reach a moving door.
@@ -308,7 +309,7 @@ Gains:
 
 - Frames and collision reuse what exists: obstacles and `move_and_slide()`. Only the ray test and the moving mesh are
   new.
-- No new shader and no new asset file: the gate is an image made in code, bound in place of the level texture.
+- No new shader and no new asset file: the door texture is an image made in code, bound in place of the level texture.
 - Everything except drawing is in `manifold_core` and can be tested.
 
 Drawbacks:

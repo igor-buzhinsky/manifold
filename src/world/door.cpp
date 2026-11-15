@@ -28,6 +28,8 @@ float side_sign(DoorSide side) { return side == DoorSide::kNegative ? -1.0f : 1.
 
 }  // namespace
 
+const char* door_look_name(DoorLook look) { return look == DoorLook::kMetal ? "metal" : "wood"; }
+
 Obstacle Door::frame(DoorSide side) const {
     return door_block(*this, side_sign(side) * (width - kFrameWidth) / 2.0f,
                       glm::vec2(kFrameWidth / 2.0f, kFrameDepth / 2.0f), Surface::kDark);
