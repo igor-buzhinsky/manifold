@@ -115,7 +115,7 @@ struct LayeredPlan {
     int exit_layer = 0;  ///< Index in `layers` of the layer with the level exit.
     int exit_x = 0;      ///< Tile of the level exit along x.
     int exit_y = 0;      ///< Tile of the level exit along y.
-    int attempts = 0;    ///< How many times the level was planned until the holes and the player start fit.
+    int attempts = 0;    ///< How many times the level was planned until the holes, the player start and the exit fit.
 
     /// The hole in the ceiling of `layer` that tile (x, y) is part of, if any.
     std::optional<Hole> hole_at(int layer, int x, int y) const;

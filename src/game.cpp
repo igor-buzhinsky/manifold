@@ -12,7 +12,6 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
-#include "util/log.hpp"
 #include "world/player.hpp"
 #include "world/world.hpp"
 
@@ -62,7 +61,6 @@ void Game::next_level() {
     seed_ = seed;
     ++level_number_;
     player_ = Player(at_start(player_params_, level_));
-    log_info("Level {}: seed {}, layout {}", level_number_, seed_, layout_name(level_.layout));
 }
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }

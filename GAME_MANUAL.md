@@ -61,7 +61,7 @@ it types can't be typed.
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
 | `camera player` | Put the camera back at the player's eyes |
 | `teleport X Y Z [YAW]` | Move the player's feet to (X, Y, Z), facing YAW if given. Obstacles are not checked, and the player falls from there unless noclip is on |
-| `next_level` | Start the next level, as if the player reached the exit |
+| `next_level` | Start the next level, as if the player reached the exit. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

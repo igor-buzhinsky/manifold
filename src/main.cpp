@@ -137,7 +137,8 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
 void log_game(const manifold::Game& game) {
     const auto& bounds = game.world().bounds();
     const auto& player = game.player();
-    manifold::log_info("Manifold, level seed {}, layout {}", game.seed(), manifold::layout_name(game.level().layout));
+    manifold::log_info("Manifold, level {}, seed {}, layout {}", game.level_number(), game.seed(),
+                       manifold::layout_name(game.level().layout));
     manifold::log_info(
         "World: x [{}, {}], y [{}, {}], height {} m, gravity {} m/s^2, {} obstacles, {} ramps, {} torches",
         bounds.x_min, bounds.x_max, bounds.y_min, bounds.y_max, bounds.height, game.level().gravity,
@@ -363,6 +364,7 @@ struct LogListenerReset {
 /// Runs the game until the player quits or a console command does.
 ///
 /// \throws manifold::CommandError if one of the commands of `options` fails.
+/// \throws std::runtime_error if a level can't be generated, also the next one when the player reaches the exit.
 void run(const Options& options) {
     // The console window shows the log, from the start.
     manifold::ConsoleWindow console_window;
