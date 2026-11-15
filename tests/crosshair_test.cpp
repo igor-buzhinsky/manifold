@@ -56,17 +56,28 @@ TEST(CrosshairTest, IsAWhitePlusOverABlackOneAtTheCenter) {
     EXPECT_EQ(vertical.min, glm::vec2(400.0f, 219.0f));
     EXPECT_EQ(vertical.max, glm::vec2(401.0f, 232.0f));
     // The outline is 1 pixel wider on every side.
-    const Bounds outline = rectangle_bounds(vertices, 0);
-    EXPECT_EQ(outline.min, glm::vec2(393.0f, 224.0f));
-    EXPECT_EQ(outline.max, glm::vec2(408.0f, 227.0f));
+    const Bounds horizontal_outline = rectangle_bounds(vertices, 0);
+    EXPECT_EQ(horizontal_outline.min, glm::vec2(393.0f, 224.0f));
+    EXPECT_EQ(horizontal_outline.max, glm::vec2(408.0f, 227.0f));
+    const Bounds vertical_outline = rectangle_bounds(vertices, kVerticesPerRectangle);
+    EXPECT_EQ(vertical_outline.min, glm::vec2(399.0f, 218.0f));
+    EXPECT_EQ(vertical_outline.max, glm::vec2(402.0f, 233.0f));
 }
 
 TEST(CrosshairTest, LargePicturesGetALargerCrosshair) {
     OverlayMesh mesh;
     add_crosshair(mesh, {.width = 1920, .height = 1080});
+    // At scale 2, the central square covers pixels 959 and 960, 539 and 540: exactly around the center.
     const Bounds horizontal = rectangle_bounds(mesh.vertices(), 2 * kVerticesPerRectangle);
-    EXPECT_EQ(horizontal.min, glm::vec2(948.0f, 540.0f));
-    EXPECT_EQ(horizontal.max, glm::vec2(974.0f, 542.0f));
+    EXPECT_EQ(horizontal.min, glm::vec2(947.0f, 539.0f));
+    EXPECT_EQ(horizontal.max, glm::vec2(973.0f, 541.0f));
+    const Bounds vertical = rectangle_bounds(mesh.vertices(), 3 * kVerticesPerRectangle);
+    EXPECT_EQ(vertical.min, glm::vec2(959.0f, 527.0f));
+    EXPECT_EQ(vertical.max, glm::vec2(961.0f, 553.0f));
+    // The outline is 2 pixels wider on every side.
+    const Bounds outline = rectangle_bounds(mesh.vertices(), 0);
+    EXPECT_EQ(outline.min, glm::vec2(945.0f, 537.0f));
+    EXPECT_EQ(outline.max, glm::vec2(975.0f, 543.0f));
 }
 
 }  // namespace

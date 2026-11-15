@@ -139,9 +139,9 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   obstacles. E (or the `activate` command) casts a ray from the eyes up to 2 m: on a closed door it opens it, on
   a frame it opens or closes the door, and on a moving door it does nothing. The halves slide into the walls in one
   second, and the door blocks the player until it is fully open. It doesn't close while the player stands in it.
-  The `doors` and `door` commands list and move doors. A thin white crosshair with a black outline marks the center
-  of the view; the `crosshair` command hides it. Next: the halves cast no shadows yet, so light goes through
-  closed doors.
+  The `doors` and `door` commands list and move doors. Next: the halves cast no shadows yet, so light goes through
+  closed doors. A thin white crosshair with a black outline marks the center of the view that E activates; the
+  `crosshair` command hides it.
 - **Multiple point lights**: static light sources placed in the level (torches for now; braziers and glowing
   crystals are under "Later (unordered, low priority, might not be done)"), with color and flicker. With 4.1,
   the lights near the player (a few dozen) go to the shader in a uniform buffer, chosen on the CPU each frame.

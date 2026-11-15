@@ -127,10 +127,10 @@ TEST(GameCommandsTest, SwitchesChangeTheView) {
     EXPECT_TRUE(fixture.state.view.shadows);
     EXPECT_TRUE(fixture.state.view.crosshair);
     fixture.run("arrow on; lighting off; shadows off; crosshair off");
-    EXPECT_FALSE(fixture.state.view.crosshair);
     EXPECT_TRUE(fixture.state.view.arrow);
     EXPECT_FALSE(fixture.state.view.lighting);
     EXPECT_FALSE(fixture.state.view.shadows);
+    EXPECT_FALSE(fixture.state.view.crosshair);
     for (const char* command : {"arrow maybe", "arrow on off"}) {
         fixture.queue.add(command, true);
         EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError) << command;

@@ -49,7 +49,8 @@ Console commands inspect the game, e.g. to test a level. There are three ways to
 In `--exec`, a command that fails, or a screenshot that can't be saved, stops the game with an error. When
 typed into the console window or the terminal, it only shows the error. Commands are read from the terminal
 only while the game runs in the foreground of the shell. Words are separated by spaces and can't contain
-any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show the crosshair.
+any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show
+the crosshair.
 
 Keys of the console window:
 
@@ -101,7 +102,8 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
   of them with shadows, and how many shadow maps were drawn in this frame.
 - **Player**: position, yaw and pitch, vertical speed, whether the player stands on something, and a
   checkbox for noclip.
-- **View**: checkboxes for the arrow, the crosshair, lighting and shadows, as the commands of the same names set them.
+- **View**: checkboxes for the arrow, the crosshair, lighting and shadows, as the commands of the same names
+  set them.
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and
   range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the
   distance over which they fade out before they are left out, and the shadow bias. Reset lights puts them

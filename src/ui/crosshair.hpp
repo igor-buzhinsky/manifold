@@ -18,7 +18,8 @@ int crosshair_scale(int picture_height);
 /// crosshair_scale(): the lines are 1 thick and reach 6 from the central pixel to each side, and the outline is 1 wide.
 ///
 /// \param[out] mesh The rectangles are appended here.
-/// \param picture   Size of the picture. Its center pixel, rounded down, is the center of the plus.
+/// \param picture   Size of the picture. The central square of the plus, crosshair_scale() pixels wide, is centered on
+///                  the center of the picture, or half a pixel right of and below it where whole pixels can't be.
 void add_crosshair(OverlayMesh& mesh, const PixelSize& picture);
 
 }  // namespace manifold

@@ -25,16 +25,18 @@ constexpr glm::vec4 kBlack{0.0f, 0.0f, 0.0f, 1.0f};
 int crosshair_scale(int picture_height) { return std::max(1, (picture_height / kScaleStepHeight) + 1); }
 
 void add_crosshair(OverlayMesh& mesh, const PixelSize& picture) {
-    const auto scale = static_cast<float>(crosshair_scale(picture.height));
-    // The center is rounded down to whole pixels, so the lines stay sharp.
-    const int center_x = picture.width / 2;
-    const int center_y = picture.height / 2;
-    const glm::vec2 center{static_cast<float>(center_x), static_cast<float>(center_y)};
+    const int pixel = crosshair_scale(picture.height);
+    const auto scale = static_cast<float>(pixel);
+    // The central square starts half its width before the center of the picture, rounded down to whole pixels, so
+    // the lines stay sharp.
+    const int corner_x = (picture.width / 2) - (pixel / 2);
+    const int corner_y = (picture.height / 2) - (pixel / 2);
+    const glm::vec2 square{static_cast<float>(corner_x), static_cast<float>(corner_y)};
     const float arm = kArmLength * scale;
     // The central square of the plus, `scale` pixels wide, and the two bars through it.
-    const glm::vec2 horizontal_corner = center - glm::vec2(arm, 0.0f);
+    const glm::vec2 horizontal_corner = square - glm::vec2(arm, 0.0f);
     const glm::vec2 horizontal_size{(2.0f * arm) + scale, scale};
-    const glm::vec2 vertical_corner = center - glm::vec2(0.0f, arm);
+    const glm::vec2 vertical_corner = square - glm::vec2(0.0f, arm);
     const glm::vec2 vertical_size{scale, (2.0f * arm) + scale};
     const glm::vec2 outline(scale);
     mesh.add_rectangle(horizontal_corner - outline, horizontal_size + (2.0f * outline), kBlack);
