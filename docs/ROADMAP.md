@@ -123,7 +123,7 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
   version of the linear series of levels. Done for now: the exit is a blue cube floating above the floor,
   and touching it starts the next level, with a seed derived from the current one and the layout chosen
-  as for the first level (or the one given with `--layout`). Room levels put it in the center of a random
+  as for the first level (`--layout` applies only to the first level). Room levels put it in the center of a random
   floor tile on another layer than the start, away from holes and openings (`E` on the plan); the debug
   layout puts it anywhere free. `next_level` starts the next level from the console. Next: a portal look,
   and placing the exit far from the start where it is surely reachable.
@@ -201,6 +201,11 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   themselves to a pocket dimension.
 - New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.
 - Story and lore.
+- **Error-proof level generation**: generating a level can fail, e.g. when the holes, the player start or the
+  exit of a room level don't fit after `max_plan_attempts` attempts, or when a debug level has no room for a
+  block or the exit. Generation then throws, and the game quits, also when the player reaches the exit of a
+  level that was fine. Trying again with the same seed fails again. Generation should always give a level,
+  e.g. by trying other seeds or relaxing the settings, or by construction.
 
 ## Later (unordered, low priority, might not be done)
 

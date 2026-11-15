@@ -50,8 +50,8 @@ public:
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation. The same seed gives the same level.
-    /// \param layout The layout of this level and the next ones. If not given, each is chosen at random, see
-    ///               LevelConfig.
+    /// \param layout The layout of this level. If not given, it is chosen at random, see LevelConfig. The
+    ///               layouts of the next levels are always chosen at random.
     /// \throws std::runtime_error if the level can't be generated.
     Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout = std::nullopt);
 
@@ -79,6 +79,8 @@ public:
     void update(const PlayerInput& input, float dt);
 
     /// Generates the next level from next_level_seed() of the current seed, and puts the player at its start.
+    ///
+    /// The layout is chosen at random, see LevelConfig, even if the first level was given one.
     ///
     /// The player stands still and looks straight ahead. Noclip and the game time stay as they are.
     ///
@@ -121,7 +123,6 @@ private:
     void move_player(const PlayerInput& input, float dt);
 
     LevelConfig level_config_;
-    std::optional<LayoutKind> layout_;  ///< The layout of all levels, or none to choose each at random.
     PlayerParams player_params_;
     float turn_speed_;
     float look_speed_;

@@ -29,9 +29,7 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
-    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {
-    layout_ = layout;
-}
+    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {}
 
 Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
     : level_config_(config.level),
@@ -56,7 +54,7 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
 
 void Game::next_level() {
     const std::uint64_t seed = next_level_seed(seed_);
-    Level level = generate_level(level_config_, layout_, player_params_.radius, seed);
+    Level level = generate_level(level_config_, std::nullopt, player_params_.radius, seed);
     level_ = std::move(level);
     seed_ = seed;
     ++level_number_;

@@ -380,15 +380,16 @@ TEST(GameTest, FlyingOverExitDoesNotTouchIt) {
     EXPECT_EQ(game.level_number(), 0);
 }
 
-TEST(GameTest, NextLevelKeepsGivenLayoutAndFollowsSeeds) {
+TEST(GameTest, NextLevelChoosesLayoutAtRandomAndFollowsSeeds) {
     Game game(make_config(), 7, LayoutKind::kDebug);
     game.next_level();
     game.next_level();
     EXPECT_EQ(game.level_number(), 2);
     EXPECT_EQ(game.seed(), next_level_seed(next_level_seed(7)));
-    EXPECT_EQ(game.level().layout, LayoutKind::kDebug);
+    // The given layout is only for the first level. The level settings choose rooms by default.
+    EXPECT_EQ(game.level().layout, LayoutKind::kRooms);
     // The same seed gives the same level as a new game with it.
-    const Game fresh(make_config(), game.seed(), LayoutKind::kDebug);
+    const Game fresh(make_config(), game.seed());
     EXPECT_EQ(game.level().info, fresh.level().info);
 }
 
