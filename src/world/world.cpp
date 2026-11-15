@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <vector>
 
+#include <glm/common.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
@@ -29,6 +30,16 @@ Box2 grid_box(const RotatedRectangle& rectangle) {
     return {.min = rectangle.center - half_size, .max = rectangle.center + half_size};
 }
 
+/// The box of a door in the grid: around its frames and its blocker.
+Box2 grid_box(const Door& door) {
+    Box2 box = grid_box(door.blocker().footprint());
+    for (const DoorSide side : {DoorSide::kNegative, DoorSide::kPositive}) {
+        const Box2 frame = grid_box(door.frame(side).footprint());
+        box = {.min = glm::min(box.min, frame.min), .max = glm::max(box.max, frame.max)};
+    }
+    return box;
+}
+
 }  // namespace
 
 bool WorldBounds::contains(const glm::vec3& point) const {
@@ -53,13 +64,16 @@ bool LevelExit::touches(const VerticalCylinder& body) const {
 World::World(const WorldBounds& bounds)
     : bounds_(bounds),
       obstacle_grid_({.min = {bounds.x_min, bounds.y_min}, .max = {bounds.x_max, bounds.y_max}}, kGridCellSize),
-      ramp_grid_({.min = {bounds.x_min, bounds.y_min}, .max = {bounds.x_max, bounds.y_max}}, kGridCellSize) {}
+      ramp_grid_({.min = {bounds.x_min, bounds.y_min}, .max = {bounds.x_max, bounds.y_max}}, kGridCellSize),
+      door_grid_({.min = {bounds.x_min, bounds.y_min}, .max = {bounds.x_max, bounds.y_max}}, kGridCellSize) {}
 
 void World::find_obstacles_near(const Box2& box, std::vector<std::size_t>& indices) const {
     obstacle_grid_.find(box, indices);
 }
 
 void World::find_ramps_near(const Box2& box, std::vector<std::size_t>& indices) const { ramp_grid_.find(box, indices); }
+
+void World::find_doors_near(const Box2& box, std::vector<std::size_t>& indices) const { door_grid_.find(box, indices); }
 
 void World::add_obstacle(const Obstacle& obstacle) {
     obstacle_grid_.insert(obstacles_.size(), grid_box(obstacle.footprint()));
@@ -74,6 +88,7 @@ void World::add_ramp(const Ramp& ramp) {
 void World::add_torch(const Torch& torch) { torches_.push_back(torch); }
 
 void World::add_door(const Door& door) {
+    door_grid_.insert(doors_.size(), grid_box(door));
     doors_.push_back(door);
     add_obstacle(door.frame(DoorSide::kNegative));
     add_obstacle(door.frame(DoorSide::kPositive));

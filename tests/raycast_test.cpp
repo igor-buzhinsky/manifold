@@ -1,9 +1,12 @@
 #include "physics/raycast.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <optional>
+#include <random>
 #include <span>
 
 #include <glm/geometric.hpp>
@@ -103,6 +106,61 @@ TEST(RaycastTest, NearerObstaclesHideDoors) {
     ASSERT_TRUE(hit.has_value());
     EXPECT_EQ(hit->target, RayTarget::kWorld);
     EXPECT_FLOAT_EQ(hit->distance, 1.3f);
+}
+
+/// The distance to the nearest of all obstacles, door blockers and door frames of a world, tested one by one.
+std::optional<float> nearest_of_all(const World& world, const Ray& ray, float max_distance) {
+    std::optional<float> nearest;
+    const auto keep = [&](const Obstacle& obstacle) {
+        if (const std::optional<float> distance = cast_ray(ray, obstacle, max_distance)) {
+            nearest = std::min(nearest.value_or(*distance), *distance);
+        }
+    };
+    std::ranges::for_each(world.obstacles(), keep);
+    for (const Door& door : world.doors()) {
+        keep(door.blocker());
+        keep(door.frame(DoorSide::kNegative));
+        keep(door.frame(DoorSide::kPositive));
+    }
+    return nearest;
+}
+
+TEST(RaycastTest, FindsTheSameHitsAsTestingEverything) {
+    // Random rotated blocks and doors, partly outside the bounds, and random rays, some along x or y, some unlimited.
+    World world({.x_min = -20.0f, .x_max = 20.0f, .y_min = -20.0f, .y_max = 20.0f, .height = 3.0f});
+    std::mt19937 random(11);
+    std::uniform_real_distribution<float> position(-24.0f, 24.0f);
+    std::uniform_real_distribution<float> size(0.05f, 1.0f);
+    std::uniform_real_distribution<float> angle(0.0f, 2.0f * std::numbers::pi_v<float>);
+    std::uniform_real_distribution<float> height(0.0f, 3.0f);
+    for (int i = 0; i < 150; ++i) {
+        world.add_obstacle({.base_center = {position(random), position(random), 0.0f},
+                            .half_size = {size(random), size(random)},
+                            .height = height(random),
+                            .yaw = angle(random)});
+        world.add_door({.base_center = {position(random), position(random), 0.0f},
+                        .width = 2.0f * size(random),
+                        .height = 2.5f,
+                        .yaw = angle(random)});
+    }
+
+    constexpr float kInfinity = std::numeric_limits<float>::infinity();
+    int hits = 0;
+    for (int i = 0; i < 3000; ++i) {
+        const float yaw = (i % 3 == 0) ? static_cast<float>(i % 4) * std::numbers::pi_v<float> / 2.0f : angle(random);
+        const float pitch = (i % 5 == 0) ? 0.0f : (height(random) - 1.5f) / 3.0f;
+        const Ray ray{.origin = {position(random), position(random), height(random)},
+                      .direction = {std::cos(pitch) * std::cos(yaw), std::cos(pitch) * std::sin(yaw), std::sin(pitch)}};
+        const float max_distance = (i % 7 == 0) ? kInfinity : 2.0f * height(random);
+        const std::optional<RayHit> hit = cast_ray(world, std::span<const DoorState>(), ray, max_distance);
+        const std::optional<float> expected = nearest_of_all(world, ray, max_distance);
+        ASSERT_EQ(hit.has_value(), expected.has_value()) << "ray " << i;
+        if (hit) {
+            ++hits;
+            EXPECT_NEAR(hit->distance, *expected, 1e-3f) << "ray " << i;
+        }
+    }
+    EXPECT_GT(hits, 500);
 }
 
 }  // namespace

@@ -6,10 +6,14 @@
 #include <optional>
 #include <span>
 #include <utility>
+#include <vector>
 
+#include <glm/common.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "world/door.hpp"
+#include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/world.hpp"
 
@@ -26,6 +30,19 @@ void keep_nearest(std::optional<RayHit>& nearest, const RayHit& hit) {
     if (!nearest || hit.distance < nearest->distance) {
         nearest = hit;
     }
+}
+
+/// The box in the horizontal plane around the part of a ray within `max_distance` of its origin.
+Box2 ray_box(const Ray& ray, float max_distance) {
+    const glm::vec2 start(ray.origin);
+    glm::vec2 end = start;
+    for (int axis = 0; axis < 2; ++axis) {
+        // Skipped along axes the ray doesn't move along, so that an infinite `max_distance` doesn't give NaN.
+        if (ray.direction[axis] != 0.0f) {
+            end[axis] += ray.direction[axis] * max_distance;
+        }
+    }
+    return {.min = glm::min(start, end), .max = glm::max(start, end)};
 }
 
 }  // namespace
@@ -68,10 +85,14 @@ std::optional<float> cast_ray(const Ray& ray, const Obstacle& obstacle, float ma
 
 std::optional<RayHit> cast_ray(const World& world, std::span<const DoorState> doors, const Ray& ray,
                                float max_distance) {
+    // Only what overlaps the box around the ray can be hit. The indices are in increasing order, so ties are
+    // resolved as when testing everything in order.
+    const Box2 box = ray_box(ray, max_distance);
+    std::vector<std::size_t> nearby;
     std::optional<RayHit> nearest;
-    const std::span<const Door> world_doors = world.doors();
-    for (std::size_t i = 0; i < world_doors.size(); ++i) {
-        const Door& door = world_doors[i];
+    world.find_doors_near(box, nearby);
+    for (const std::size_t i : nearby) {
+        const Door& door = world.doors()[i];
         if (i >= doors.size() || !doors[i].passable()) {
             if (const std::optional<float> distance = cast_ray(ray, door.blocker(), max_distance)) {
                 keep_nearest(nearest, {.distance = *distance, .target = RayTarget::kDoor, .door = i});
@@ -83,7 +104,9 @@ std::optional<RayHit> cast_ray(const World& world, std::span<const DoorState> do
             }
         }
     }
-    for (const Obstacle& obstacle : world.obstacles()) {
+    world.find_obstacles_near(box, nearby);
+    for (const std::size_t index : nearby) {
+        const Obstacle& obstacle = world.obstacles()[index];
         const float limit = nearest ? nearest->distance - kTieTolerance : max_distance;
         if (limit < 0.0f) {
             break;

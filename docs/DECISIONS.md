@@ -65,8 +65,8 @@ Gains:
 - **Character controller**: CharacterVirtual handles step-up on stairs, the steepest walkable slope,
   ground detection and moving platforms.
 - **Speed**: Jolt's broad phase only tests shapes near the player. Our code tests every obstacle on each
-  move, which is about 12–20k in room levels. (Since v0.3, a spatial grid lets collision test only nearby
-  obstacles, but ray casts still test all of them.)
+  move, which is about 12–20k in room levels. (Since v0.3, spatial grids let collision and ray casts
+  test only nearby obstacles.)
 - **More shapes**: convex hulls, meshes and cylinders, which glTF props need.
 - **Ray and shape casts**: for aiming spells, line of sight and AI.
 - **Moving bodies**: doors as kinematic bodies, objects that can be pushed around, and buoyancy for

@@ -76,7 +76,8 @@ struct LevelExit {
 /// how far a door is open changes, so it is kept outside of the world model, with the other dynamic state, such as
 /// the player. See DoorState.
 ///
-/// The world sorts its obstacles and ramps into a grid, so that collision can test only the ones near a body.
+/// The world sorts its obstacles, ramps and doors into grids, so that collision and ray casts can test only the ones
+/// near a body or a ray.
 class World {
 public:
     /// Creates an empty level.
@@ -100,6 +101,9 @@ public:
     void find_obstacles_near(const Box2& box, std::vector<std::size_t>& indices) const;
     /// Finds the ramps that may overlap a box, like find_obstacles_near(). The indices are into ramps().
     void find_ramps_near(const Box2& box, std::vector<std::size_t>& indices) const;
+    /// Finds the doors that may overlap a box, like find_obstacles_near(). The indices are into doors(). A door
+    /// overlaps where its frames or its blocker do, see Door::frame() and Door::blocker().
+    void find_doors_near(const Box2& box, std::vector<std::size_t>& indices) const;
 
     void add_obstacle(const Obstacle& obstacle);
     void add_ramp(const Ramp& ramp);
@@ -115,6 +119,7 @@ private:
     std::vector<Ramp> ramps_;
     SpatialGrid obstacle_grid_;
     SpatialGrid ramp_grid_;
+    SpatialGrid door_grid_;
     std::vector<Torch> torches_;
     std::vector<Door> doors_;
     DoorLook door_look_ = DoorLook::kWood;
