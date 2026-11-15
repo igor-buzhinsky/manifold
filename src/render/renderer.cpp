@@ -39,6 +39,7 @@ layout(location = 1) in vec3 a_normal;
 layout(location = 2) in vec2 a_uv;
 layout(location = 3) in vec3 a_color;
 layout(location = 4) in float a_texture_weight;
+layout(location = 5) in float a_emission;
 
 uniform mat4 u_view_projection;
 uniform float u_cut_height;  // See DrawOptions::cut_height. Only used while GL_CLIP_DISTANCE0 is on.
@@ -48,6 +49,7 @@ out vec3 v_normal;
 out vec2 v_uv;
 out vec3 v_color;
 out float v_texture_weight;
+out float v_emission;
 
 void main() {
     v_position = a_position;
@@ -55,6 +57,7 @@ void main() {
     v_uv = a_uv;
     v_color = a_color;
     v_texture_weight = a_texture_weight;
+    v_emission = a_emission;
     gl_ClipDistance[0] = u_cut_height - a_position.z;
     gl_Position = u_view_projection * vec4(a_position, 1.0);
 }
@@ -73,6 +76,7 @@ in vec3 v_normal;
 in vec2 v_uv;
 in vec3 v_color;
 in float v_texture_weight;
+in float v_emission;  // See Vertex::emission.
 
 struct Light {
     vec4 position_range;   // xyz: position, w: range.
@@ -137,7 +141,8 @@ void main() {
         return;
     }
 
-    vec3 irradiance = u_ambient;
+    // Light the surface gives off counts like light that reaches it, so it shows in the surface's color.
+    vec3 irradiance = u_ambient + vec3(v_emission);
     for (int i = 0; i < u_light_count; ++i) {
         vec3 to_light = u_lights[i].position_range.xyz - v_position;
         float range = u_lights[i].position_range.w;
@@ -470,6 +475,7 @@ Renderer::Renderer(const World& world, const Image& texture)
     set_vertex_attribute(2, 2, sizeof(Vertex), offsetof(Vertex, uv));
     set_vertex_attribute(3, 3, sizeof(Vertex), offsetof(Vertex, color));
     set_vertex_attribute(4, 1, sizeof(Vertex), offsetof(Vertex, texture_weight));
+    set_vertex_attribute(5, 1, sizeof(Vertex), offsetof(Vertex, emission));
 
     // Each flame is one instance: its attributes advance once per instance, not per vertex.
     const std::vector<FlameInstance> flames = make_flames(world.torches());

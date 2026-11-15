@@ -152,6 +152,7 @@ TEST(WorldMeshTest, LevelSurfacesUseTextureAndLeaveOutTorches) {
     for (const Vertex& vertex : mesh) {
         EXPECT_EQ(vertex.color, glm::vec3(1.0f));
         EXPECT_FLOAT_EQ(vertex.texture_weight, 1.0f);
+        EXPECT_FLOAT_EQ(vertex.emission, 0.0f);
     }
 }
 
@@ -170,7 +171,7 @@ TEST(WorldMeshTest, TorchesHaveUntexturedHandleAndHead) {
     }
 }
 
-TEST(WorldMeshTest, ExitIsUntexturedCubeFacingOutwards) {
+TEST(WorldMeshTest, ExitIsUntexturedGlowingCubeFacingOutwards) {
     const LevelExit exit{.floor_point = {1.0f, 2.0f, 0.0f}};
     const std::vector<Vertex> mesh = build_exit_mesh(exit);
     ASSERT_EQ(mesh.size(), 6 * kVerticesPerQuad);
@@ -185,6 +186,7 @@ TEST(WorldMeshTest, ExitIsUntexturedCubeFacingOutwards) {
     for (const Vertex& vertex : mesh) {
         EXPECT_EQ(vertex.color, kExitColor);
         EXPECT_FLOAT_EQ(vertex.texture_weight, 0.0f);
+        EXPECT_FLOAT_EQ(vertex.emission, kExitEmission);
         const glm::vec3 offset = glm::abs(vertex.position - center);
         EXPECT_NEAR(std::max({offset.x, offset.y, offset.z}), LevelExit::kSize / 2.0f, 1e-5f);
     }

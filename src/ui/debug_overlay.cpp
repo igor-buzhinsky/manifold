@@ -99,6 +99,10 @@ void light_section(ViewSettings& view) {
     ImGui::SliderFloat("Intensity##torch", &lights.torch.intensity, 0.0f, 20.0f, "%.2f");
     ImGui::SliderFloat("Range##torch", &lights.torch.range, 0.5f, 20.0f, "%.1f m");
 
+    ImGui::SeparatorText("Exit");
+    ImGui::SliderFloat("Intensity##exit", &lights.exit.intensity, 0.0f, 20.0f, "%.2f");
+    ImGui::SliderFloat("Range##exit", &lights.exit.range, 0.5f, 20.0f, "%.1f m");
+
     ImGui::SeparatorText("Selection and shadows");
     int max_lights = static_cast<int>(lights.max_lights);
     if (ImGui::SliderInt("Most lights", &max_lights, 1, static_cast<int>(kMaxLights))) {

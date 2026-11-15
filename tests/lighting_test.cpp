@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <numbers>
+#include <optional>
 #include <vector>
 
 #include <glm/geometric.hpp>
@@ -12,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include "world/torch.hpp"
+#include "world/world.hpp"
 
 namespace manifold {
 namespace {
@@ -222,7 +224,7 @@ TEST(LightingTest, SceneLightingPutsThePlayersLightFirst) {
     settings.player_intensity = 7.0f;
     settings.player_range = 9.0f;
     const glm::vec3 eyes{0.5f, 0.5f, 1.7f};
-    const Lighting lighting = scene_lighting(settings, eyes, torches, 1.0f, {0.0f, 0.0f, 0.0f});
+    const Lighting lighting = scene_lighting(settings, eyes, torches, std::nullopt, 1.0f, {0.0f, 0.0f, 0.0f});
     EXPECT_EQ(lighting.ambient, glm::vec3(0.2f));
     ASSERT_EQ(lighting.lights.size(), kMaxLights);
     EXPECT_EQ(lighting.lights[0].position, eyes);
@@ -239,11 +241,46 @@ TEST(LightingTest, SceneLightingKeepsMaxLightsInRange) {
     const std::vector<Torch> torches(5, Torch{.mount = {1.0f, 0.0f, 1.6f}, .yaw = 0.0f});
     LightSettings settings;
     settings.max_lights = 3;
-    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 3U);
+    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 3U);
     settings.max_lights = 0;  // Counts as 1: only the player's light.
-    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 1U);
+    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 1U);
     settings.max_lights = kMaxLights + 10;
-    EXPECT_EQ(scene_lighting(settings, {}, torches, 0.0f, {}).lights.size(), 6U);
+    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 6U);
+}
+
+TEST(LightingTest, ExitPulsesSlowlyBetweenPeakAndLow) {
+    EXPECT_FLOAT_EQ(exit_pulse(0.0f), 1.0f);
+    EXPECT_NEAR(exit_pulse(kExitPulsePeriod / 2.0f), 0.6f, 1e-5f);
+    EXPECT_NEAR(exit_pulse(kExitPulsePeriod), 1.0f, 1e-5f);
+    for (int step = 0; step < 1000; ++step) {
+        const float time = static_cast<float>(step) * 0.01f;
+        EXPECT_GE(exit_pulse(time), 0.6f - 1e-5f);
+        EXPECT_LE(exit_pulse(time), 1.0f + 1e-5f);
+    }
+}
+
+TEST(LightingTest, ExitLightIsInCenterOfCubeAndCastsShadows) {
+    const LevelExit exit{.floor_point = {1.0f, 2.0f, 3.3f}};
+    const PointLight light = exit_light(exit, 0.0f, {.intensity = 4.0f, .range = 7.0f});
+    EXPECT_EQ(light.position, glm::vec3(1.0f, 2.0f, 3.3f + LevelExit::kHoverHeight + (LevelExit::kSize / 2.0f)));
+    EXPECT_EQ(light.color, kExitLightColor);
+    EXPECT_FLOAT_EQ(light.intensity, 4.0f);
+    EXPECT_FLOAT_EQ(light.range, 7.0f);
+    EXPECT_EQ(light.shadow_id, kExitShadowId);
+    EXPECT_NEAR(exit_light(exit, kExitPulsePeriod / 2.0f).intensity, 0.6f * kExitIntensity, 1e-5f);
+}
+
+TEST(LightingTest, SceneLightingChoosesExitLightAmongTorches) {
+    const std::vector<Torch> torches(3, Torch{.mount = {10.0f, 0.0f, 1.6f}, .yaw = 0.0f});
+    const LevelExit exit{.floor_point = {1.0f, 0.0f, 0.0f}};
+    LightSettings settings;
+    settings.max_lights = 2;
+    // The exit is nearest to the viewer, so it is the only light chosen next to the player's.
+    const Lighting lighting = scene_lighting(settings, {}, torches, exit, 0.0f, {});
+    ASSERT_EQ(lighting.lights.size(), 2U);
+    EXPECT_EQ(lighting.lights[1].shadow_id, kExitShadowId);
+    settings.max_lights = kMaxLights;
+    EXPECT_EQ(scene_lighting(settings, {}, torches, exit, 0.0f, {}).lights.size(), 5U);
 }
 
 }  // namespace

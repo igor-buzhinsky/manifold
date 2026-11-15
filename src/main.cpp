@@ -312,8 +312,9 @@ void draw_game(manifold::Renderer& renderer, const manifold::Game& game, const m
                const manifold::PixelSize& framebuffer) {
     // The light spell at the player's eyes, a little ambient light, and the torches nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
-    manifold::Lighting lighting = manifold::scene_lighting(
-        view.lights, game.player().eye_position(), game.world().torches(), game.animation_time(), camera.position);
+    manifold::Lighting lighting =
+        manifold::scene_lighting(view.lights, game.player().eye_position(), game.world().torches(), game.world().exit(),
+                                 game.animation_time(), camera.position);
     if (!view.shadows) {
         for (manifold::PointLight& light : lighting.lights) {
             light.shadow_id.reset();

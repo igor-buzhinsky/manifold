@@ -40,6 +40,7 @@ glm::vec2 texture_coordinates(const glm::vec3& position, const glm::vec3& normal
 struct Material {
     glm::vec3 color{1.0f};
     float texture_weight = 1.0f;
+    float emission = 0.0f;
 };
 
 /// The material of walls, floors, ceilings, obstacles and ramps: the level texture as it is.
@@ -52,7 +53,8 @@ void add_vertex(std::vector<Vertex>& vertices, const glm::vec3& position, const 
                         .normal = normal,
                         .uv = texture_coordinates(position, normal),
                         .color = material.color,
-                        .texture_weight = material.texture_weight});
+                        .texture_weight = material.texture_weight,
+                        .emission = material.emission});
 }
 
 /// Adds a triangle. The normal is computed from the corner order.
@@ -283,7 +285,7 @@ std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches) {
 }
 
 std::vector<Vertex> build_exit_mesh(const LevelExit& exit) {
-    constexpr Material kMaterial{.color = kExitColor, .texture_weight = 0.0f};
+    constexpr Material kMaterial{.color = kExitColor, .texture_weight = 0.0f, .emission = kExitEmission};
     const float half = LevelExit::kSize / 2.0f;
     const glm::vec3 base = exit.base_center();
     // The corners of the bottom, counter-clockwise from above, and the corners of the top right above them.

@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <span>
 #include <vector>
@@ -9,6 +10,7 @@
 #include <glm/vec3.hpp>
 
 #include "world/torch.hpp"
+#include "world/world.hpp"
 
 namespace manifold {
 
@@ -87,6 +89,40 @@ PointLight torch_light(const Torch& torch, float time, float phase, const TorchL
 /// \param params  How bright and how far the lights shine.
 std::vector<PointLight> torch_lights(std::span<const Torch> torches, float time, const TorchLightParams& params = {});
 
+/// Color of the light of the level exit, linear RGB: blue, a little lighter than its cube.
+inline constexpr glm::vec3 kExitLightColor{0.15f, 0.35f, 1.0f};
+/// Brightness of the exit's light at 1 m, at the peak of its pulse.
+inline constexpr float kExitIntensity = 3.0f;
+/// Range of the exit's light, in metres.
+inline constexpr float kExitRange = 5.0f;
+/// The shadow map id of the exit's light. Torch lights use their index, see torch_lights(), which never gets
+/// this large.
+inline constexpr std::uint32_t kExitShadowId = std::numeric_limits<std::uint32_t>::max();
+
+/// How bright and how far the light of the level exit shines.
+struct ExitLightParams {
+    float intensity = kExitIntensity;  ///< Brightness at 1 m, at the peak of the pulse.
+    float range = kExitRange;          ///< In metres.
+};
+
+/// How bright the slowly pulsing light of the exit is at a moment, relative to its peak.
+///
+/// \param time Seconds since the start of the game.
+/// \return A factor in [0.6, 1], which goes from the peak down and back once every kExitPulsePeriod.
+float exit_pulse(float time);
+
+/// Length of one pulse of the exit's light, in seconds.
+inline constexpr float kExitPulsePeriod = 2.0f;
+
+/// The light of the level exit at a moment: at the center of its cube, pulsing, see exit_pulse().
+///
+/// It casts shadows, with kExitShadowId. The cube itself casts none, so it doesn't block its own light.
+///
+/// \param exit   The exit.
+/// \param time   Seconds since the start of the game.
+/// \param params How bright and how far the light shines.
+PointLight exit_light(const LevelExit& exit, float time, const ExitLightParams& params = {});
+
 /// Distance over which lights fade out before they are left out by select_lights(), in metres.
 inline constexpr float kLightFadeDistance = 2.0f;
 
@@ -117,6 +153,7 @@ struct LightSettings {
     float player_intensity = 5.0f;  ///< Brightness of the player's light at 1 m.
     float player_range = 15.0f;     ///< Range of the player's light, in metres.
     TorchLightParams torch;
+    ExitLightParams exit;
     float fade_distance = kLightFadeDistance;  ///< See select_lights().
     /// Most lights drawn at once, including the player's, from 1 to kMaxLights. Fewer show how lights
     /// fade out, see select_lights().
@@ -124,15 +161,16 @@ struct LightSettings {
 };
 
 /// The light in the scene at a moment: the ambient light, the player's light, and the lights of the torches
-/// that matter most to the viewer.
+/// and the exit that matter most to the viewer.
 ///
 /// \param settings The lights. A `max_lights` outside [1, kMaxLights] counts as the nearest limit.
 /// \param eyes     Where the player's light is: at the player's eyes.
 /// \param torches  The torches, see torch_lights().
+/// \param exit     The level exit, see exit_light(), or none.
 /// \param time     Seconds since the start of the game.
 /// \param viewer   Where the scene is seen from, see select_lights().
-/// \return The player's light first, then the chosen torch lights, nearest first.
+/// \return The player's light first, then the chosen lights of the torches and the exit, nearest first.
 Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
-                        float time, const glm::vec3& viewer);
+                        const std::optional<LevelExit>& exit, float time, const glm::vec3& viewer);
 
 }  // namespace manifold

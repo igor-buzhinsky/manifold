@@ -121,9 +121,10 @@ Scope: walk around a randomly generated level in the dark with a light at the pl
   with the blocky stb_easy_font in cells of equal width) and `OverlayRenderer`.
 - **Level exit**: an exit placed in a room far from the start, for example on another layer. It must be
   reachable from the start. Reaching it generates the next level with a new seed, which is a minimal
-  version of the linear series of levels. Done for now: the exit is a blue cube floating above the floor,
-  and touching it starts the next level, with a seed derived from the current one and the layout chosen
-  as for the first level (`--layout` applies only to the first level). Room levels put it in the center of a random
+  version of the linear series of levels. Done for now: the exit is a blue cube floating above the floor. It
+  glows (it is drawn as if lit by its own light) and has a slowly pulsing blue light that casts shadows.
+  Touching it starts the next level, with a seed derived from the current one and the layout chosen as for
+  the first level (`--layout` applies only to the first level). Room levels put it in the center of a random
   floor tile on another layer than the start, away from holes and openings (`E` on the plan); the debug
   layout puts it anywhere free. `next_level` starts the next level from the console. Next: a portal look,
   and placing the exit far from the start where it is surely reachable.
