@@ -56,7 +56,8 @@ rewrites.
   rotated boxes, ramps and the level bounds, in 3D. Gravity, jumping, landing, and sticking to ramps
   when walking down them work on top of this. This was simpler than Jolt for the shapes needed so far,
   and is good C++ practice. The world sorts obstacles, ramps and doors into grids of 2 m cells, so each move
-  and ray cast tests only those near the player or the ray. Replacing it with Jolt Physics is considered, see [DECISIONS.md](DECISIONS.md).
+  and ray cast tests only those near the player or the ray. Replacing it with Jolt Physics is considered,
+  see [DECISIONS.md](DECISIONS.md).
 - A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start (position and yaw). Later also
   lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
   downstream depends on that.

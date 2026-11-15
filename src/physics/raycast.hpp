@@ -48,8 +48,10 @@ struct RayHit {
 /// passable, see DoorState::passable(). Frames are also obstacles of the world, so a hit on a frame is reported as
 /// kDoorFrame, not as kWorld.
 ///
-/// Tests only the obstacles and doors near the box around the ray's first `max_distance` metres. That box is small for
-/// short rays and for rays along x or y, but long diagonal rays test many more.
+/// Tests only the obstacles and doors in the grid cells under the box around the first `max_distance` metres of the
+/// ray, see World::find_obstacles_near(). That box is small for short rays and for rays along x or y, but long
+/// diagonal rays test a large part of the level, so they are meant for single events, such as a key press, not for
+/// every frame.
 ///
 /// \param world        The level.
 /// \param doors        The state of each door of `world.doors()`, in the same order. Doors without a state count as
