@@ -95,6 +95,14 @@ TEST(GameCommandsTest, NextLevelStartsTheNextLevel) {
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }
 
+TEST(GameCommandsTest, CommandsAfterNextLevelWaitAFrame) {
+    Fixture fixture;
+    fixture.run("next_level; teleport 1 2 3");
+    EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
+}
+
 TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     Fixture fixture;
     EXPECT_FALSE(fixture.game.noclip());

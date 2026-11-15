@@ -74,19 +74,19 @@ int parse_screenshot_size(const std::string& text) {
 
 /// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, next_level
 /// and noclip.
-void add_player_commands(Console& console, Game& game, ConsoleState& state) {
-    console.add("level_info", "level_info", "Describes the level, depending on its layout, and the player.",
-                [&game, &state](std::span<const std::string> arguments) {
-                    expect_count(arguments, 0, "level_info");
-                    const Player& player = game.player();
-                    const glm::vec3& ambient = state.view.level_ambient;
-                    log_info(
-                        "Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})\n"
-                        "Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg",
-                        game.seed(), layout_name(game.level().layout), game.level().info, ambient.r, ambient.g,
-                        ambient.b, player.position().x, player.position().y, player.position().z,
-                        to_degrees(player.yaw()));
-                });
+void add_player_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
+    console.add(
+        "level_info", "level_info", "Describes the level, depending on its layout, its ambient light, and the player.",
+        [&game, &state](std::span<const std::string> arguments) {
+            expect_count(arguments, 0, "level_info");
+            const Player& player = game.player();
+            const glm::vec3& ambient = state.view.level_ambient;
+            log_info(
+                "Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})\n"
+                "Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg",
+                game.seed(), layout_name(game.level().layout), game.level().info, ambient.r, ambient.g, ambient.b,
+                player.position().x, player.position().y, player.position().z, to_degrees(player.yaw()));
+        });
 
     const std::string camera_usage = "camera [X Y Z YAW PITCH | player]";
     console.add("camera", camera_usage,
@@ -130,13 +130,16 @@ void add_player_commands(Console& console, Game& game, ConsoleState& state) {
                 });
 
     console.add("next_level", "next_level", "Starts the next level, as if the player reached the exit.",
-                [&game](std::span<const std::string> arguments) {
+                [&game, &queue](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "next_level");
                     try {
                         game.next_level();
                     } catch (const std::runtime_error& error) {
                         throw CommandError(error.what());
                     }
+                    // The main loop sets up the new level, such as its ambient light, after the commands of this
+                    // frame, so the next commands wait for it.
+                    queue.wait(1);
                 });
 
     add_switch(
@@ -289,7 +292,7 @@ Camera view_camera(const ViewSettings& view, const Player& player) {
 }
 
 void add_game_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
-    add_player_commands(console, game, state);
+    add_player_commands(console, queue, game, state);
     add_door_commands(console, game);
     add_view_commands(console, queue, state);
 }
