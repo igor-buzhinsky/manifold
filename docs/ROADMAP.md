@@ -38,7 +38,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
-| Audio | SDL3 audio or **miniaudio** | Later | |
+| Audio | **SDL3** audio, **stb_vorbis** | In use | One sound at a time; OGG Vorbis is decoded when a level starts. |
 
 Rejected alternatives:
 
@@ -181,9 +181,9 @@ and tools for inspecting the game. Done:
   the previous level), loading previously saved game.
 - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
   keyboard shortcut (e.g., Shift+Esc).
-- Audio: footsteps (2+ versions depending on level texture), entering portals. Portal sounds are in
-  `assets/sounds/portal/`, and each level picks its exit sound among them from the level seed; it is not played
-  yet.
+- Audio: footsteps (2+ versions depending on level texture), entering portals. Done for portals: each level picks
+  its exit sound among the OGG files in `assets/sounds/portal/` from the level seed, and plays it when the player
+  enters the exit (SDL3 audio, decoded with stb_vorbis).
 - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
   stamina, sanity. The party has shared mana.
 - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now

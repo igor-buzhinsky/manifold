@@ -43,6 +43,11 @@ FetchContent_Declare(stb
 FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
+# stb_vorbis decodes OGG Vorbis sounds. It is one C file, built here without our warnings; the pushdata API (for
+# decoding streams piece by piece) isn't needed.
+add_library(stb_vorbis STATIC ${stb_SOURCE_DIR}/stb_vorbis.c)
+target_compile_definitions(stb_vorbis PUBLIC STB_VORBIS_NO_PUSHDATA_API)
+target_link_libraries(stb_vorbis PUBLIC stb)
 
 # Dear ImGui draws the debug overlay. It has no CMake support, so its sources, with the backends for SDL3
 # and OpenGL 3+, are built here.
@@ -75,6 +80,7 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 # Game logic and everything else that doesn't need a window or OpenGL lives in a library,
 # so that tests can link against it.
 add_library(manifold_core STATIC
+    src/audio/sound.cpp
     src/console/console.cpp
     src/console/console_window.cpp
     src/console/game_commands.cpp
@@ -109,11 +115,12 @@ add_library(manifold_core STATIC
     src/world/world.cpp
 )
 target_include_directories(manifold_core PUBLIC src)
-target_link_libraries(manifold_core PUBLIC glm::glm stb)
+target_link_libraries(manifold_core PUBLIC glm::glm stb stb_vorbis)
 target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
 
 add_executable(manifold
     src/main.cpp
+    src/platform/audio.cpp
     src/platform/terminal_input.cpp
     src/platform/window.cpp
     src/render/gl_util.cpp
@@ -164,6 +171,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp
+        tests/sound_test.cpp
         tests/spatial_grid_test.cpp
         tests/texture_image_test.cpp
         tests/torch_test.cpp
@@ -173,6 +181,8 @@ if(MANIFOLD_BUILD_TESTS)
     )
     target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)
     target_compile_options(manifold_tests PRIVATE ${MANIFOLD_WARNINGS})
+    # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one.
+    target_compile_definitions(manifold_tests PRIVATE MANIFOLD_SOUNDS_DIR="${CMAKE_SOURCE_DIR}/assets/sounds")
 
     include(GoogleTest)
     gtest_discover_tests(manifold_tests)

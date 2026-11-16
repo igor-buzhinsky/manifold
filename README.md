@@ -19,7 +19,7 @@ The first line is the toolchain (pkg-config is used by SDL3's build). The rest a
 that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
 The full list of SDL's optional dependencies is in its
 [README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
-(GLM, stb, Dear ImGui, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
+(GLM, stb including stb_vorbis, Dear ImGui, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
 `external/glad/`.
 
 Build and run:
@@ -36,7 +36,7 @@ cmake --build build
 
 The game reads its textures from `assets/textures/` and its sounds from `assets/sounds/` in the source tree,
 whose path is built into the executable, so keep the checkout where it was built. If no texture is found,
-surfaces are plain grey.
+surfaces are plain grey. Without an audio output device, the game runs without sound.
 
 Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the
 window to quit.

@@ -23,12 +23,14 @@
 #include <SDL3/SDL_timer.h>
 #include <glm/vec3.hpp>
 
+#include "audio/sound.hpp"
 #include "console/console.hpp"
 #include "console/console_window.hpp"
 #include "console/game_commands.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "platform/audio.hpp"
 #include "platform/terminal_input.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
@@ -140,34 +142,37 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
 constexpr const char* kPortalSoundsDir = MANIFOLD_SOUNDS_DIR "/portal";
 
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
-/// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file().
+/// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file(), and loads it.
 ///
 /// Like the texture, the choice depends only on the level seed. The sound is logged as info.
 ///
-/// \return The sound file, or an empty optional (after logging a warning) if there is none.
-std::optional<std::filesystem::path> pick_exit_sound(std::uint64_t level_seed) {
+/// \return The sound, or an empty optional (after logging a warning) if there is none or it can't be loaded.
+std::optional<manifold::Sound> pick_exit_sound(std::uint64_t level_seed) {
     constexpr std::uint64_t kExitSoundSeedSalt = 0xd1b54a32d192ed03ULL;
     const std::vector<std::filesystem::path> candidates = manifold::find_asset_files(kPortalSoundsDir, ".ogg");
-    std::optional<std::filesystem::path> picked =
+    const std::optional<std::filesystem::path> picked =
         manifold::pick_asset_file(candidates, level_seed ^ kExitSoundSeedSalt);
-    if (picked) {
-        manifold::log_info("Exit sound: {}", picked->string());
-    } else {
+    if (!picked) {
         manifold::log_warning("No exit sound found in {}", kPortalSoundsDir);
+        return std::nullopt;
     }
-    return picked;
+    std::optional<manifold::Sound> sound = manifold::load_sound(*picked);
+    if (sound) {
+        manifold::log_info("Exit sound: {} ({:.2f} s)", picked->string(), sound->duration());
+    }
+    return sound;
 }
 
-/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`. Picks the sound
-/// of the level's exit.
-void start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game,
-                 manifold::ViewSettings& view) {
-    // Only picked and logged for now: nothing plays sounds yet.
-    pick_exit_sound(game.seed());
+/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`.
+///
+/// \return The sound of the level's exit, see pick_exit_sound().
+std::optional<manifold::Sound> start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game,
+                                           manifold::ViewSettings& view) {
     const manifold::Image texture = pick_level_texture(game.seed());
     view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture));
     view.lights.ambient = view.level_ambient;
     renderer.emplace(game.world(), texture);
+    return pick_exit_sound(game.seed());
 }
 
 /// Logs the seed, the level and the player.
@@ -430,7 +435,8 @@ void run(const Options& options) {
     // The renderer has the meshes of one level, so each level gets a new one.
     manifold::ConsoleState state;
     std::optional<manifold::Renderer> renderer;
-    start_level(renderer, game, state.view);
+    manifold::AudioOutput audio;
+    std::optional<manifold::Sound> exit_sound = start_level(renderer, game, state.view);
     int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
 
@@ -458,10 +464,13 @@ void run(const Options& options) {
         // instead of moving the player.
         const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
         game.update(keys_taken ? manifold::PlayerInput{} : read_input(), std::min(frame_time, kMaxFrameTime));
-        // The player reached the exit, or a console command started the next level.
+        // The player reached the exit, or a console command started the next level as if they had.
         if (game.level_number() != rendered_level) {
+            if (exit_sound) {
+                audio.play(*exit_sound);
+            }
             log_game(game);
-            start_level(renderer, game, state.view);
+            exit_sound = start_level(renderer, game, state.view);
             rendered_level = game.level_number();
         }
 

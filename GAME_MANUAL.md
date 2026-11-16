@@ -24,7 +24,7 @@ command hides or shows it.
 
 Each level has an exit: a spinning blue portal cube floating above the floor, whose pulsing light shows
 the way to it. In room levels it is on another layer than the start. Touching it, also with noclip, starts
-the next level.
+the next level, with the sound of the portal. Each level's portal has its own sound, picked from the level seed.
 
 In room levels, some openings between rooms (10% to 100% of them, random for each level) have doors: two
 halves between two dark frames. All doors of a level are wooden or all are metal, each with a chance of 50%.
@@ -77,7 +77,7 @@ it types can't be typed.
 | `doors` | List the doors of the level: what they are made of, their numbers, where they stand, the direction of their wall, and whether they are open, closed, opening or closing |
 | `door N open\|close` | Start to open or close door N, as E does. Fails if the door moves, is already open or closed, or the player stands in it |
 | `activate` | Activate what the center of the player's view points at, like E |
-| `next_level` | Start the next level, as if the player reached the exit. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
+| `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |
