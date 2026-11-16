@@ -97,6 +97,7 @@ add_library(manifold_core STATIC
     src/ui/crosshair.cpp
     src/ui/overlay_mesh.cpp
     src/ui/text_field.cpp
+    src/util/asset_files.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
     src/world/door.cpp
@@ -123,8 +124,10 @@ add_executable(manifold
 )
 target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad imgui)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
-# Textures are read from the source tree, so the game finds them however it is started.
-target_compile_definitions(manifold PRIVATE MANIFOLD_TEXTURES_DIR="${CMAKE_SOURCE_DIR}/assets/textures")
+# Textures and sounds are read from the source tree, so the game finds them however it is started.
+target_compile_definitions(manifold PRIVATE
+    MANIFOLD_TEXTURES_DIR="${CMAKE_SOURCE_DIR}/assets/textures"
+    MANIFOLD_SOUNDS_DIR="${CMAKE_SOURCE_DIR}/assets/sounds")
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()
@@ -139,6 +142,7 @@ if(MANIFOLD_BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
 
     add_executable(manifold_tests
+        tests/asset_files_test.cpp
         tests/camera_test.cpp
         tests/collision_test.cpp
         tests/console_test.cpp

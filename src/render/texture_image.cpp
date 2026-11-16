@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -11,14 +10,13 @@
 #include <optional>
 #include <random>
 #include <span>
-#include <string>
-#include <system_error>
 #include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
 #include <stb_image.h>
 
+#include "util/asset_files.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"
 
@@ -27,14 +25,6 @@ namespace manifold {
 namespace {
 
 constexpr int kChannels = 4;
-
-/// Returns true if `path` ends with `.png`, in any case.
-bool has_png_extension(const std::filesystem::path& path) {
-    std::string extension = path.extension().string();
-    std::ranges::transform(extension, extension.begin(),
-                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return extension == ".png";
-}
 
 }  // namespace
 
@@ -55,21 +45,7 @@ std::optional<Image> load_image(const std::filesystem::path& path) {
 }
 
 std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root) {
-    std::vector<std::filesystem::path> paths;
-    std::error_code error;
-    std::filesystem::recursive_directory_iterator it(root, std::filesystem::directory_options::skip_permission_denied,
-                                                     error);
-    for (const std::filesystem::recursive_directory_iterator end; !error && it != end; it.increment(error)) {
-        if (it->is_regular_file(error) && has_png_extension(it->path())) {
-            paths.push_back(it->path());
-        }
-    }
-    // A missing root is normal (no textures), but other errors end the search early.
-    if (error && error != std::errc::no_such_file_or_directory) {
-        log_warning("Searching for textures in {} stopped early: {}", root.string(), error.message());
-    }
-    std::ranges::sort(paths);
-    return paths;
+    return find_asset_files(root, ".png");
 }
 
 std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed) {

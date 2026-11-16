@@ -34,8 +34,9 @@ cmake --build build
 ./build/manifold 42 --exec "lighting off; screenshot flat.png 800 450; quit"   # run console commands
 ```
 
-The game reads its textures from `assets/textures/` in the source tree, whose path is built into the
-executable, so keep the checkout where it was built. If no texture is found, surfaces are plain grey.
+The game reads its textures from `assets/textures/` and its sounds from `assets/sounds/` in the source tree,
+whose path is built into the executable, so keep the checkout where it was built. If no texture is found,
+surfaces are plain grey.
 
 Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the
 window to quit.
@@ -65,3 +66,13 @@ See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including 
 
 Naming: types `PascalCase`; functions, variables and namespaces `snake_case`; private and
 protected members `snake_case_`; constants and enum values `kPascalCase`; macros `UPPER_CASE`.
+
+## Credits
+
+Third-party assets in `assets/`. Each pack's directory has a `README.md` with its source, license, the files
+taken and how they were processed.
+
+- Textures: [Tiny Texture Pack 1](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_1_-_128x128/) and
+  [Tiny Texture Pack 2](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_2_-_128x128/) by
+  Screaming Brain Studios, CC0 1.0.
+- Sounds: [Digital Audio](https://kenney.nl/assets/digital-audio) by Kenney (kenney.nl), CC0 1.0.

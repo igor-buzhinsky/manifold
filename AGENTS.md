@@ -26,6 +26,10 @@ commit, and on the .cpp files that include a changed header. It lints everything
 folders to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
 asked or when unsure what a change affects.
 
+- Credit every third-party asset (textures, sounds, models, fonts, ...), even when its license doesn't
+  require it: give each pack a `README.md` in its directory under `assets/` (source link, author, license,
+  which files were taken, how they were processed), and list it in the Credits section of
+  [README.md](README.md). Only add assets whose license allows redistributing the files in this repo.
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.
 - When changing key bindings or cheats, update [GAME_MANUAL.md](GAME_MANUAL.md).

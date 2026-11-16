@@ -43,6 +43,7 @@
 #include "ui/debug_overlay.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/text_field.hpp"
+#include "util/asset_files.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
 #include "world/torch.hpp"
@@ -135,9 +136,34 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
     return std::move(picked->image);
 }
 
-/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`.
+/// Directory searched for the sounds of the level exit portal, `assets/sounds/portal` in the source tree.
+const std::filesystem::path kPortalSoundsDir = std::filesystem::path(MANIFOLD_SOUNDS_DIR) / "portal";
+
+/// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
+/// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file().
+///
+/// Like the texture, the choice depends only on the level seed. The sound is logged as info.
+///
+/// \return The sound file, or an empty optional (after logging a warning) if there is none.
+std::optional<std::filesystem::path> pick_exit_sound(std::uint64_t level_seed) {
+    constexpr std::uint64_t kExitSoundSeedSalt = 0xd1b54a32d192ed03ULL;
+    const std::vector<std::filesystem::path> candidates = manifold::find_asset_files(kPortalSoundsDir, ".ogg");
+    std::optional<std::filesystem::path> picked =
+        manifold::pick_asset_file(candidates, level_seed ^ kExitSoundSeedSalt);
+    if (picked) {
+        manifold::log_info("Exit sound: {}", picked->string());
+    } else {
+        manifold::log_warning("No exit sound found in {}", kPortalSoundsDir.string());
+    }
+    return picked;
+}
+
+/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`. Picks the sound
+/// of the level's exit.
 void start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game,
                  manifold::ViewSettings& view) {
+    // Only picked and logged for now: nothing plays sounds yet.
+    pick_exit_sound(game.seed());
     const manifold::Image texture = pick_level_texture(game.seed());
     view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture));
     view.lights.ambient = view.level_ambient;

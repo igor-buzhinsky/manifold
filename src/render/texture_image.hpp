@@ -34,13 +34,7 @@ struct PickedTexture {
 /// \return The image, or an empty optional (after logging a warning) if the file can't be read or decoded.
 std::optional<Image> load_image(const std::filesystem::path& path);
 
-/// Finds all PNG files under `root`: directly in it and in all its subdirectories.
-///
-/// Directories that can't be read are skipped. If the search stops early because of another error, a
-/// warning is logged. The extension is matched without regard to case, e.g. `.PNG` is found too.
-///
-/// \return The paths, sorted, so that the same files always give the same order. Empty if `root` doesn't
-///         exist.
+/// Finds all PNG files under `root`, at any depth, see find_asset_files().
 std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root);
 
 /// Picks a random texture among `candidates` and loads it.
