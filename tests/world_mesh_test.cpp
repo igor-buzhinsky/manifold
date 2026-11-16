@@ -319,8 +319,8 @@ TEST(WorldMeshTest, RectangularObstaclesHaveTheirSize) {
 
 TEST(WorldMeshTest, DoorHalvesAreBoxesThatMoveWithOpenness) {
     const std::array<Door, 2> doors{
-        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f},
-        Door{.base_center = {0.0f, 3.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f}};
+        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}},
+        Door{.base_center = {0.0f, 3.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}}};
     const std::array<DoorState, 1> states{DoorState{.openness = 1.0f, .target = 1.0f}};
     const std::vector<Vertex> mesh = build_door_mesh(doors, states);
     ASSERT_EQ(mesh.size(), 2 * kDoorVertexCount);
@@ -341,7 +341,7 @@ TEST(WorldMeshTest, DoorHalvesAreBoxesThatMoveWithOpenness) {
 
 TEST(WorldMeshTest, DoorTextureHasItsTopAtTheTopOfTheHalf) {
     const std::array<Door, 1> doors{
-        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f}};
+        Door{.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}}};
     const std::vector<Vertex> mesh = build_door_mesh(doors, {});
     // One copy of the texture is as wide as a half, 0.8 m, and a quarter of its height, 0.75 m.
     for (std::size_t i = 0; i < kVerticesPerQuad; ++i) {

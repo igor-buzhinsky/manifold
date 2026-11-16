@@ -55,6 +55,12 @@ enum class Activation : std::uint8_t {
     kRefused,  ///< The player looks at a door that can't start moving now, see Game::set_door_open().
 };
 
+/// A door that started to open or to close, see Game::take_door_moves().
+struct DoorMove {
+    std::size_t door = 0;  ///< Index of the door in World::doors().
+    bool open = false;     ///< True if it started to open, false if it started to close.
+};
+
 /// Owns the game state.
 ///
 /// The world holds static level geometry, while the player (and later other dynamic entities) live next
@@ -115,10 +121,16 @@ public:
     ///
     /// \param index Index of the door in World::doors().
     /// \param open  True to open it, false to close it.
+    /// A door that starts to move is added to take_door_moves().
+    ///
     /// \return False if the door doesn't start to move: it is moving, it is already open or closed as wanted, or it
     ///         should close while the player overlaps it, see Door::blocker().
     /// \throws std::out_of_range if there is no such door.
     bool set_door_open(std::size_t index, bool open);
+
+    /// The doors that started to move since the last call, in the order they started, e.g. to play their sounds.
+    /// Clears the list. The moves of a level are dropped when the next level starts.
+    std::vector<DoorMove> take_door_moves();
 
     /// Moves the player, e.g. to test a level, without checking for obstacles.
     ///
@@ -179,7 +191,8 @@ private:
     int level_number_ = 0;
     Level level_;
     Player player_;
-    std::vector<DoorState> doors_;  ///< The state of each door of the level.
+    std::vector<DoorState> doors_;      ///< The state of each door of the level.
+    std::vector<DoorMove> door_moves_;  ///< See take_door_moves().
 };
 
 }  // namespace manifold

@@ -24,6 +24,7 @@
 #include <glm/vec3.hpp>
 
 #include "audio/sound.hpp"
+#include "audio/sound_set.hpp"
 #include "console/console.hpp"
 #include "console/console_window.hpp"
 #include "console/game_commands.hpp"
@@ -48,6 +49,7 @@
 #include "util/asset_files.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
+#include "world/door.hpp"
 #include "world/torch.hpp"
 
 namespace {
@@ -140,6 +142,28 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
 
 /// Directory searched for the sounds of the level exit portal, `assets/sounds/portal` in the source tree.
 constexpr const char* kPortalSoundsDir = MANIFOLD_SOUNDS_DIR "/portal";
+
+/// Directories of the sounds of doors that start to open and to close, in the source tree.
+constexpr const char* kDoorOpenSoundsDir = MANIFOLD_SOUNDS_DIR "/door_open";
+constexpr const char* kDoorCloseSoundsDir = MANIFOLD_SOUNDS_DIR "/door_close";
+
+/// The sounds of doors, loaded once for all levels.
+struct DoorSoundSets {
+    manifold::SoundSet open{kDoorOpenSoundsDir, "door open"};
+    manifold::SoundSet close{kDoorCloseSoundsDir, "door close"};
+};
+
+/// Plays the sounds of the doors that started to move since the last call, see manifold::Game::take_door_moves().
+/// Each door has its own sounds, see manifold::DoorSounds.
+void play_door_sounds(manifold::Game& game, const DoorSoundSets& sets, manifold::AudioOutput& audio) {
+    for (const manifold::DoorMove& move : game.take_door_moves()) {
+        const manifold::DoorSounds& sounds = game.world().doors()[move.door].sounds;
+        const manifold::Sound* sound = move.open ? sets.open.get(sounds.open) : sets.close.get(sounds.close);
+        if (sound != nullptr) {
+            audio.play(*sound);
+        }
+    }
+}
 
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
 /// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file(), and loads it.
@@ -436,6 +460,7 @@ void run(const Options& options) {
     manifold::ConsoleState state;
     std::optional<manifold::Renderer> renderer;
     manifold::AudioOutput audio;
+    const DoorSoundSets door_sounds;
     std::optional<manifold::Sound> exit_sound = start_level(renderer, game, state.view);
     int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
@@ -473,6 +498,7 @@ void run(const Options& options) {
             exit_sound = start_level(renderer, game, state.view);
             rendered_level = game.level_number();
         }
+        play_door_sounds(game, door_sounds, audio);
 
         const manifold::PixelSize window_size = window.framebuffer_size();
         draw_game(*renderer, overlay_renderer, game, state.view, window_size);

@@ -5,6 +5,7 @@
 #include <numbers>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
@@ -451,6 +452,31 @@ TEST(GameTest, ActivatingFrameOpensAndClosesTheDoor) {
     game.update({}, Door::kMoveTime);
     EXPECT_FLOAT_EQ(game.doors()[0].openness, 0.0f);
     EXPECT_EQ(game.activate(), Activation::kOpened);
+}
+
+TEST(GameTest, DoorsThatStartToMoveAreReportedOnce) {
+    Game game(make_config(), make_door_level());
+    EXPECT_TRUE(game.take_door_moves().empty());
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+    EXPECT_EQ(game.activate(), Activation::kRefused);  // Moving: no new move.
+    std::vector<DoorMove> moves = game.take_door_moves();
+    ASSERT_EQ(moves.size(), 1U);
+    EXPECT_EQ(moves[0].door, 0U);
+    EXPECT_TRUE(moves[0].open);
+    EXPECT_TRUE(game.take_door_moves().empty());
+
+    game.update({}, Door::kMoveTime);
+    ASSERT_TRUE(game.set_door_open(0, false));
+    moves = game.take_door_moves();
+    ASSERT_EQ(moves.size(), 1U);
+    EXPECT_FALSE(moves[0].open);
+}
+
+TEST(GameTest, DoorMovesOfALevelAreDroppedWhenTheNextStarts) {
+    Game game(make_config(), make_door_level());
+    ASSERT_TRUE(game.set_door_open(0, true));
+    game.next_level();
+    EXPECT_TRUE(game.take_door_moves().empty());
 }
 
 TEST(GameTest, ActivationNeedsANewPressOfTheKey) {

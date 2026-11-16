@@ -173,7 +173,8 @@ TEST(RaycastTest, FindsTheSameHitsAsTestingEverything) {
         world.add_door({.base_center = {position(random), position(random), 0.0f},
                         .width = 2.0f * size(random),
                         .height = 2.5f,
-                        .yaw = angle(random)});
+                        .yaw = angle(random),
+                        .sounds = {}});
         // The last doors have no state, so they count as closed.
         if (i < 140) {
             doors.push_back(i % 3 == 0 ? DoorState{.openness = 1.0f, .target = 1.0f} : DoorState{});

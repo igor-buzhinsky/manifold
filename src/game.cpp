@@ -67,6 +67,7 @@ void Game::next_level() {
     ++level_number_;
     player_ = Player(at_start(player_params_, level_));
     doors_.assign(level_.world.doors().size(), DoorState{});
+    door_moves_.clear();
 }
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
@@ -112,8 +113,11 @@ bool Game::set_door_open(std::size_t index, bool open) {
         return false;
     }
     door.target = target;
+    door_moves_.push_back({.door = index, .open = open});
     return true;
 }
+
+std::vector<DoorMove> Game::take_door_moves() { return std::exchange(door_moves_, {}); }
 
 std::vector<Obstacle> Game::door_blockers() const {
     std::vector<Obstacle> blockers;

@@ -93,7 +93,16 @@ std::uint64_t next_level_seed(std::uint64_t seed) {
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed) {
     LevelRng rng(seed);
     const LayoutKind kind = layout ? *layout : choose_layout(config, rng);
-    return make_layout(kind, config)->generate(clearance, rng);
+    Level level = make_layout(kind, config)->generate(clearance, rng);
+    // The raw numbers of the engine are the same everywhere, unlike those of the standard distributions.
+    constexpr std::uint64_t kDoorSoundSeedSalt = 0x8cb92ba72f3d8dd7ULL;
+    LevelRng sound_rng(seed ^ kDoorSoundSeedSalt);
+    for (std::size_t i = 0; i < level.world.doors().size(); ++i) {
+        const auto open = static_cast<std::uint32_t>(sound_rng());
+        const auto close = static_cast<std::uint32_t>(sound_rng());
+        level.world.set_door_sounds(i, {.open = open, .close = close});
+    }
+    return level;
 }
 
 }  // namespace manifold

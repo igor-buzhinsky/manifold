@@ -23,7 +23,7 @@ inline Level make_door_level() {
     for (const float x : {-2.0f, 2.0f}) {
         world.add_obstacle({.base_center = {x, 0.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 3.0f});
     }
-    world.add_door({.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f});
+    world.add_door({.base_center = {0.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}});
     return {.layout = LayoutKind::kDebug,
             .world = std::move(world),
             .player_start = {0.0f, -1.9f, 0.0f},

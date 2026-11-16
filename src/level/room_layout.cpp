@@ -703,7 +703,8 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
                 world.add_door({.base_center = grid.tile_center(x, y, grid.floor_z[index]),
                                 .width = grid.tile,
                                 .height = config.height,
-                                .yaw = rooms_along_x ? std::numbers::pi_v<float> / 2.0f : 0.0f});
+                                .yaw = rooms_along_x ? std::numbers::pi_v<float> / 2.0f : 0.0f,
+                                .sounds = {}});  // Chosen by generate_level().
                 ++doors;
             }
         }

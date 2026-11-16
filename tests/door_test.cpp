@@ -12,7 +12,7 @@
 namespace manifold {
 namespace {
 
-constexpr Door kDoor{.base_center = {1.0f, 2.0f, 3.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f};
+constexpr Door kDoor{.base_center = {1.0f, 2.0f, 3.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}};
 
 TEST(DoorTest, FramesAreDarkBlocksAtBothEndsOfTheOpening) {
     const Obstacle negative = kDoor.frame(DoorSide::kNegative);

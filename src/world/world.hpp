@@ -111,6 +111,11 @@ public:
     /// Adds a door, and its two frames as obstacles, see Door::frame().
     void add_door(const Door& door);
     void set_door_look(DoorLook look) { door_look_ = look; }
+    /// Sets which sounds a door makes.
+    ///
+    /// \param index Index of the door in doors().
+    /// \throws std::out_of_range if there is no such door.
+    void set_door_sounds(std::size_t index, DoorSounds sounds) { doors_.at(index).sounds = sounds; }
     void set_exit(const LevelExit& exit) { exit_ = exit; }
 
 private:

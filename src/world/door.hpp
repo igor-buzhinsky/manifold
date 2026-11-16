@@ -24,6 +24,15 @@ enum class DoorSide : std::uint8_t {
     kPositive,  ///< Towards +u.
 };
 
+/// Which sounds a door makes, as numbers chosen at random when the level is generated, see generate_level().
+///
+/// The game has a few sound files of each kind. Number n stands for file n modulo how many there are, so the numbers
+/// don't depend on the files, and a level is generated the same way whatever files there are.
+struct DoorSounds {
+    std::uint32_t open = 0;   ///< The sound of starting to open.
+    std::uint32_t close = 0;  ///< The sound of starting to close.
+};
+
 /// A sliding door in an opening between two rooms: two halves that slide apart into the walls on both sides.
 ///
 /// In the door's own frame, u runs along the wall, across the opening, and v goes through the opening. A frame stands
@@ -40,6 +49,7 @@ struct Door {
     float width = 0.0f;           ///< Width of the opening, from wall to wall, in metres. More than 2 kFrameWidth.
     float height = 0.0f;          ///< Height of the opening, in metres.
     float yaw = 0.0f;             ///< Direction of u, along the wall: radians counter-clockwise from +x.
+    DoorSounds sounds;            ///< Which sounds it makes.
 
     /// Width of the gap between the frames, which the halves fill when closed, in metres.
     float gap() const { return width - (2.0f * kFrameWidth); }

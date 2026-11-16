@@ -61,7 +61,7 @@ TEST(WorldTest, StoresObstacles) {
 
 TEST(WorldTest, AddingADoorAddsItsFramesAsObstacles) {
     World world({.x_min = -5.0f, .x_max = 5.0f, .y_min = -5.0f, .y_max = 5.0f, .height = 3.0f});
-    const Door door{.base_center = {1.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.5f};
+    const Door door{.base_center = {1.0f, 0.0f, 0.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.5f, .sounds = {}};
     world.add_door(door);
     ASSERT_EQ(world.doors().size(), 1U);
     EXPECT_EQ(world.doors()[0].base_center, door.base_center);

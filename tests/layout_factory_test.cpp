@@ -1,5 +1,6 @@
 #include "level/layout_factory.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -91,6 +92,25 @@ TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {
     EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 1).layout, LayoutKind::kDebug);
     // Without a layout, the choice depends only on the seed.
     EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).info, generate_level(config, std::nullopt, 0.3f, 5).info);
+}
+
+TEST(LayoutFactoryTest, DoorSoundsDependOnlyOnTheSeedAndDiffer) {
+    const LevelConfig config;
+    std::set<std::uint32_t> open_sounds;
+    std::size_t doors = 0;
+    for (std::uint64_t seed = 1; seed <= 5; ++seed) {
+        const Level level = generate_level(config, LayoutKind::kRooms, 0.3f, seed);
+        const Level again = generate_level(config, LayoutKind::kRooms, 0.3f, seed);
+        ASSERT_EQ(level.world.doors().size(), again.world.doors().size());
+        for (std::size_t i = 0; i < level.world.doors().size(); ++i) {
+            EXPECT_EQ(level.world.doors()[i].sounds.open, again.world.doors()[i].sounds.open);
+            EXPECT_EQ(level.world.doors()[i].sounds.close, again.world.doors()[i].sounds.close);
+            open_sounds.insert(level.world.doors()[i].sounds.open);
+        }
+        doors += level.world.doors().size();
+    }
+    ASSERT_GT(doors, 2U);
+    EXPECT_GT(open_sounds.size(), 1U);
 }
 
 }  // namespace

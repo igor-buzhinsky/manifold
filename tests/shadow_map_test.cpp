@@ -149,7 +149,7 @@ TEST(ShadowCacheTest, NeverTakesSlotOfLightInSameRequest) {
 
 TEST(ShadowMapTest, LightReachesDoorWhereverItsHalvesSlide) {
     // A door 2 m wide along x, so its open halves reach 1.8 m from its center along x.
-    const Door door{.base_center = {10.0f, 0.0f, 3.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f};
+    const Door door{.base_center = {10.0f, 0.0f, 3.0f}, .width = 2.0f, .height = 3.0f, .yaw = 0.0f, .sounds = {}};
     // Through the opening, the light is measured from the face of the halves.
     EXPECT_TRUE(light_reaches_door({10.0f, 5.0f, 4.0f}, 5.0f, door));
     EXPECT_FALSE(light_reaches_door({10.0f, 5.06f, 4.0f}, 5.0f, door));

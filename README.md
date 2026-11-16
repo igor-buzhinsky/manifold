@@ -75,4 +75,5 @@ taken and how they were processed.
 - Textures: [Tiny Texture Pack 1](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_1_-_128x128/) and
   [Tiny Texture Pack 2](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_2_-_128x128/) by
   Screaming Brain Studios, CC0 1.0.
-- Sounds: [Digital Audio](https://kenney.nl/assets/digital-audio) by Kenney (kenney.nl), CC0 1.0.
+- Sounds: [Digital Audio](https://kenney.nl/assets/digital-audio) and
+  [RPG Audio](https://kenney.nl/assets/rpg-audio) by Kenney (kenney.nl), CC0 1.0.

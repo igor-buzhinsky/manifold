@@ -38,7 +38,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
-| Sound decoding | **stb_vorbis** | In use | OGG Vorbis, decoded when a level starts. SDL3 plays it, one sound at a time. |
+| Sound decoding | **stb_vorbis** | In use | OGG Vorbis, decoded when the game or a level starts. SDL3 mixes up to 4 sounds at a time. |
 
 Rejected alternatives:
 
@@ -183,7 +183,9 @@ and tools for inspecting the game. Done:
   keyboard shortcut (e.g., Shift+Esc).
 - Audio: footsteps (2+ versions depending on level texture), entering portals, opening and closing doors. Done for
   portals: each level picks its exit sound among the OGG files in `assets/sounds/portal/` from the level seed, and
-  plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis).
+  plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Done for doors: level generation
+  gives each door a random open and close sound, from `assets/sounds/door_open/` and `assets/sounds/door_close/`,
+  played when the door starts to move.
 - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
   stamina, sanity. The party has shared mana.
 - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now

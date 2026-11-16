@@ -30,6 +30,8 @@ In room levels, some openings between rooms (10% to 100% of them, random for eac
 halves between two dark frames. All doors of a level are wooden or all are metal, each with a chance of 50%.
 A closed door blocks the way. E on the door opens it: the halves slide into the walls within a second, and
 only then can the player pass. To close an open door, aim at one of its frames and press E. A door that is moving ignores E, and a door doesn't close while the player stands in it.
+A door makes a sound when it starts to open and when it starts to close, also with the `door` command. Each door
+has its own two sounds, picked when the level is generated.
 
 ## Console
 

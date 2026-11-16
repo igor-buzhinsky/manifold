@@ -81,6 +81,7 @@ set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
 # so that tests can link against it.
 add_library(manifold_core STATIC
     src/audio/sound.cpp
+    src/audio/sound_set.cpp
     src/console/console.cpp
     src/console/console_window.cpp
     src/console/game_commands.cpp
@@ -171,6 +172,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/shadow_map_test.cpp
+        tests/sound_set_test.cpp
         tests/sound_test.cpp
         tests/spatial_grid_test.cpp
         tests/texture_image_test.cpp
