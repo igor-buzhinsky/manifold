@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 #include <SDL3/SDL_audio.h>
 #include <SDL3/SDL_error.h>
@@ -13,6 +14,17 @@
 namespace manifold {
 
 namespace {
+
+/// How many seconds of sound `stream` has left to play, or none if SDL can't tell.
+std::optional<double> seconds_left(SDL_AudioStream* stream) {
+    SDL_AudioSpec spec{};
+    const int queued = SDL_GetAudioStreamQueued(stream);  // Bytes, in the format of the sound put last.
+    if (queued < 0 || !SDL_GetAudioStreamFormat(stream, &spec, nullptr) || spec.channels <= 0 || spec.freq <= 0) {
+        return std::nullopt;
+    }
+    const double bytes_per_second = static_cast<double>(SDL_AUDIO_FRAMESIZE(spec)) * spec.freq;
+    return queued / bytes_per_second;
+}
 
 /// The format of the samples of `sound`, as SDL describes it.
 SDL_AudioSpec sound_spec(const Sound& sound) {
@@ -38,7 +50,10 @@ AudioOutput::AudioOutput() {
     for (SDL_AudioStream*& voice : voices_) {
         voice = SDL_CreateAudioStream(&spec, nullptr);
         if (voice == nullptr || !SDL_BindAudioStream(device_, voice)) {
+            // An unbound stream would never be played, so it isn't kept as a voice.
             log_warning("Can't make an audio stream: {}", SDL_GetError());
+            SDL_DestroyAudioStream(voice);
+            voice = nullptr;
         }
     }
     const char* name = SDL_GetAudioDeviceName(device_);
@@ -60,17 +75,14 @@ void AudioOutput::play(const Sound& sound) {
     if (device_ == 0 || sound.samples.empty()) {
         return;
     }
-    // The voice with the least left to play: an idle one if there is one.
+    // The voice with the least time left to play: an idle one if there is one.
     SDL_AudioStream* voice = nullptr;
-    int least_queued = 0;
+    double least_left = 0.0;
     for (SDL_AudioStream* candidate : voices_) {
-        if (candidate == nullptr) {
-            continue;
-        }
-        const int queued = SDL_GetAudioStreamQueued(candidate);
-        if (voice == nullptr || queued < least_queued) {
+        const std::optional<double> left = candidate != nullptr ? seconds_left(candidate) : std::nullopt;
+        if (left && (voice == nullptr || *left < least_left)) {
             voice = candidate;
-            least_queued = queued;
+            least_left = *left;
         }
     }
     if (voice == nullptr) {

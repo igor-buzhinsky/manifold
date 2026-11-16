@@ -25,7 +25,7 @@ public:
     AudioOutput& operator=(AudioOutput&&) = delete;
 
     /// Starts playing `sound` from its start, along with the sounds that are playing. If kVoices sounds are playing
-    /// already, the one with the least data left stops.
+    /// already, the one with the least time left stops.
     ///
     /// Returns at once: the sound plays in the background. Its samples are copied, so `sound` may be destroyed.
     void play(const Sound& sound);

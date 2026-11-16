@@ -117,12 +117,10 @@ public:
     /// set_door_open(). Walls, slabs and doors in front stop the view.
     Activation activate();
 
-    /// Starts to open or close a door.
+    /// Starts to open or close a door. A door that starts to move is added to take_door_moves().
     ///
     /// \param index Index of the door in World::doors().
     /// \param open  True to open it, false to close it.
-    /// A door that starts to move is added to take_door_moves().
-    ///
     /// \return False if the door doesn't start to move: it is moving, it is already open or closed as wanted, or it
     ///         should close while the player overlaps it, see Door::blocker().
     /// \throws std::out_of_range if there is no such door.

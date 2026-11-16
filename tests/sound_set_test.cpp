@@ -27,10 +27,15 @@ TEST(SoundSetTest, SkipsBrokenFilesAndIsEmptyWithoutSounds) {
     std::ofstream(dir / "broken.ogg") << "not an ogg";
     testing::internal::CaptureStderr();
     const SoundSet set(dir, "test");
-    const SoundSet missing(dir / "missing", "test");
-    const std::string log = testing::internal::GetCapturedStderr();
+    std::string log = testing::internal::GetCapturedStderr();
     EXPECT_EQ(set.size(), 0U);
     EXPECT_EQ(set.get(0), nullptr);
+    EXPECT_NE(log.find("[warning] Can't load"), std::string::npos) << log;
+    EXPECT_NE(log.find("[warning] No test sounds found"), std::string::npos) << log;
+
+    testing::internal::CaptureStderr();
+    const SoundSet missing(dir / "missing", "test");
+    log = testing::internal::GetCapturedStderr();
     EXPECT_EQ(missing.size(), 0U);
     EXPECT_NE(log.find("[warning] No test sounds found"), std::string::npos) << log;
     std::filesystem::remove_all(dir);
