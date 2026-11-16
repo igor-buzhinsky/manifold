@@ -17,8 +17,9 @@ namespace {
 class AssetFilesTest : public testing::Test {
 protected:
     void SetUp() override {
+        const testing::TestInfo* info = testing::UnitTest::GetInstance()->current_test_info();
         dir_ = std::filesystem::temp_directory_path() /
-               ("manifold_" + std::string(testing::UnitTest::GetInstance()->current_test_info()->name()));
+               ("manifold_" + std::string(info->test_suite_name()) + "_" + info->name());
         std::filesystem::remove_all(dir_);
         std::filesystem::create_directories(dir_);
     }
@@ -48,6 +49,7 @@ TEST_F(AssetFilesTest, FindsFilesWithTheExtensionAtAnyDepthSorted) {
     write_file("pack1/image.png");
     std::filesystem::create_directories(dir() / "folder.ogg");
     EXPECT_EQ(find_asset_files(dir(), ".ogg"), (std::vector<std::filesystem::path>{c, a, b}));
+    EXPECT_EQ(find_asset_files(dir(), ".OGG"), find_asset_files(dir(), ".ogg"));
 }
 
 TEST_F(AssetFilesTest, MissingDirectoryGivesNoFiles) {

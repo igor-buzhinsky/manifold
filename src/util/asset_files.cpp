@@ -18,11 +18,16 @@ namespace manifold {
 
 namespace {
 
-/// Returns true if the extension of `path`, in lowercase, is `extension`.
+/// `text` in lowercase.
+std::string to_lower(std::string_view text) {
+    std::string lower(text);
+    std::ranges::transform(lower, lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return lower;
+}
+
+/// Returns true if the extension of `path` is `extension`, without regard to case.
 bool has_extension(const std::filesystem::path& path, std::string_view extension) {
-    std::string actual = path.extension().string();
-    std::ranges::transform(actual, actual.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return actual == extension;
+    return to_lower(path.extension().string()) == to_lower(extension);
 }
 
 }  // namespace

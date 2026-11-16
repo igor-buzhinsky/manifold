@@ -15,7 +15,7 @@ namespace manifold {
 /// Directories that can't be read are skipped. If the search stops early because of another error, a warning is
 /// logged. The extension is matched without regard to case, e.g. `.PNG` is found for ".png".
 ///
-/// \param extension Lowercase, with the leading dot.
+/// \param extension With the leading dot, in any case.
 /// \return The paths, sorted, so that the same files always give the same order. Empty if `root` doesn't exist.
 std::vector<std::filesystem::path> find_asset_files(const std::filesystem::path& root, std::string_view extension);
 

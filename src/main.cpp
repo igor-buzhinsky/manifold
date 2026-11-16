@@ -137,7 +137,7 @@ manifold::Image pick_level_texture(std::uint64_t level_seed) {
 }
 
 /// Directory searched for the sounds of the level exit portal, `assets/sounds/portal` in the source tree.
-const std::filesystem::path kPortalSoundsDir = std::filesystem::path(MANIFOLD_SOUNDS_DIR) / "portal";
+constexpr const char* kPortalSoundsDir = MANIFOLD_SOUNDS_DIR "/portal";
 
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
 /// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file().
@@ -153,7 +153,7 @@ std::optional<std::filesystem::path> pick_exit_sound(std::uint64_t level_seed) {
     if (picked) {
         manifold::log_info("Exit sound: {}", picked->string());
     } else {
-        manifold::log_warning("No exit sound found in {}", kPortalSoundsDir.string());
+        manifold::log_warning("No exit sound found in {}", kPortalSoundsDir);
     }
     return picked;
 }
