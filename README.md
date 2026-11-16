@@ -70,7 +70,8 @@ protected members `snake_case_`; constants and enum values `kPascalCase`; macros
 ## Credits
 
 Third-party assets in `assets/`. Each pack's directory has a `README.md` with its source, license, the files
-taken and how they were processed.
+taken and how they were processed. A pack whose files are in several groups, such as `assets/textures/stone/` and
+`assets/textures/wood/`, has a directory in each.
 
 - Textures: [Tiny Texture Pack 1](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_1_-_128x128/) and
   [Tiny Texture Pack 2](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_2_-_128x128/) by
