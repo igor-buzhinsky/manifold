@@ -19,9 +19,6 @@ public:
     AudioOutput(AudioOutput&&) = delete;
     AudioOutput& operator=(AudioOutput&&) = delete;
 
-    /// Whether sounds can be heard: the audio device was opened.
-    bool available() const { return stream_ != nullptr; }
-
     /// Starts playing `sound` from its start. A sound that is still playing stops.
     ///
     /// Returns at once: the sound plays in the background. Its samples are copied, so `sound` may be destroyed.

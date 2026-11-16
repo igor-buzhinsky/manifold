@@ -38,7 +38,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
-| Audio | **SDL3** audio, **stb_vorbis** | In use | One sound at a time; OGG Vorbis is decoded when a level starts. |
+| Sound decoding | **stb_vorbis** | In use | OGG Vorbis, decoded when a level starts. SDL3 plays it, one sound at a time. |
 
 Rejected alternatives:
 
