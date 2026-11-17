@@ -1,6 +1,7 @@
-# Builds the game with warnings as errors, runs the unit tests, runs the `lint` target and checks the Python
-# scripts of scripts/. The runner is the Ubuntu release that README.md documents, so the compiler and the
-# clang-format and clang-tidy versions match a local setup. CMake is the runner's own, which is newer than Ubuntu's.
+# Builds the game with GCC and with Clang, with warnings as errors, and runs the unit tests; runs the `lint` target;
+# and checks the Python scripts of scripts/. The runner is the Ubuntu release that README.md documents, so the
+# compilers and the clang-format and clang-tidy versions match a local setup. CMake is the runner's own, which is
+# newer than Ubuntu's.
 name: CI
 
 on:
@@ -28,15 +29,33 @@ env:
 
 jobs:
   build-and-test:
-    name: Build and test
+    name: Build and test (${{ matrix.compiler }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    # The two compilers that README.md names, each in the version that Ubuntu 24.04 ships.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc
+            cc: gcc
+            cxx: g++
+            extra_packages: ""
+          - compiler: clang
+            cc: clang-18
+            cxx: clang++-18
+            extra_packages: clang-18
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false  # No step pushes, so the token needn't stay in .git/config.
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends $APT_PACKAGES
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES ${{ matrix.extra_packages }}
       - name: Configure
         run: cmake -S . -B build -G Ninja -DMANIFOLD_WARNINGS_AS_ERRORS=ON
       - name: Build
