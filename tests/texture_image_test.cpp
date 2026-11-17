@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <stb_image_write.h>
 
-#include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 
 namespace manifold {

@@ -12,6 +12,7 @@
 
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
@@ -181,6 +182,8 @@ public:
     static constexpr float kLandingSpeed = 2.0f;
     /// How far the player walks from standing before the first footstep, in metres.
     static constexpr float kFirstStepLength = kStepLength / 4.0f;
+    /// Moving less than this in a frame, in metres, counts as standing still for footsteps, e.g. pushing into a wall.
+    static constexpr float kStandingDistance = 1e-4f;
     /// How far from the eyes the player can activate things, in metres.
     static constexpr float kActivationReach = 2.0f;
 

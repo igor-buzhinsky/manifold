@@ -16,7 +16,7 @@
 #include <glm/vec3.hpp>
 #include <stb_image.h>
 
-#include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "util/asset_files.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"

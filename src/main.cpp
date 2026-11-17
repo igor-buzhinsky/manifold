@@ -32,6 +32,7 @@
 #include "game.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "platform/audio.hpp"
 #include "platform/terminal_input.hpp"
 #include "platform/window.hpp"

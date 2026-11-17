@@ -8,7 +8,7 @@
 
 #include <glm/vec3.hpp>
 
-#include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 
 namespace manifold {

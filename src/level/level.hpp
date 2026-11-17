@@ -1,12 +1,12 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
 #include <random>
 #include <string>
 
 #include <glm/vec3.hpp>
 
+#include "level/texture_kind.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -29,24 +29,6 @@ enum class LayoutKind : std::uint8_t {
     kDebug,  ///< Randomly placed and rotated blocks in one open area, see DebugLayout.
     kRooms,  ///< Rooms on a grid of square tiles, connected by openings, see RoomLayout.
 };
-
-/// What the surfaces of a level are made of, as its texture shows, e.g. to choose the sound of footsteps.
-///
-/// Each kind has a directory of textures and one of footstep sounds, named by texture_kind_name(), e.g.
-/// `assets/textures/grass/` and `assets/sounds/footsteps/grass/`.
-enum class TextureKind : std::uint8_t {
-    kGrass,  ///< Grass.
-    kWood,   ///< Wooden planks and boards.
-    kMetal,  ///< Metal plates.
-    kStone,  ///< Everything else that is hard underfoot: bricks, tiles, stone, plaster and dirt.
-};
-
-/// All texture kinds, in the order of TextureKind.
-inline constexpr std::array<TextureKind, 4> kTextureKinds{TextureKind::kGrass, TextureKind::kWood, TextureKind::kMetal,
-                                                          TextureKind::kStone};
-
-/// The name of a texture kind, which is also the name of its directories: `grass`, `wood`, `metal` or `stone`.
-const char* texture_kind_name(TextureKind kind);
 
 /// A generated level, ready to play.
 struct Level {

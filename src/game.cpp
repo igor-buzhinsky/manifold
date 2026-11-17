@@ -201,7 +201,7 @@ void Game::count_footsteps(float walked, float landing_speed) {
     if (!player_.on_ground()) {
         return;
     }
-    if (walked <= 0.0f) {
+    if (walked < kStandingDistance) {
         // Standing still: the next step comes soon after starting to walk again.
         step_distance_ = std::max(step_distance_, kStepLength - kFirstStepLength);
         return;

@@ -15,6 +15,7 @@
 #include "door_level.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 #include "world/world.hpp"
 
@@ -241,6 +242,23 @@ TEST(GameTest, NoclipAndFallingMakeNoFootstepsButLandingFromAJumpDoes) {
     EXPECT_EQ(game.take_footsteps(), 0);
     run(game, {}, 0.7f);
     EXPECT_EQ(game.take_footsteps(), 1);
+}
+
+TEST(GameTest, StoppingMakesTheNextStepComeSoonAndTeleportStartsAgain) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    run(game, {}, 0.1f);
+    run(game, {.forward = 1.0f}, 0.25f);  // 0.5 m: the first step, then 0.25 m towards the next.
+    EXPECT_EQ(game.take_footsteps(), 1);
+    run(game, {}, 0.1f);                  // Stop.
+    run(game, {.forward = 1.0f}, 0.15f);  // 0.3 m: a step at 0.25 m again, not at 0.75 m.
+    EXPECT_EQ(game.take_footsteps(), 1);
+
+    run(game, {.forward = 1.0f}, 0.4f);  // 0.8 m, with a step due at 1.05 m.
+    game.teleport({0.0f, 0.0f, 0.0f});
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {}, 0.1f);
+    run(game, {.forward = 1.0f}, 0.1f);  // 0.2 m: not yet a step after teleport().
+    EXPECT_EQ(game.take_footsteps(), 0);
 }
 
 TEST(GameTest, FootstepsAndTextureKindStartAgainInTheNextLevel) {

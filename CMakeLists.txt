@@ -90,6 +90,7 @@ add_library(manifold_core STATIC
     src/level/layout_factory.cpp
     src/level/level.cpp
     src/level/room_layout.cpp
+    src/level/texture_kind.cpp
     src/physics/collision.cpp
     src/physics/raycast.cpp
     src/render/camera.cpp

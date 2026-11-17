@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "level/texture_kind.hpp"
 #include "world/torch.hpp"
 
 namespace manifold {
