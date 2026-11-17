@@ -236,6 +236,10 @@ and tools for inspecting the game. Done:
   block or the exit. Generation then throws, and the game quits, also when the player reaches the exit of a
   level that was fine. Trying again with the same seed fails again. Generation should always give a level,
   e.g. by trying other seeds or relaxing the settings, or by construction.
+- Better abstraction of level planning, ideally with separation of the room graph and 3D placement.
+- Secrets.
+- Two or more exit portals per level (different colors) with non-equivalent next level generation, and a
+  possibility to know the distinction by finding secrets.
 - Pixelation (of textures or the entire visible region as a whole).
 
 ## Later (unordered, low priority, might not be done)
