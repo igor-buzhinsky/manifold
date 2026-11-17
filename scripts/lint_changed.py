@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lints only the sources that changed: the same checks as the `lint` target, but faster.
+"""Lints only the sources that changed: the same checks as the ``lint`` target, but faster.
 
 Checks the formatting of the changed sources with clang-format, then runs clang-tidy on the changed .cpp
 files and on every .cpp file that includes a changed header, directly or through other headers.
@@ -12,7 +12,8 @@ since any of them may be affected.
 Uses the tools found by CMake (see CMakeCache.txt in the build directory) and its compilation database,
 so only files that are built are linted: tests only when MANIFOLD_BUILD_TESTS is on.
 
-Usage:
+Usage::
+
     scripts/lint_changed.py                     # what changed since the last commit
     scripts/lint_changed.py --base HEAD~1       # also what the last commit changed
     scripts/lint_changed.py src/game.hpp        # this file, and the .cpp files that include it
@@ -37,7 +38,12 @@ INCLUDE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
 
 
 def git_lines(*args: str) -> list[str]:
-    """Runs git in the repository and returns the lines of its output."""
+    """Runs git in the repository and returns the lines of its output.
+
+    :param args: Arguments of git, e.g. ``"diff", "--name-only"``.
+    :returns: The non-empty lines of the output.
+    :raises SystemExit: If git fails. Its error messages go to stderr.
+    """
     result = subprocess.run(["git", *args], cwd=ROOT, stdout=subprocess.PIPE, text=True)  # Errors go to stderr.
     if result.returncode:
         sys.exit(f"git {' '.join(args)} failed")
@@ -45,15 +51,23 @@ def git_lines(*args: str) -> list[str]:
 
 
 def changed_files(base: str) -> list[str]:
-    """Paths, relative to the repository, that differ from `base` or are untracked."""
+    """The files that differ from a commit or are untracked.
+
+    :param base: The commit to compare with, e.g. ``HEAD``.
+    :returns: Paths relative to the repository, sorted.
+    :raises SystemExit: If git fails, e.g. because ``base`` is not a commit.
+    """
     untracked = git_lines("ls-files", "--others", "--exclude-standard")
     return sorted(set(git_lines("diff", "--name-only", base)) | set(untracked))
 
 
 def named_files(names: list[str]) -> list[str]:
-    """Paths, relative to the repository, of the named files and of the files in the named folders.
+    """The named files and the files in the named folders, searched recursively.
 
-    Exits if a name does not exist or is outside the repository, so that a typo doesn't pass as clean.
+    :param names: Paths of files or folders, relative to the current directory or absolute.
+    :returns: Paths relative to the repository.
+    :raises SystemExit: If a name does not exist or is outside the repository, so that a typo doesn't pass as
+        clean.
     """
     paths = []
     for name in names:
@@ -67,19 +81,35 @@ def named_files(names: list[str]) -> list[str]:
 
 
 def is_config(name: str) -> bool:
-    """Checks whether a change to this file, relative to the repository, may affect the lint result of any source."""
+    """Checks whether a change to a file may affect the lint result of any source.
+
+    :param name: Path of the file, relative to the repository.
+    :returns: Whether it is a lint or build configuration file, or in a folder with such files.
+    """
     path = Path(name)
     return path.name in CONFIG_NAMES or path.parts[0] in CONFIG_DIRS
 
 
 def all_sources() -> list[Path]:
     """All .cpp and .hpp files under the source directories."""
-    return sorted(path for folder in SOURCE_DIRS for path in (ROOT / folder).rglob("*")
-                  if path.suffix in SOURCE_SUFFIXES and path.is_file())
+    return sorted(
+        path
+        for folder in SOURCE_DIRS
+        for path in (ROOT / folder).rglob("*")
+        if path.suffix in SOURCE_SUFFIXES and path.is_file()
+    )
 
 
 def resolve_include(name: str, including: Path) -> Path | None:
-    """The source file that `#include "name"` in `including` refers to, if it is one of ours."""
+    """The source file that an ``#include "name"`` refers to.
+
+    The name is looked up as the compiler does for quoted includes: first next to the including file, then in the
+    source directories.
+
+    :param name: The name in quotes.
+    :param including: The file with the include.
+    :returns: The absolute path of the included file, or ``None`` if it isn't one of ours, e.g. a library header.
+    """
     for folder in (including.parent, *(ROOT / folder for folder in SOURCE_DIRS)):
         candidate = (folder / name).resolve()
         if candidate.is_file():
@@ -88,7 +118,12 @@ def resolve_include(name: str, including: Path) -> Path | None:
 
 
 def translation_units(changed: set[Path], sources: list[Path]) -> set[Path]:
-    """The .cpp files among `changed`, plus those that include a changed file, directly or not."""
+    """The .cpp files that need linting after some sources changed.
+
+    :param changed: Absolute paths of the changed sources.
+    :param sources: Absolute paths of all sources, searched for includes.
+    :returns: The .cpp files among ``changed``, plus those that include a changed file, directly or not.
+    """
     included_by: dict[Path, set[Path]] = {}
     for source in sources:
         for name in INCLUDE.findall(source.read_text(encoding="utf-8")):
@@ -106,7 +141,12 @@ def translation_units(changed: set[Path], sources: list[Path]) -> set[Path]:
 
 
 def cmake_cache(build_dir: Path) -> dict[str, str]:
-    """The entries of the CMake cache, by name without type."""
+    """The entries of the CMake cache.
+
+    :param build_dir: The CMake build directory.
+    :returns: The values of the entries, by name without type.
+    :raises SystemExit: If the build directory has no ``CMakeCache.txt``.
+    """
     cache_file = build_dir / "CMakeCache.txt"
     if not cache_file.is_file():
         sys.exit(f"{cache_file} not found: configure first with cmake -S . -B build")
@@ -119,7 +159,14 @@ def cmake_cache(build_dir: Path) -> dict[str, str]:
 
 
 def tool(cache: dict[str, str], name: str, package: str) -> str:
-    """The path of a tool found by CMake, or exits with a hint on how to install it."""
+    """The path of a tool found by CMake.
+
+    :param cache: The entries of the CMake cache, see :func:`cmake_cache`.
+    :param name: The name of the cache entry with the tool's path, e.g. ``CLANG_FORMAT_EXE``.
+    :param package: The apt package with the tool, for the hint when it's missing.
+    :returns: The path of the tool.
+    :raises SystemExit: If CMake didn't find the tool, with a hint on how to install it.
+    """
     path = cache.get(name, "")
     if not path or path.endswith("-NOTFOUND"):
         sys.exit(f"{name} not found: sudo apt install {package}, then re-run cmake -S . -B build")
@@ -127,6 +174,11 @@ def tool(cache: dict[str, str], name: str, package: str) -> str:
 
 
 def main() -> int:
+    """Lints the sources given on the command line, or the changed ones.
+
+    :returns: The exit code: 0 if all checks passed, nonzero if clang-format or clang-tidy found an issue.
+    :raises SystemExit: If git fails or the build directory isn't set up, see the other functions.
+    """
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("files", nargs="*", help="files to lint instead of the changed ones")
     parser.add_argument("--base", default="HEAD", help="commit to compare with (default: HEAD)")
@@ -169,8 +221,17 @@ def main() -> int:
     print(f"Running clang-tidy on {len(units)} file(s): {listed}", flush=True)
     # run-clang-tidy takes regexes on paths in the compilation database; anchoring them keeps out other files.
     regexes = ["^" + re.escape(str(unit)) + "$" for unit in units]
-    return subprocess.run([tool(cache, "RUN_CLANG_TIDY_EXE", "clang-tidy"), "-quiet", "-clang-tidy-binary",
-                           tool(cache, "CLANG_TIDY_EXE", "clang-tidy"), "-p", str(build_dir), *regexes]).returncode
+    return subprocess.run(
+        [
+            tool(cache, "RUN_CLANG_TIDY_EXE", "clang-tidy"),
+            "-quiet",
+            "-clang-tidy-binary",
+            tool(cache, "CLANG_TIDY_EXE", "clang-tidy"),
+            "-p",
+            str(build_dir),
+            *regexes,
+        ]
+    ).returncode
 
 
 if __name__ == "__main__":

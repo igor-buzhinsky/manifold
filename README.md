@@ -64,6 +64,10 @@ cmake --build build --target lint     # check formatting, then run clang-tidy (f
 scripts/lint_changed.py               # the same, but only for what changed since the last commit
 ```
 
+The Python scripts in `scripts/` are formatted with black and checked with ruff and pyrefly, installed with
+[Poetry](https://python-poetry.org/) (`pipx install poetry`): run `poetry install` once in `scripts/`, then
+`poetry run black .`, `poetry run ruff check .` and `poetry run pyrefly check` there.
+
 See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including doc comments.
 
 Naming: types `PascalCase`; functions, variables and namespaces `snake_case`; private and

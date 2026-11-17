@@ -26,6 +26,14 @@ commit, and on the .cpp files that include a changed header. It lints everything
 folders to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
 asked or when unsure what a change affects.
 
+- Python scripts in `scripts/` follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md#python-scripts). After
+  changing one, run the Python checks, which must pass:
+
+  ```sh
+  cd scripts && poetry install    # once, to install the tools
+  poetry run black . && poetry run ruff check . && poetry run pyrefly check
+  ```
+
 - Credit every third-party asset (textures, sounds, models, fonts, ...), even when its license doesn't
   require it: give each pack a `README.md` in its directory under `assets/` (source link, author, license,
   which files were taken, how they were processed), and list it in the Credits section of

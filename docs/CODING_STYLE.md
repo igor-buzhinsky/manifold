@@ -81,3 +81,25 @@ void rotate(float delta_yaw, float delta_pitch);
 - Prefer concrete words: "in metres", "positive turns left", "returns false if ...".
 - State units, coordinate conventions and ranges explicitly.
 - Refer to code in backticks: `keep_clear`, `GameConfig::move_speed`.
+
+## Python scripts
+
+Helper scripts in `scripts/` are written in Python 3.10+ with only the standard library. Their development tools
+(black, ruff and pyrefly) are set up as a Poetry project in `scripts/pyproject.toml`:
+
+```sh
+cd scripts
+poetry install            # once, to install the tools
+poetry run black .        # reformat the scripts in place
+poetry run ruff check .   # lint, including docstrings
+poetry run pyrefly check  # check types
+```
+
+- Formatting is black's with 120 columns. Imports are sorted as ruff's isort rules want.
+- Functions have type annotations on parameters and return values.
+- Every module and function has a docstring in reStructuredText. The first line is the summary, further details
+  go into new paragraphs. Parameters, return values and exceptions are documented with `:param name:`,
+  `:returns:` and `:raises Type:` fields, following the same rules as for C++ above: `:param:` only when it adds
+  something, and `:raises:` whenever a function can raise, including `SystemExit` from `sys.exit`.
+- The module docstring describes the script and how to run it. It is shown by `--help`, so it stays readable as
+  plain text: use `Usage::` with an indented example for literal blocks.
