@@ -1,6 +1,6 @@
-# Builds the game with warnings as errors, runs the unit tests, and runs the same style checks as the `lint`
-# target and the Python checks of scripts/. The runner is the Ubuntu release that README.md documents, so the
-# compilers and clang-format/clang-tidy versions match a local setup.
+# Builds the game with warnings as errors, runs the unit tests, runs the `lint` target and checks the Python
+# scripts of scripts/. The runner is the Ubuntu release that README.md documents, so the compiler and the
+# clang-format and clang-tidy versions match a local setup. CMake is the runner's own, which is newer than Ubuntu's.
 name: CI
 
 on:
@@ -12,10 +12,11 @@ on:
 permissions:
   contents: read
 
-# A new push to the same branch cancels the run that is still going for the previous one.
+# A new push to a pull request cancels the run that is still going for the previous one. Runs on main are never
+# cancelled, so that each commit there gets a result.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Keep in sync with the install command in README.md (pipx is already on the runner).
@@ -32,6 +33,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # No step pushes, so the token needn't stay in .git/config.
       - name: Install packages
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends $APT_PACKAGES
       - name: Configure
@@ -47,6 +50,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # No step pushes, so the token needn't stay in .git/config.
       - name: Install packages
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends $APT_PACKAGES
       # Configuring is enough for clang-tidy: it needs only compile_commands.json and the downloaded headers. If a
@@ -65,6 +70,8 @@ jobs:
         working-directory: scripts
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # No step pushes, so the token needn't stay in .git/config.
       - uses: actions/setup-python@v7
         id: python
         with:
