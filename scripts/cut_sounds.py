@@ -22,10 +22,18 @@ FADE_IN = 0.005  # Seconds.
 FADE_OUT = 0.03  # Seconds.
 
 
+def trim_filter(start: float, end: float) -> str:
+    """An ffmpeg filter that keeps START to END of the input, with times starting at 0 again.
+
+    The whole file is decoded and trimmed in the filter, instead of seeking with -ss and -to: seeking in an MP3
+    skips the decoder's start-up, so the first tens of milliseconds of a part came out silent."""
+    return f"atrim=start={start}:end={end},asetpts=PTS-STARTPTS"
+
+
 def peak_dbfs(original: str, start: float, end: float) -> float:
     """The level of the loudest sample of ORIGINAL between START and END, in dBFS."""
     pcm = subprocess.run(
-        ["ffmpeg", "-v", "error", "-ss", str(start), "-to", str(end), "-i", original, "-f", "s16le", "-"],
+        ["ffmpeg", "-v", "error", "-i", original, "-af", trim_filter(start, end), "-f", "s16le", "-"],
         capture_output=True, check=True).stdout
     samples = array.array("h")
     samples.frombytes(pcm[:len(pcm) // 2 * 2])
@@ -43,7 +51,10 @@ def main() -> int:
     args = parser.parse_args()
 
     for number, part in enumerate(args.parts, start=1):
-        start, end = (float(x) for x in part.split("-"))
+        try:
+            start, end = (float(x) for x in part.split("-"))
+        except ValueError:
+            parser.error(f"a part must be START-END in seconds, e.g. 1.5-2.25, not {part}")
         if end <= start + FADE_IN + FADE_OUT:
             print(f"part {part} is too short", file=sys.stderr)
             return 1
@@ -52,10 +63,10 @@ def main() -> int:
             print(f"part {part} is silent", file=sys.stderr)
             return 1
         length = end - start
-        filters = (f"afade=t=in:d={FADE_IN},afade=t=out:st={length - FADE_OUT:.3f}:d={FADE_OUT},"
-                   f"volume={gain:.2f}dB")
+        filters = (f"{trim_filter(start, end)},afade=t=in:d={FADE_IN},"
+                   f"afade=t=out:st={length - FADE_OUT:.3f}:d={FADE_OUT},volume={gain:.2f}dB")
         output = f"{args.prefix}-{number:02d}.ogg"
-        subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", str(start), "-to", str(end), "-i", args.original,
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", args.original,
                         "-af", filters, "-map_metadata", "-1", "-c:a", "libvorbis", "-q:a", str(args.quality), output],
                        check=True)
         print(f"{output}: {start:.2f}-{end:.2f} s, {gain:+.1f} dB")

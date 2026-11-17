@@ -9,10 +9,11 @@ SecureSubset, from [Freesound](https://freesound.org/).
   `assets/textures/stone/`): all 6 steps of the recording.
 - **Processing**: cut from the original `813622__securesubset__footsteps-stone-rock-concrete-cement.wav` (not in the
   repo) with `scripts/cut_sounds.py`, which gives each step a short fade in and out, scales it so that its loudest
-  sample is at -6 dBFS, and encodes it as OGG Vorbis. The times are seconds in the original. From the repo root:
+  sample is at -6 dBFS, and encodes it as OGG Vorbis. The times are seconds in the original. From the repo root, with
+  the original downloaded to `ORIGINALS`:
 
 ```sh
-scripts/cut_sounds.py 813622__securesubset__footsteps-stone-rock-concrete-cement.wav \
+scripts/cut_sounds.py "$ORIGINALS"/813622__securesubset__footsteps-stone-rock-concrete-cement.wav \
     assets/sounds/footsteps/stone/freesound-org/813622-step \
     0.01-0.27 1.02-1.53 2.19-2.56 3.44-3.73 4.78-5.05 6.10-6.51
 ```
