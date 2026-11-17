@@ -325,3 +325,56 @@ Drawbacks:
 - Closing works only by aiming at a frame, since an open door's halves are hidden in the walls.
 - Alternative: hinged doors that swing. They look more natural, but need rotated, moving collision, which can push
   the player, and swing into the room.
+
+## 2026-11-17: Footsteps by distance walked, with sounds chosen by the directory of the level texture
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision:
+
+- **Surface**: each level has a `TextureKind` (grass, wood, metal or stone), the kind of its texture. The kind is the
+  directory the texture is in: `assets/textures/grass/`, `wood/`, `metal/` or `stone/`, with any subdirectories.
+  Stone covers everything else that is hard underfoot, such as bricks, tiles, plaster and dirt. PNG files elsewhere
+  under `assets/textures/` are not used. The texture is still picked from all files at once, in the same sorted
+  order as before, so each file has the same chance as before and a seed gives the same texture. The main loop picks
+  the texture and sets the kind with `Game::set_texture_kind()`. The plain grey fallback counts as stone.
+- **Sounds**: `assets/sounds/footsteps/<kind>/` has single steps, at least one per kind. Each step is cut from a
+  recording of several steps by `scripts/cut_sounds.py`, which also fades its ends and scales it to a peak of
+  -6 dBFS. The README next to the files gives the exact command, with the original recording and the times of the
+  steps in it.
+- **When**: `Game` counts footsteps. A player on the ground makes one per 1 m walked, which is 3 per second at the
+  walking speed of 3 m/s. The first one comes 0.25 m after starting from standing, so that short moves are heard too.
+  Landing faster than 2 m/s, after a fall of more than about 0.2 m, makes one too. Noclip and falling make none.
+  `Game::take_footsteps()` gives the count since the last call, like `take_door_moves()`.
+- **Playing**: the main loop plays a random step of the level's kind for each footstep, never the same one twice in a
+  row, at half volume. `AudioOutput` mixes up to 4 sounds, so steps don't cut off other sounds.
+- **Missing files**: a kind without textures or without footstep sounds only logs a warning when the game starts. Its
+  textures are left out of the choice, or its steps are silent.
+
+Gains:
+
+- Adding a texture or a step sound needs no code: putting the file in the right directory is enough. Adding a kind
+  needs one enum value and its two directories.
+- The pace of the steps follows the actual movement: walking into a wall or standing makes no steps, and a different
+  walking speed or frame rate keeps 1 step per metre.
+- The counting is in `manifold_core` and is unit tested. With the `walk` console command, scripted runs can make
+  footsteps, which can be checked with SDL's disk audio driver.
+- Single steps in random order sound less repetitive than a looped recording, and they start and stop with the
+  player.
+
+Drawbacks:
+
+- The whole level has one kind: all floors, ramps and slabs sound the same, since they share one texture.
+- The kind comes from where a file is, not from what it shows. A texture in the wrong directory gets the wrong steps.
+- Steps don't depend on how far away or in which direction they are, which is right for the player's own steps but
+  not for others' later.
+- A few recordings with a few steps each (5 to 10) still repeat noticeably over a long walk.
+- Alternatives:
+  - **Loop the whole recording while walking.** Simpler, but its rhythm doesn't match the speed, and stopping cuts a
+    step in half.
+  - **Play steps on a timer while a movement key is held.** No distance needed, but walking into a wall or on the spot
+    would make steps.
+  - **A kind for each surface of the level**, e.g. from the tile under the player. More realistic, once levels have
+    several textures. It would replace the level's kind with a lookup of the surface under the player's feet.
+  - **Speed up the recordings instead of cutting them** (the first try: 1.5x and 2x). It changes only the pace of the
+    recording, which the game sets itself now.
