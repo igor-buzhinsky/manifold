@@ -78,3 +78,5 @@ taken and how they were processed. A pack whose files are in several groups, suc
   Screaming Brain Studios, CC0 1.0.
 - Sounds: [Digital Audio](https://kenney.nl/assets/digital-audio) and
   [RPG Audio](https://kenney.nl/assets/rpg-audio) by Kenney (kenney.nl), CC0 1.0.
+- Footstep sounds: from [Freesound](https://freesound.org/), CC0 1.0. The author of each is in the README next to
+  it, under `assets/sounds/footsteps/`.
