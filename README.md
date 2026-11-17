@@ -1,5 +1,7 @@
 # Manifold
 
+[![License](https://img.shields.io/github/license/igor-buzhinsky/manifold)](LICENSE)
+
 A hobby first-person fantasy game about playing as a mage. See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Building (Linux)
@@ -80,3 +82,9 @@ taken and how they were processed. A pack whose files are in several groups, suc
   [RPG Audio](https://kenney.nl/assets/rpg-audio) by Kenney (kenney.nl), CC0 1.0.
 - Footstep sounds: from [Freesound](https://freesound.org/), CC0 1.0. The author of each is in the README next to
   it, under `assets/sounds/footsteps/`.
+
+## License
+
+The source code of Manifold is licensed under the [Mozilla Public License 2.0](LICENSE). Third-party files keep
+their own licenses: the assets in `assets/` (see Credits above), the generated OpenGL loader in `external/glad/`,
+and the libraries that CMake downloads (glm, SDL3, stb, Dear ImGui and googletest).
