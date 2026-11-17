@@ -378,3 +378,35 @@ Drawbacks:
     several textures. It would replace the level's kind with a lookup of the surface under the player's feet.
   - **Speed up the recordings instead of cutting them** (the first try: 1.5x and 2x). It changes only the pace of the
     recording, which the game sets itself now.
+
+## 2026-11-17: Save games as plain JSON in the user's data directory
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: a save is a small JSON file, `save.json`, written with nlohmann/json to the directory that
+`SDL_GetPrefPath()` gives: `$XDG_DATA_HOME/manifold/` on Linux, by default `~/.local/share/manifold/`. It holds only
+what is needed to generate the saved level again (seed, level number, game time, a layout given on the command line)
+and a format version.
+
+Gains:
+
+- Saves are made only at the start of a level, so they are tiny. Plain JSON can be read and edited by hand, which
+  helps to debug, and nlohmann/json is a header-only library that CMake downloads.
+- The XDG data directory is where Linux games keep saves (`~/.config` is for settings, `~/.cache` for files that
+  may be deleted). SDL3 gives the right directory on Windows and macOS too.
+- Writing a temporary file and renaming it keeps the old save if the game stops while saving.
+
+Rejected alternatives:
+
+- **Zipped JSON** (renamed to `.sav`): needs a zip library, saves nothing for a file of a hundred bytes, and only
+  hides the contents, which doesn't matter for a single-player game.
+- **YAML**: no simpler to read for files this small, while its libraries (yaml-cpp) are larger and its syntax has
+  more pitfalls.
+- **A binary format**: can't be checked by hand, and needs care for byte order and versions.
+
+Drawbacks:
+
+- Levels are not stored but generated again, so a save only gives the same level with the same level generation.
+  The version number must be increased when generation from a seed changes, which refuses older saves.
+- When levels get state that changes during play (monsters, items), it must be added to the save, but only the state
+  at the start of a level, since saves are made only then.

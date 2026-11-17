@@ -17,10 +17,13 @@
 #include <utility>
 #include <vector>
 
+#include <SDL3/SDL_error.h>
 #include <SDL3/SDL_events.h>
+#include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
 #include <SDL3/SDL_scancode.h>
+#include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_timer.h>
 #include <glm/vec3.hpp>
 
@@ -44,6 +47,7 @@
 #include "render/screenshot.hpp"
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
+#include "save/saved_game.hpp"
 #include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
 #include "ui/overlay_mesh.hpp"
@@ -277,10 +281,133 @@ void log_game(const manifold::Game& game) {
     manifold::log_info("Level info:\n{}", game.level().info);
 }
 
+/// Where the game is saved: `save.json` in the game's directory for user data, which SDL_GetPrefPath() gives and
+/// creates: on Linux `$XDG_DATA_HOME/manifold/`, by default `~/.local/share/manifold/`.
+///
+/// \return The path, or nothing (after logging a warning) if there is no such directory.
+std::optional<std::filesystem::path> save_file_path() {
+    char* dir = SDL_GetPrefPath("", "manifold");
+    if (dir == nullptr) {
+        manifold::log_warning("The game can't be saved or loaded: {}", SDL_GetError());
+        return std::nullopt;
+    }
+    std::filesystem::path path = std::filesystem::path(dir) / "save.json";
+    SDL_free(dir);
+    return path;
+}
+
+/// Saves the game at the start of its current level, see manifold::Game::save_point(). A failure is only logged.
+void save_game(const manifold::Game& game, const std::filesystem::path& path) {
+    try {
+        manifold::write_save_file(path, game.save_point());
+        manifold::log_info("Saved the game to {}", path.string());
+    } catch (const std::runtime_error& error) {
+        manifold::log_error("Can't save the game: {}", error.what());
+    }
+}
+
+/// Loads the saved game into `game`, see manifold::Game::load().
+///
+/// \param game          The game to load into.
+/// \param path          The save file, or nothing if there is no directory for saves.
+/// \param stop_on_error Whether a failure is thrown, or only logged.
+/// \return Whether the game was loaded.
+/// \throws std::runtime_error if loading fails and `stop_on_error` is set.
+bool load_game(manifold::Game& game, const std::optional<std::filesystem::path>& path, bool stop_on_error) {
+    try {
+        if (!path) {
+            throw std::runtime_error("there is no directory for saves");
+        }
+        if (!std::filesystem::exists(*path)) {
+            throw std::runtime_error("there is no saved game in " + path->string());
+        }
+        game.load(manifold::read_save_file(*path));
+        manifold::log_info("Loaded the game from {}", path->string());
+        return true;
+    } catch (const std::runtime_error& error) {
+        if (stop_on_error) {
+            throw std::runtime_error(std::string("can't load the game: ") + error.what());
+        }
+        manifold::log_error("Can't load the game: {}", error.what());
+        return false;
+    }
+}
+
+/// What belongs to the game's current level outside the game: its renderer and the sound of its exit. Each level that
+/// starts is saved, and the saved game can be loaded.
+class LevelSession {
+public:
+    /// Sets up the game's current level.
+    ///
+    /// \param game      The game, whose level is set up.
+    /// \param view      Where the level's ambient light is set.
+    /// \param save_path Where the game is saved, or nothing if there is no directory for saves.
+    /// \param saving    Whether to save each level that starts. If not, the save can still be loaded.
+    LevelSession(manifold::Game& game, manifold::ViewSettings& view, std::optional<std::filesystem::path> save_path,
+                 bool saving)
+        : save_path_(std::move(save_path)), saving_(saving) {
+        if (save_path_ && !saving_) {
+            manifold::log_info("The game isn't saved while it runs console commands from the command line");
+        }
+        set_up(game, view);
+    }
+
+    /// Sets up the game's level if the game started another one since the last call, e.g. when the player reached
+    /// the exit or a console command started the next level. Plays the exit sound of the level before.
+    void follow(manifold::Game& game, manifold::ViewSettings& view, manifold::AudioOutput& audio) {
+        if (game.level_starts() == level_starts_) {
+            return;
+        }
+        if (exit_sound_) {
+            audio.play(*exit_sound_);
+        }
+        set_up(game, view);
+    }
+
+    /// Loads the saved game into `game` and sets up its level. A failure is logged, and the level stays.
+    ///
+    /// \throws std::runtime_error if loading fails and `stop_on_error` is set.
+    void load(manifold::Game& game, manifold::ViewSettings& view, bool stop_on_error) {
+        if (load_game(game, save_path_, stop_on_error)) {
+            set_up(game, view);
+        }
+    }
+
+    /// Draws the current level. It is made by the constructor.
+    ///
+    /// \throws std::logic_error if it isn't, which can't happen.
+    manifold::Renderer& renderer() {
+        if (!renderer_) {
+            throw std::logic_error("no level is set up");
+        }
+        return *renderer_;
+    }
+
+private:
+    /// Logs the game's current level, makes its renderer and picks its exit sound, see start_level(), and saves the
+    /// game if saving is on.
+    void set_up(manifold::Game& game, manifold::ViewSettings& view) {
+        log_game(game);
+        exit_sound_ = start_level(renderer_, game, view);
+        level_starts_ = game.level_starts();
+        if (saving_ && save_path_) {
+            save_game(game, *save_path_);
+        }
+    }
+
+    std::optional<std::filesystem::path> save_path_;
+    bool saving_;  ///< Whether each level that starts is saved, if there is a directory for saves.
+    std::optional<manifold::Renderer> renderer_;  ///< The renderer has the meshes of one level.
+    std::optional<manifold::Sound> exit_sound_;
+    int level_starts_ = 0;  ///< manifold::Game::level_starts() of the level that is set up.
+};
+
 /// The key that opens and closes the console: the one left of 1, labelled `/~ on US keyboards.
 constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
 /// The key that shows and hides the debug overlay.
 constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
+/// The key that loads the saved game. Like the movement keys, it is the key at the place of L on US keyboards.
+constexpr SDL_Scancode kLoadKey = SDL_SCANCODE_L;
 
 /// The key of the console window that `key` is, if any.
 std::optional<manifold::ConsoleKey> console_key(SDL_Keycode key) {
@@ -339,11 +466,12 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
     }
 }
 
-/// Handles a key press: the console key, Escape, and the keys of the console window while it is open.
+/// Handles a key press: the console key, Escape, the keys of the console window while it is open, and otherwise
+/// the load key, which asks `state` to load the game.
 ///
 /// \return False when the game should quit.
 bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
-                     manifold::CommandQueue& commands) {
+                     manifold::CommandQueue& commands, manifold::ConsoleState& state) {
     if (key.scancode == kConsoleKey) {
         if (!key.repeat) {
             set_console_open(console_window, window, !console_window.is_open());
@@ -357,11 +485,14 @@ bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
         }
     } else if (console_window.is_open()) {
         handle_console_key(key, console_window, commands);
+    } else if (key.scancode == kLoadKey && !key.repeat) {
+        state.load = true;
+        state.load_stops_on_error = false;
     }
     return true;
 }
 
-/// Handles pending window and key events: quitting, the console window and the debug overlay.
+/// Handles pending window and key events: quitting, the console window, the debug overlay and loading.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
@@ -369,7 +500,7 @@ bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
 /// \param console_window     The console window.
 /// \param commands           Where commands run in the console window go.
 /// \param overlay            The debug overlay, which gets the events first and may keep keys from the game.
-/// \param state              Where the debug overlay key shows or hides the overlay.
+/// \param state              Where the debug overlay key shows or hides the overlay, and the load key asks to load.
 /// \param console_key_held   Whether the console key is held down. Kept between calls.
 /// \return False when the game should quit.
 bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
@@ -400,7 +531,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
             }
             continue;
         }
-        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands)) {
+        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands, state)) {
             return false;
         }
     }
@@ -512,19 +643,17 @@ void run(const Options& options) {
     const LogListenerReset reset_log_listener;
 
     manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
-    log_game(game);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
-    // The renderer has the meshes of one level, so each level gets a new one.
     manifold::ConsoleState state;
-    std::optional<manifold::Renderer> renderer;
     manifold::AudioOutput audio;
     const DoorSoundSets door_sounds;
     FootstepSounds footsteps;
-    std::optional<manifold::Sound> exit_sound = start_level(renderer, game, state.view);
-    int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
+    // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
+    // mostly test the game, so they leave the player's save alone.
+    LevelSession level(game, state.view, save_file_path(), options.commands.empty());
 
     manifold::Console console;
     manifold::CommandQueue commands;
@@ -537,6 +666,10 @@ void run(const Options& options) {
     bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
+        // Loading comes before the commands, so that those after `load` run in the loaded level.
+        if (std::exchange(state.load, false)) {
+            level.load(game, state.view, state.load_stops_on_error);
+        }
         for (const std::string& line : terminal.read_lines()) {
             commands.add(line, false);
         }
@@ -556,21 +689,14 @@ void run(const Options& options) {
         }
         game.update(input, std::min(frame_time, kMaxFrameTime));
         // The player reached the exit, or a console command started the next level as if they had.
-        if (game.level_number() != rendered_level) {
-            if (exit_sound) {
-                audio.play(*exit_sound);
-            }
-            log_game(game);
-            exit_sound = start_level(renderer, game, state.view);
-            rendered_level = game.level_number();
-        }
+        level.follow(game, state.view, audio);
         play_door_sounds(game, door_sounds, audio);
         footsteps.play(game, audio);
 
         const manifold::PixelSize window_size = window.framebuffer_size();
-        draw_game(*renderer, overlay_renderer, game, state.view, window_size);
+        draw_game(level.renderer(), overlay_renderer, game, state.view, window_size);
         // The stats of this draw, before screenshots draw again.
-        const manifold::RenderStats render_stats = renderer->stats();
+        const manifold::RenderStats render_stats = level.renderer().stats();
         if (state.debug_overlay) {
             overlay.draw(game, state.view, render_stats, frame_times);
         }
@@ -579,7 +705,7 @@ void run(const Options& options) {
             overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
                                   viewport);
         }
-        take_screenshots(*renderer, overlay_renderer, game, state.screenshots, window_size);
+        take_screenshots(level.renderer(), overlay_renderer, game, state.screenshots, window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;

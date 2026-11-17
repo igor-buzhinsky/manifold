@@ -17,6 +17,7 @@
 #include "level/level.hpp"
 #include "physics/collision.hpp"
 #include "physics/raycast.hpp"
+#include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
@@ -36,7 +37,9 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
-    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {}
+    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {
+    given_layout_ = layout;
+}
 
 Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
     : level_config_(config.level),
@@ -64,10 +67,27 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
 
 void Game::next_level() {
     const std::uint64_t seed = next_level_seed(seed_);
-    Level level = generate_level(level_config_, std::nullopt, player_params_.radius, seed);
+    start_level(generate_level(level_config_, std::nullopt, player_params_.radius, seed), seed, level_number_ + 1,
+                std::nullopt);
+}
+
+void Game::load(const SavedGame& save) {
+    Level level = generate_level(level_config_, save.layout, player_params_.radius, save.seed);
+    time_ = save.time;
+    start_level(std::move(level), save.seed, save.level_number, save.layout);
+}
+
+SavedGame Game::save_point() const {
+    return {.seed = seed_, .level_number = level_number_, .layout = given_layout_, .time = level_start_time_};
+}
+
+void Game::start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout) {
     level_ = std::move(level);
     seed_ = seed;
-    ++level_number_;
+    given_layout_ = layout;
+    level_number_ = level_number;
+    ++level_starts_;
+    level_start_time_ = time_;
     player_ = Player(at_start(player_params_, level_));
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();

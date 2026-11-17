@@ -49,6 +49,16 @@ add_library(stb_vorbis STATIC ${stb_SOURCE_DIR}/stb_vorbis.c)
 target_compile_definitions(stb_vorbis PUBLIC STB_VORBIS_NO_PUSHDATA_API)
 target_link_libraries(stb_vorbis PUBLIC stb)
 
+# nlohmann/json reads and writes save files. The release archive has only the headers and the CMake files, which
+# is much smaller than the repository.
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    SYSTEM
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # Dear ImGui draws the debug overlay. It has no CMake support, so its sources, with the backends for SDL3
 # and OpenGL 3+, are built here.
 FetchContent_Declare(imgui
@@ -102,6 +112,7 @@ add_library(manifold_core STATIC
     src/render/texture_image.cpp
     src/render/viewport.cpp
     src/render/world_mesh.cpp
+    src/save/saved_game.cpp
     src/ui/crosshair.cpp
     src/ui/overlay_mesh.cpp
     src/ui/text_field.cpp
@@ -117,7 +128,7 @@ add_library(manifold_core STATIC
     src/world/world.cpp
 )
 target_include_directories(manifold_core PUBLIC src)
-target_link_libraries(manifold_core PUBLIC glm::glm stb stb_vorbis)
+target_link_libraries(manifold_core PUBLIC glm::glm stb stb_vorbis PRIVATE nlohmann_json::nlohmann_json)
 target_compile_options(manifold_core PRIVATE ${MANIFOLD_WARNINGS})
 
 add_executable(manifold
@@ -172,6 +183,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/raycast_test.cpp
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
+        tests/saved_game_test.cpp
         tests/shadow_map_test.cpp
         tests/sound_set_test.cpp
         tests/sound_test.cpp

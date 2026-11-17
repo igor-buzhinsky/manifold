@@ -103,6 +103,23 @@ TEST(GameCommandsTest, CommandsAfterNextLevelWaitAFrame) {
     EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
 }
 
+TEST(GameCommandsTest, LoadAsksTheMainLoopAndTheNextCommandsWait) {
+    Fixture fixture;
+    fixture.run("load; teleport 1 2 3");
+    EXPECT_TRUE(fixture.state.load);
+    EXPECT_TRUE(fixture.state.load_stops_on_error);
+    EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
+
+    fixture.state.load = false;
+    fixture.queue.add("load", false);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_TRUE(fixture.state.load);
+    EXPECT_FALSE(fixture.state.load_stops_on_error);
+    fixture.expect_error("load now");
+}
+
 TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     Fixture fixture;
     EXPECT_FALSE(fixture.game.noclip());

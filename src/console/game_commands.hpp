@@ -56,6 +56,11 @@ struct ConsoleState {
     /// For how many more frames the player walks forward as if W were held, see the `walk` command. The main loop
     /// counts it down.
     int walk_frames = 0;
+    /// Whether to load the saved game at the start of the next frame, as the L key does and the `load` command asks.
+    /// The main loop does it and resets this.
+    bool load = false;
+    /// Whether failing to load should stop the game, as it does for the commands of `--exec`, or only be logged.
+    bool load_stops_on_error = false;
 };
 
 /// Largest width and height of a screenshot, in pixels.

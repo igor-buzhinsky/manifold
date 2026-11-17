@@ -11,6 +11,7 @@
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or levitation (not implemented yet): fly up |
 | Page Down | With noclip or levitation (not implemented yet): fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
+| L | Load the saved game: start the saved level again from its start, see Saving below |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
 | Escape | Close the console if it is open, otherwise quit |
@@ -36,6 +37,21 @@ A closed door blocks the way. E on the door opens it: the halves slide into the 
 only then can the player pass. To close an open door, aim at one of its frames and press E. A door that is moving ignores E, and a door doesn't close while the player stands in it.
 A door makes a sound when it starts to open and when it starts to close, also with the `door` command. Each door
 has its own two sounds, picked when the level is generated.
+
+## Saving
+
+The game saves itself when it starts and when the player reaches a new level. There is only one save, of the
+level the player is in, so a level that is left can't be returned to, and there are no saves made by hand. L loads
+the save: the saved level starts again from its start. Starting the game always starts a new game, which replaces
+the save.
+
+The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
+`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time, and
+the layout if it was given with `--layout`. Levels are generated again from their seed, so a save of an older
+version of the game may give another level, or be refused if the save format changed.
+
+The game isn't saved while it runs commands given with `--exec` or `--screenshot` (see Console below), so that
+test runs don't replace the player's save. They can still load it.
 
 ## Console
 
@@ -85,6 +101,7 @@ it types can't be typed.
 | `activate` | Activate what the center of the player's view points at, like E |
 | `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
+| `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

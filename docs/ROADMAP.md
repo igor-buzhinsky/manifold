@@ -39,6 +39,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
 | Sound decoding | **stb_vorbis** | In use | OGG Vorbis, decoded when the game or a level starts. SDL3 mixes up to 4 sounds at a time. |
+| Save files | **nlohmann/json** | In use | Saves are plain JSON, see [DECISIONS.md](DECISIONS.md). |
 
 Rejected alternatives:
 
@@ -177,8 +178,13 @@ and tools for inspecting the game. Done:
   collision tests only those in the cells under the player, instead of all of them (about 12k obstacles and 660
   doors in room levels). A move takes about 0.5 µs instead of 58 µs. Ray casts test only the obstacles and doors in
   the cells under the box around the ray, which is small for short rays such as the reach for activating doors.
-- Saving the game in the beginning and when reaching a new level (at most one save, so no way to return to
-  the previous level), loading previously saved game.
+- **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
+  (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
+  returned to. L or the `load` command starts the saved level again from its start. A save holds the level seed, the
+  level number, the game time and a layout given with `--layout`; the level is generated again from them. Runs with
+  `--exec` don't save, so test runs keep the player's save.
+- When the game starts and there is a save, ask whether to continue it or to start a new game, which replaces the
+  save. Now every start begins a new game.
 - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
   keyboard shortcut (e.g., Shift+Esc).
 - Audio: footsteps (2+ versions depending on level texture), entering portals, opening and closing doors. Done for

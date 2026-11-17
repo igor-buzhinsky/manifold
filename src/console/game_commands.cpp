@@ -72,8 +72,8 @@ int parse_screenshot_size(const std::string& text) {
     return size;
 }
 
-/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, next_level
-/// and noclip.
+/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, walk, next_level,
+/// load and noclip.
 void add_player_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     console.add(
         "level_info", "level_info", "Describes the level, depending on its layout, its ambient light, and the player.",
@@ -149,6 +149,15 @@ void add_player_commands(Console& console, CommandQueue& queue, Game& game, Cons
                     }
                     // The main loop sets up the new level, such as its ambient light, after the commands of this
                     // frame, so the next commands wait for it.
+                    queue.wait(1);
+                });
+
+    console.add("load", "load", "Loads the saved game, as the L key does: the saved level starts again.",
+                [&queue, &state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "load");
+                    state.load = true;
+                    state.load_stops_on_error = queue.running_stops_on_error();
+                    // The main loop loads at the start of the next frame, before the next commands run.
                     queue.wait(1);
                 });
 

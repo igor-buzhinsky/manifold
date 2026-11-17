@@ -13,6 +13,7 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
@@ -113,6 +114,20 @@ public:
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void next_level();
 
+    /// Starts the saved level again from its start, as next_level() starts a level.
+    ///
+    /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
+    /// the game time become the saved ones. Noclip stays as it is.
+    ///
+    /// \throws std::runtime_error if the level can't be generated. The current level then stays.
+    void load(const SavedGame& save);
+
+    /// What a save of this level holds, to start it again with load(): the level as it was at its start.
+    ///
+    /// A level that was not generated, but given to the constructor, is saved with its seed, so loading it gives the
+    /// level generated from that seed instead.
+    SavedGame save_point() const;
+
     /// Activates what the center of the player's view points at, within kActivationReach of the eyes.
     ///
     /// Aiming at a door that is not passable opens it, and aiming at a frame of a door opens or closes it, see
@@ -165,6 +180,9 @@ public:
     std::uint64_t seed() const { return seed_; }
     /// How many levels came before this one: 0 in the first level.
     int level_number() const { return level_number_; }
+    /// How many times a level was started after the first one, by next_level() or load(), e.g. to tell when to make a
+    /// new renderer. Unlike level_number(), it changes when a game is loaded at the same level.
+    int level_starts() const { return level_starts_; }
     /// Seconds of game time since the start: the sum of the durations passed to update().
     double time() const { return time_; }
     /// Game time for animations, such as the flicker of torches: time() wrapped into [0, kAnimationPeriod).
@@ -193,6 +211,14 @@ private:
     /// \param blockers Obstacles that are not part of the world, see door_blockers().
     void move_player(const PlayerInput& input, float dt, std::span<const Obstacle> blockers);
 
+    /// Puts the player at the start of a new level, which replaces the current one, see next_level().
+    ///
+    /// \param level        The new level.
+    /// \param seed         The seed it was generated from.
+    /// \param level_number How many levels came before it.
+    /// \param layout       The layout it was generated with, if it was given rather than chosen from the seed.
+    void start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout);
+
     /// Counts the footsteps of a frame, see take_footsteps(), after the player moved and on_ground() was updated.
     ///
     /// \param walked        How far the player moved horizontally in the frame, in metres.
@@ -213,8 +239,11 @@ private:
     bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
     bool activate_held_ = false;  ///< Whether input.activate was true in the previous frame.
     double time_ = 0.0;
+    double level_start_time_ = 0.0;  ///< The game time when the level started.
     std::uint64_t seed_;
+    std::optional<LayoutKind> given_layout_;  ///< The layout of the level, if it was given, see SavedGame::layout.
     int level_number_ = 0;
+    int level_starts_ = 0;  ///< See level_starts().
     Level level_;
     Player player_;
     std::vector<DoorState> doors_;      ///< The state of each door of the level.

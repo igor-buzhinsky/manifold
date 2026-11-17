@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <optional>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -16,6 +17,7 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/world.hpp"
 
@@ -472,6 +474,52 @@ TEST(GameTest, NextLevelChoosesLayoutAtRandomAndFollowsSeeds) {
         EXPECT_FLOAT_EQ(door.openness, 0.0f);
         EXPECT_FALSE(door.moving());
     }
+}
+
+TEST(GameTest, SavePointIsTheStartOfTheLevel) {
+    Game game(make_config(), 3, LayoutKind::kDebug);
+    game.update({.forward = 1.0f}, 0.5f);
+    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 3, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0}));
+    game.next_level();
+    game.update({.forward = 1.0f}, 0.25f);
+    // Only the first level has the given layout.
+    EXPECT_EQ(game.save_point(),
+              (SavedGame{.seed = next_level_seed(3), .level_number = 1, .layout = std::nullopt, .time = 0.5}));
+}
+
+TEST(GameTest, LoadStartsTheSavedLevelAgain) {
+    Game original(make_config(), 3, LayoutKind::kDebug);
+    original.update({}, 0.5f);
+    original.next_level();
+    const SavedGame save = original.save_point();
+
+    Game game(make_config(), 11, LayoutKind::kDebug);
+    game.set_noclip(true);
+    game.update({.forward = 1.0f}, 2.0f);
+    const int starts = game.level_starts();
+    game.load(save);
+    EXPECT_EQ(game.level_starts(), starts + 1);
+    EXPECT_EQ(game.seed(), original.seed());
+    EXPECT_EQ(game.level_number(), 1);
+    EXPECT_EQ(game.level().layout, LayoutKind::kRooms);
+    EXPECT_EQ(game.level().info, original.level().info);
+    EXPECT_EQ(game.player().position(), game.level().player_start);
+    EXPECT_FLOAT_EQ(game.player().yaw(), game.level().player_yaw);
+    EXPECT_DOUBLE_EQ(game.time(), 0.5);
+    EXPECT_TRUE(game.noclip());
+    EXPECT_EQ(game.doors().size(), game.world().doors().size());
+    EXPECT_EQ(game.save_point(), save);
+}
+
+TEST(GameTest, LoadKeepsTheGivenLayoutOfTheFirstLevel) {
+    const Game original(make_config(), 3, LayoutKind::kDebug);
+    // Without the layout, the seed would choose rooms.
+    Game game(make_config(), 3);
+    ASSERT_EQ(game.level().layout, LayoutKind::kRooms);
+    game.load(original.save_point());
+    EXPECT_EQ(game.level().layout, LayoutKind::kDebug);
+    EXPECT_EQ(game.level().info, original.level().info);
+    EXPECT_EQ(game.save_point(), original.save_point());
 }
 
 /// Walks forward for `seconds`, in frames of 0.1 s.

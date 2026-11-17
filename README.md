@@ -91,4 +91,4 @@ taken and how they were processed. A pack whose files are in several groups, suc
 
 The source code of Manifold is licensed under the [Mozilla Public License 2.0](LICENSE). Third-party files keep
 their own licenses: the assets in `assets/` (see Credits above), the generated OpenGL loader in `external/glad/`,
-and the libraries that CMake downloads (glm, SDL3, stb, Dear ImGui and googletest).
+and the libraries that CMake downloads (glm, SDL3, stb, Dear ImGui, nlohmann/json and googletest).
