@@ -46,11 +46,11 @@ the save: the saved level starts again from its start. Starting the game always 
 the save.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
-`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time, and
+`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, and
 the layout if it was given with `--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
 
-The game isn't saved while it runs commands given with `--exec` or `--screenshot` (see Console below), so that
+A run with `--exec` or `--screenshot` (see Console below) never saves, not even the levels reached after its commands, so that
 test runs don't replace the player's save. They can still load it.
 
 ## Console
@@ -101,7 +101,7 @@ it types can't be typed.
 | `activate` | Activate what the center of the player's view points at, like E |
 | `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
-| `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read |
+| `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

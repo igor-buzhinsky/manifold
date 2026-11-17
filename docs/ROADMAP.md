@@ -181,7 +181,7 @@ and tools for inspecting the game. Done:
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
   returned to. L or the `load` command starts the saved level again from its start. A save holds the level seed, the
-  level number, the game time and a layout given with `--layout`; the level is generated again from them. Runs with
+  level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with
   `--exec` don't save, so test runs keep the player's save.
 - When the game starts and there is a save, ask whether to continue it or to start a new game, which replaces the
   save. Now every start begins a new game.

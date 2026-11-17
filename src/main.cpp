@@ -333,8 +333,8 @@ bool load_game(manifold::Game& game, const std::optional<std::filesystem::path>&
     }
 }
 
-/// What belongs to the game's current level outside the game: its renderer and the sound of its exit. Each level that
-/// starts is saved, and the saved game can be loaded.
+/// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
+/// each level that starts is saved. The saved game can be loaded either way.
 class LevelSession {
 public:
     /// Sets up the game's current level.
@@ -347,7 +347,8 @@ public:
                  bool saving)
         : save_path_(std::move(save_path)), saving_(saving) {
         if (save_path_ && !saving_) {
-            manifold::log_info("The game isn't saved while it runs console commands from the command line");
+            manifold::log_info(
+                "The game isn't saved in this run, since it runs console commands from the command line");
         }
         set_up(game, view);
     }
@@ -364,7 +365,8 @@ public:
         set_up(game, view);
     }
 
-    /// Loads the saved game into `game` and sets up its level. A failure is logged, and the level stays.
+    /// Loads the saved game into `game` and sets up its level. Unless `stop_on_error` is set, a failure is only logged,
+    /// and the level stays.
     ///
     /// \throws std::runtime_error if loading fails and `stop_on_error` is set.
     void load(manifold::Game& game, manifold::ViewSettings& view, bool stop_on_error) {
@@ -633,7 +635,8 @@ struct LogListenerReset {
 /// Runs the game until the player quits or a console command does.
 ///
 /// \throws manifold::CommandError if one of the commands of `options` fails.
-/// \throws std::runtime_error if a level can't be generated, also the next one when the player reaches the exit.
+/// \throws std::runtime_error if a level can't be generated, also the next one when the player reaches the exit, or if
+///         a `load` among the commands of `options` fails.
 void run(const Options& options) {
     // The console window shows the log, from the start.
     manifold::ConsoleWindow console_window;

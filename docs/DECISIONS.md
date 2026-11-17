@@ -385,7 +385,7 @@ Status: **ACCEPTED**. Done in v0.3.
 
 Decision: a save is a small JSON file, `save.json`, written with nlohmann/json to the directory that
 `SDL_GetPrefPath()` gives: `$XDG_DATA_HOME/manifold/` on Linux, by default `~/.local/share/manifold/`. It holds only
-what is needed to generate the saved level again (seed, level number, game time, a layout given on the command line)
+what is needed to generate the saved level again (seed, level number, game time at the level's start, a layout given on the command line)
 and a format version.
 
 Gains:
