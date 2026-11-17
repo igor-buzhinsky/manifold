@@ -178,26 +178,24 @@ and tools for inspecting the game. Done:
   collision tests only those in the cells under the player, instead of all of them (about 12k obstacles and 660
   doors in room levels). A move takes about 0.5 µs instead of 58 µs. Ray casts test only the obstacles and doors in
   the cells under the box around the ray, which is small for short rays such as the reach for activating doors.
+- **Audio: footsteps, entering portals, doors**. Portals: each level picks its exit sound among the OGG files in
+  `assets/sounds/portal/` from the level seed, and plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Doors: level generation gives each door a random open and close sound, from `assets/sounds/door_open/`
+  and `assets/sounds/door_close/`, played when the door starts to move. Footsteps: the directory of the level's texture (grass, wood, metal or stone) gives the level's texture kind, and walking plays a random footstep of that kind every
+  metre.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
   returned to. L or the `load` command starts the saved level again from its start. A save holds the level seed, the
-  level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with
-  `--exec` don't save, so test runs keep the player's save.
-- When the game starts and there is a save, ask whether to continue it or to start a new game, which replaces the
-  save. Now every start begins a new game.
-- Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
-  keyboard shortcut (e.g., Shift+Esc).
-- Audio: footsteps (2+ versions depending on level texture), entering portals, opening and closing doors. Done for
-  portals: each level picks its exit sound among the OGG files in `assets/sounds/portal/` from the level seed, and
-  plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Done for doors: level generation
-  gives each door a random open and close sound, from `assets/sounds/door_open/` and `assets/sounds/door_close/`,
-  played when the door starts to move. Done for footsteps: the directory of the level's texture (grass, wood, metal or
-  stone) gives the level's texture kind, and walking plays a random footstep of that kind every metre.
-- **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
-  stamina, sanity. The party has shared mana.
-- **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
-  but with collision.
-- The party's light becomes a spell that can be toggled, with an intensity or radius.
+  level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
+- TODO
+  - When the game starts and there is a save, ask whether to continue it or to start a new game, which replaces the
+    save. Now every start begins a new game.
+  - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
+    keyboard shortcut (e.g., Shift+Esc).
+  - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
+    stamina, sanity. The party has shared mana.
+  - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
+    but with collision.
+  - The party's light becomes a spell that can be toggled, with an intensity or radius.
 
 ## v0.4 - Water, rudimentary monsters and inventory
 
