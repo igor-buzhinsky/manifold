@@ -1,8 +1,10 @@
 #include "audio/sound_set.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <string_view>
 #include <utility>
 
 #include "audio/sound.hpp"
@@ -11,7 +13,7 @@
 
 namespace manifold {
 
-SoundSet::SoundSet(const std::filesystem::path& root, const char* name) {
+SoundSet::SoundSet(const std::filesystem::path& root, std::string_view name) {
     for (const std::filesystem::path& path : find_asset_files(root, ".ogg")) {
         std::optional<Sound> sound = load_sound(path);
         if (sound) {
@@ -30,6 +32,16 @@ const Sound* SoundSet::get(std::uint32_t number) const {
         return nullptr;
     }
     return &sounds_[number % sounds_.size()];
+}
+
+std::uint32_t SoundSet::pick_other(std::uint32_t previous, std::uint64_t random) const {
+    const std::size_t count = sounds_.size();
+    if (count <= 1) {
+        return 0;
+    }
+    // One of the count - 1 others: counting on from `previous`, skipping it.
+    const std::size_t skip = 1 + (random % (count - 1));
+    return static_cast<std::uint32_t>(((previous % count) + skip) % count);
 }
 
 }  // namespace manifold

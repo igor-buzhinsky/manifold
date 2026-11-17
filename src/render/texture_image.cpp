@@ -16,6 +16,7 @@
 #include <glm/vec3.hpp>
 #include <stb_image.h>
 
+#include "level/level.hpp"
 #include "util/asset_files.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"
@@ -46,6 +47,22 @@ std::optional<Image> load_image(const std::filesystem::path& path) {
 
 std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root) {
     return find_asset_files(root, ".png");
+}
+
+std::vector<TextureFile> find_level_textures(const std::filesystem::path& root) {
+    std::vector<TextureFile> files;
+    for (const TextureKind kind : kTextureKinds) {
+        const std::filesystem::path directory = root / texture_kind_name(kind);
+        const std::vector<std::filesystem::path> paths = find_textures(directory);
+        if (paths.empty()) {
+            log_warning("No {} textures found in {}", texture_kind_name(kind), directory.string());
+        }
+        for (const std::filesystem::path& path : paths) {
+            files.push_back({.path = path, .kind = kind});
+        }
+    }
+    std::ranges::sort(files, {}, &TextureFile::path);
+    return files;
 }
 
 std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed) {

@@ -28,7 +28,9 @@ public:
     /// already, the one with the least time left stops.
     ///
     /// Returns at once: the sound plays in the background. Its samples are copied, so `sound` may be destroyed.
-    void play(const Sound& sound);
+    ///
+    /// \param gain How loud to play it: 1 as it is, 0.5 at half the amplitude.
+    void play(const Sound& sound, float gain = 1.0f);
 
 private:
     /// The opened device, or 0 without audio output.

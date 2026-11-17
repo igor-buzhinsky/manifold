@@ -185,7 +185,8 @@ and tools for inspecting the game. Done:
   portals: each level picks its exit sound among the OGG files in `assets/sounds/portal/` from the level seed, and
   plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Done for doors: level generation
   gives each door a random open and close sound, from `assets/sounds/door_open/` and `assets/sounds/door_close/`,
-  played when the door starts to move.
+  played when the door starts to move. Done for footsteps: the directory of the level's texture (grass, wood, metal or
+  stone) gives the level's texture kind, and walking plays a random footstep of that kind every metre.
 - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
   stamina, sanity. The party has shared mana.
 - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now

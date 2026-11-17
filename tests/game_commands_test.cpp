@@ -116,6 +116,16 @@ TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }
 
+TEST(GameCommandsTest, WalkSetsTheFramesToWalk) {
+    Fixture fixture;
+    fixture.run("walk 30");
+    EXPECT_EQ(fixture.state.walk_frames, 30);
+    fixture.run("walk 0");
+    EXPECT_EQ(fixture.state.walk_frames, 0);
+    fixture.expect_error("walk -1");
+    fixture.expect_error("walk");
+}
+
 TEST(GameCommandsTest, CutawaySetsAndClearsTheHeight) {
     Fixture fixture;
     EXPECT_FALSE(fixture.state.view.cutaway.has_value());

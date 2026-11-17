@@ -1,7 +1,8 @@
 # Textures
 
-The game picks the texture of a level at random among all PNG files here, at any depth, see `find_textures()`. The
-files are grouped by what the surface is, so that things that depend on it, such as the sound of footsteps, can tell:
+The game picks the texture of a level at random among the PNG files in the four directories below, at any depth, see
+`find_level_textures()`; files elsewhere are not used. The directory of the texture tells what the level's surfaces are
+made of (`TextureKind`), which picks the sound of footsteps from `assets/sounds/footsteps/`:
 
 - `grass/`: grass.
 - `wood/`: wooden planks and boards.

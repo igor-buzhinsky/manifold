@@ -8,6 +8,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "level/level.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -36,6 +37,20 @@ std::optional<Image> load_image(const std::filesystem::path& path);
 
 /// Finds all PNG files under `root`, at any depth, see find_asset_files().
 std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root);
+
+/// A texture file for levels, with the kind of surface it shows.
+struct TextureFile {
+    std::filesystem::path path;
+    TextureKind kind = TextureKind::kStone;  ///< The kind whose directory the file is in.
+};
+
+/// Finds the textures for levels: the PNG files in the directory of each texture kind under `root`, such as
+/// `root/grass`, at any depth, see find_textures(). Files elsewhere under `root` are not used.
+///
+/// A warning is logged for each kind that has no textures.
+///
+/// \return The files, sorted by path like find_textures(), so the same files always give the same order.
+std::vector<TextureFile> find_level_textures(const std::filesystem::path& root);
 
 /// Picks a random texture among `candidates` and loads it.
 ///

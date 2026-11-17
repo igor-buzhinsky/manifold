@@ -71,7 +71,7 @@ AudioOutput::~AudioOutput() {
     SDL_QuitSubSystem(SDL_INIT_AUDIO);
 }
 
-void AudioOutput::play(const Sound& sound) {
+void AudioOutput::play(const Sound& sound, float gain) {
     if (device_ == 0 || sound.samples.empty()) {
         return;
     }
@@ -91,6 +91,7 @@ void AudioOutput::play(const Sound& sound) {
     const SDL_AudioSpec spec = sound_spec(sound);
     const std::size_t bytes = sound.samples.size() * sizeof(std::int16_t);
     if (!SDL_ClearAudioStream(voice) || !SDL_SetAudioStreamFormat(voice, &spec, nullptr) ||
+        !SDL_SetAudioStreamGain(voice, gain) ||
         !SDL_PutAudioStreamData(voice, sound.samples.data(), static_cast<int>(bytes))) {
         log_warning("Can't play a sound: {}", SDL_GetError());
     }

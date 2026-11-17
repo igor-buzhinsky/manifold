@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <array>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
@@ -123,21 +124,41 @@ std::uint64_t random_seed() {
 /// Directory searched for level textures, set by CMake to `assets/textures` in the source tree.
 constexpr const char* kTexturesDir = MANIFOLD_TEXTURES_DIR;
 
-/// Picks the texture of the level's surfaces at random, see manifold::pick_texture().
+/// The texture of a level and what it shows.
+struct LevelTexture {
+    manifold::Image image;
+    manifold::TextureKind kind = manifold::TextureKind::kStone;
+};
+
+/// Picks the texture of the level's surfaces at random among those of all texture kinds, see
+/// manifold::find_level_textures() and manifold::pick_texture().
 ///
 /// The choice depends only on the level seed, so a seed always gives the same look. If no texture can be
-/// used, a plain grey one is used instead.
-manifold::Image pick_level_texture(std::uint64_t level_seed) {
+/// used, a plain grey one is used instead, as stone.
+LevelTexture pick_level_texture(std::uint64_t level_seed) {
     // Mixing the seed keeps the choice independent of the random numbers used by level generation.
     constexpr std::uint64_t kTextureSeedSalt = 0x9e3779b97f4a7c15ULL;
-    const std::vector<std::filesystem::path> candidates = manifold::find_textures(kTexturesDir);
+    const std::vector<manifold::TextureFile> files = manifold::find_level_textures(kTexturesDir);
+    std::vector<std::filesystem::path> candidates;
+    candidates.reserve(files.size());
+    for (const manifold::TextureFile& file : files) {
+        candidates.push_back(file.path);
+    }
     std::optional<manifold::PickedTexture> picked = manifold::pick_texture(candidates, level_seed ^ kTextureSeedSalt);
     if (!picked) {
-        manifold::log_warning("No usable texture found among {} PNG files in {}, using plain grey", candidates.size(),
-                              kTexturesDir);
-        return manifold::fallback_texture();
+        manifold::log_warning("No usable texture found among {} PNG files in {}, using plain grey as stone",
+                              candidates.size(), kTexturesDir);
+        return {.image = manifold::fallback_texture(), .kind = manifold::TextureKind::kStone};
     }
-    return std::move(picked->image);
+    LevelTexture texture{.image = std::move(picked->image), .kind = manifold::TextureKind::kStone};
+    const std::filesystem::path path = std::move(picked->path);
+    for (const manifold::TextureFile& file : files) {
+        if (file.path == path) {
+            texture.kind = file.kind;
+        }
+    }
+    manifold::log_info("Texture kind: {}", manifold::texture_kind_name(texture.kind));
+    return texture;
 }
 
 /// Directory searched for the sounds of the level exit portal, `assets/sounds/portal` in the source tree.
@@ -165,6 +186,42 @@ void play_door_sounds(manifold::Game& game, const DoorSoundSets& sets, manifold:
     }
 }
 
+/// Directory of the footstep sounds, with a directory for each texture kind, e.g. `footsteps/grass`.
+constexpr const char* kFootstepSoundsDir = MANIFOLD_SOUNDS_DIR "/footsteps";
+/// How loud footsteps are played, relative to the files: they are scaled to the same peak as the other sounds, but
+/// come often and from close by.
+constexpr float kFootstepGain = 0.5f;
+
+/// The footstep sounds of each texture kind, loaded once for all levels, and which was played last.
+class FootstepSounds {
+public:
+    FootstepSounds() : random_(random_seed()) {
+        for (const manifold::TextureKind kind : manifold::kTextureKinds) {
+            const std::string name = manifold::texture_kind_name(kind);
+            sets_.at(static_cast<std::size_t>(kind)) =
+                manifold::SoundSet(std::filesystem::path(kFootstepSoundsDir) / name, name + " footstep");
+        }
+    }
+
+    /// Plays the footsteps that the player made since the last call, see manifold::Game::take_footsteps(), with the
+    /// sounds of the level's texture kind. Two steps in a row sound different, if the kind has more than one sound.
+    void play(manifold::Game& game, manifold::AudioOutput& audio) {
+        const int steps = game.take_footsteps();
+        const manifold::SoundSet& set = sets_.at(static_cast<std::size_t>(game.level().texture_kind));
+        for (int step = 0; step < steps; ++step) {
+            previous_ = set.pick_other(previous_, random_());
+            if (const manifold::Sound* sound = set.get(previous_)) {
+                audio.play(*sound, kFootstepGain);
+            }
+        }
+    }
+
+private:
+    std::array<manifold::SoundSet, manifold::kTextureKinds.size()> sets_;
+    std::uint32_t previous_ = 0;  ///< The number of the footstep played last, see manifold::SoundSet::get().
+    std::mt19937_64 random_;      ///< Picks the footsteps. Unlike the level, it doesn't depend on the seed.
+};
+
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
 /// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file(), and loads it.
 ///
@@ -187,15 +244,17 @@ std::optional<manifold::Sound> pick_exit_sound(std::uint64_t level_seed) {
     return sound;
 }
 
-/// Makes the renderer of the game's current level, and sets the level's ambient light in `view`.
+/// Makes the renderer of the game's current level, sets the level's ambient light in `view`, and sets the level's
+/// texture kind in `game`.
 ///
 /// \return The sound of the level's exit, see pick_exit_sound().
-std::optional<manifold::Sound> start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game,
+std::optional<manifold::Sound> start_level(std::optional<manifold::Renderer>& renderer, manifold::Game& game,
                                            manifold::ViewSettings& view) {
-    const manifold::Image texture = pick_level_texture(game.seed());
-    view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture));
+    const LevelTexture texture = pick_level_texture(game.seed());
+    game.set_texture_kind(texture.kind);
+    view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture.image));
     view.lights.ambient = view.level_ambient;
-    renderer.emplace(game.world(), texture);
+    renderer.emplace(game.world(), texture.image);
     return pick_exit_sound(game.seed());
 }
 
@@ -461,6 +520,7 @@ void run(const Options& options) {
     std::optional<manifold::Renderer> renderer;
     manifold::AudioOutput audio;
     const DoorSoundSets door_sounds;
+    FootstepSounds footsteps;
     std::optional<manifold::Sound> exit_sound = start_level(renderer, game, state.view);
     int rendered_level = game.level_number();
     const manifold::OverlayRenderer overlay_renderer;
@@ -488,7 +548,12 @@ void run(const Options& options) {
         // While the console window is open, or the debug overlay has the keyboard, the keys type into them
         // instead of moving the player.
         const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
-        game.update(keys_taken ? manifold::PlayerInput{} : read_input(), std::min(frame_time, kMaxFrameTime));
+        manifold::PlayerInput input = keys_taken ? manifold::PlayerInput{} : read_input();
+        if (state.walk_frames > 0) {
+            input.forward = 1.0f;
+            --state.walk_frames;
+        }
+        game.update(input, std::min(frame_time, kMaxFrameTime));
         // The player reached the exit, or a console command started the next level as if they had.
         if (game.level_number() != rendered_level) {
             if (exit_sound) {
@@ -499,6 +564,7 @@ void run(const Options& options) {
             rendered_level = game.level_number();
         }
         play_door_sounds(game, door_sounds, audio);
+        footsteps.play(game, audio);
 
         const manifold::PixelSize window_size = window.framebuffer_size();
         draw_game(*renderer, overlay_renderer, game, state.view, window_size);

@@ -5,6 +5,7 @@
 #include <numbers>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
@@ -126,6 +127,17 @@ public:
     /// \throws std::out_of_range if there is no such door.
     bool set_door_open(std::size_t index, bool open);
 
+    /// Sets what the surfaces of the level are made of, see Level::texture_kind. The next level is stone until this
+    /// is called again.
+    void set_texture_kind(TextureKind kind) { level_.texture_kind = kind; }
+
+    /// How many footsteps the player made since the last call, e.g. to play their sounds. Resets the count.
+    ///
+    /// Without noclip, a player on the ground makes a step every kStepLength walked, the first one kStepLength / 4
+    /// after starting to walk from standing. Landing at more than kLandingSpeed, e.g. after a jump, is a step too.
+    /// The count starts again from 0 in each level and after teleport().
+    int take_footsteps() { return std::exchange(footsteps_, 0); }
+
     /// The doors that started to move since the last call, in the order they started, e.g. to play their sounds.
     /// Clears the list. The moves of a level are dropped when the next level starts.
     std::vector<DoorMove> take_door_moves();
@@ -162,6 +174,13 @@ public:
 
     /// Length of the cycle of animation_time(), in seconds: one hour.
     static constexpr double kAnimationPeriod = 3600.0;
+    /// How far the player walks per footstep, in metres. At move_speed 3 m/s, that is 3 steps per second.
+    static constexpr float kStepLength = 1.0f;
+    /// The slowest vertical speed of landing that makes a footstep, in metres per second. A jump of 0.5 m lands at
+    /// about 3 m/s, and walking down a ramp lands much slower.
+    static constexpr float kLandingSpeed = 2.0f;
+    /// How far the player walks from standing before the first footstep, in metres.
+    static constexpr float kFirstStepLength = kStepLength / 4.0f;
     /// How far from the eyes the player can activate things, in metres.
     static constexpr float kActivationReach = 2.0f;
 
@@ -170,6 +189,12 @@ private:
     ///
     /// \param blockers Obstacles that are not part of the world, see door_blockers().
     void move_player(const PlayerInput& input, float dt, std::span<const Obstacle> blockers);
+
+    /// Counts the footsteps of a frame, see take_footsteps(), after the player moved and on_ground() was updated.
+    ///
+    /// \param walked        How far the player moved horizontally in the frame, in metres.
+    /// \param landing_speed The vertical speed at which the player landed in the frame, positive downwards, or 0.
+    void count_footsteps(float walked, float landing_speed);
 
     /// The blockers of the doors that are not passable, see Door::blocker().
     std::vector<Obstacle> door_blockers() const;
@@ -191,6 +216,9 @@ private:
     Player player_;
     std::vector<DoorState> doors_;      ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;  ///< See take_door_moves().
+    int footsteps_ = 0;                 ///< See take_footsteps().
+    /// How far the player has walked on the ground since the last footstep, in metres.
+    float step_distance_ = kStepLength - kFirstStepLength;
 };
 
 }  // namespace manifold

@@ -1,5 +1,6 @@
 #include "game.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -54,6 +55,8 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     player_.set_position(position);
     player_.set_vertical_speed(0.0f);
     player_.set_on_ground(false);
+    footsteps_ = 0;
+    step_distance_ = kStepLength - kFirstStepLength;
     if (yaw) {
         player_.rotate(*yaw - player_.yaw(), 0.0f);
     }
@@ -68,6 +71,8 @@ void Game::next_level() {
     player_ = Player(at_start(player_params_, level_));
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();
+    footsteps_ = 0;
+    step_distance_ = kStepLength - kFirstStepLength;
 }
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
@@ -163,6 +168,8 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     // Speed changes before the position (semi-implicit Euler), which keeps falls stable.
     const float vertical_speed = start_speed - (level_.gravity * dt);
     displacement.z = vertical_speed * dt;
+    const glm::vec3 start = player_.position();
+    const bool was_on_ground = player_.on_ground();
     const SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
     player_.set_position(result.position);
     bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
@@ -182,6 +189,28 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     const bool bumped = vertical_speed > 0.0f && result.correction.z < 0.0f;
     player_.set_vertical_speed(landed || bumped ? 0.0f : vertical_speed);
     player_.set_on_ground(landed);
+    count_footsteps(glm::length(glm::vec2(player_.position() - start)),
+                    landed && !was_on_ground ? -vertical_speed : 0.0f);
+}
+
+void Game::count_footsteps(float walked, float landing_speed) {
+    if (landing_speed > kLandingSpeed) {
+        ++footsteps_;
+        step_distance_ = 0.0f;
+    }
+    if (!player_.on_ground()) {
+        return;
+    }
+    if (walked <= 0.0f) {
+        // Standing still: the next step comes soon after starting to walk again.
+        step_distance_ = std::max(step_distance_, kStepLength - kFirstStepLength);
+        return;
+    }
+    step_distance_ += walked;
+    while (step_distance_ >= kStepLength) {
+        ++footsteps_;
+        step_distance_ -= kStepLength;
+    }
 }
 
 }  // namespace manifold

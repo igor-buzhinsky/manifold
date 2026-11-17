@@ -129,6 +129,16 @@ void add_player_commands(Console& console, CommandQueue& queue, Game& game, Cons
                     game.teleport(position, yaw);
                 });
 
+    console.add("walk", "walk FRAMES", "Walks the player forward for this many frames, as holding W does.",
+                [&state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, "walk FRAMES");
+                    const int frames = parse_int_argument(arguments[0]);
+                    if (frames < 0) {
+                        throw CommandError("frames must not be negative: " + arguments[0]);
+                    }
+                    state.walk_frames = frames;
+                });
+
     console.add("next_level", "next_level", "Starts the next level, as if the player reached the exit.",
                 [&game, &queue](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "next_level");

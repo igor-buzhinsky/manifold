@@ -1,7 +1,9 @@
 #include "audio/sound_set.hpp"
 
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -39,6 +41,20 @@ TEST(SoundSetTest, SkipsBrokenFilesAndIsEmptyWithoutSounds) {
     EXPECT_EQ(missing.size(), 0U);
     EXPECT_NE(log.find("[warning] No test sounds found"), std::string::npos) << log;
     std::filesystem::remove_all(dir);
+}
+
+TEST(SoundSetTest, PickOtherNeverRepeatsAndReachesAllOthers) {
+    const SoundSet set(std::filesystem::path(MANIFOLD_SOUNDS_DIR) / "door_close", "door close");
+    ASSERT_EQ(set.size(), 4U);
+    std::set<std::uint32_t> picked;
+    for (std::uint64_t random = 0; random < 30; ++random) {
+        const std::uint32_t number = set.pick_other(2, random);
+        EXPECT_LT(number, 4U);
+        EXPECT_NE(number, 2U);
+        picked.insert(number);
+    }
+    EXPECT_EQ(picked, (std::set<std::uint32_t>{0, 1, 3}));
+    EXPECT_EQ(SoundSet().pick_other(5, 7), 0U);
 }
 
 TEST(SoundSetTest, DefaultIsEmpty) { EXPECT_EQ(SoundSet().get(7), nullptr); }

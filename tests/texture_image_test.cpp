@@ -13,6 +13,7 @@
 #include <gtest/gtest.h>
 #include <stb_image_write.h>
 
+#include "level/level.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -77,6 +78,27 @@ TEST_F(TextureImageTest, FindsPngFilesInSubdirectoriesSorted) {
     const auto c = write_png("pack2/c.png", 1, 1);
     write_broken("pack2/readme.md");
     EXPECT_EQ(find_textures(dir()), (std::vector<std::filesystem::path>{a, b, c}));
+}
+
+TEST_F(TextureImageTest, FindsLevelTexturesOnlyInKindDirectoriesWithTheirKinds) {
+    const auto grass = write_png("grass/pack/a.png", 1, 1);
+    const auto metal = write_png("metal/b.png", 1, 1);
+    const auto stone = write_png("stone/pack/nested/c.png", 1, 1);
+    write_png("other/d.png", 1, 1);
+    write_png("e.png", 1, 1);
+    testing::internal::CaptureStderr();
+    const std::vector<TextureFile> files = find_level_textures(dir());
+    const std::string log = testing::internal::GetCapturedStderr();
+    ASSERT_EQ(files.size(), 3U);
+    EXPECT_EQ(files[0].path, grass);
+    EXPECT_EQ(files[0].kind, TextureKind::kGrass);
+    EXPECT_EQ(files[1].path, metal);
+    EXPECT_EQ(files[1].kind, TextureKind::kMetal);
+    EXPECT_EQ(files[2].path, stone);
+    EXPECT_EQ(files[2].kind, TextureKind::kStone);
+    // Wood has none.
+    EXPECT_NE(log.find("[warning] No wood textures found"), std::string::npos) << log;
+    EXPECT_EQ(log.find("No grass textures"), std::string::npos) << log;
 }
 
 TEST_F(TextureImageTest, MissingDirectoryGivesNoTextures) { EXPECT_TRUE(find_textures(dir() / "missing").empty()); }

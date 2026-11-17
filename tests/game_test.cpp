@@ -205,6 +205,55 @@ TEST(GameTest, FallsByGravityAndLands) {
     EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
 }
 
+/// Advances `game` by `seconds` in frames of 10 ms with the same input.
+void run(Game& game, const PlayerInput& input, float seconds) {
+    for (int frame = 0; frame < static_cast<int>(std::lround(seconds / 0.01f)); ++frame) {
+        game.update(input, 0.01f);
+    }
+}
+
+TEST(GameTest, WalkingMakesAFootstepPerStepLengthTheFirstSoon) {
+    Game game(make_config(), 1, LayoutKind::kDebug);  // Walks at 2 m/s.
+    run(game, {}, 0.1f);                              // Find the ground: no footstep.
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f}, 0.1f);  // 0.2 m.
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f}, 0.05f);  // 0.3 m: the first step at Game::kFirstStepLength.
+    EXPECT_EQ(game.take_footsteps(), 1);
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f}, 1.0f);  // 2.3 m: steps at 1.25 and 2.25 m.
+    EXPECT_EQ(game.take_footsteps(), 2);
+    run(game, {}, 1.0f);  // Standing makes no steps.
+    EXPECT_EQ(game.take_footsteps(), 0);
+}
+
+TEST(GameTest, NoclipAndFallingMakeNoFootstepsButLandingFromAJumpDoes) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    run(game, {}, 0.1f);
+    game.set_noclip(true);
+    run(game, {.forward = 1.0f}, 2.0f);
+    EXPECT_EQ(game.take_footsteps(), 0);
+    game.set_noclip(false);
+    run(game, {}, 0.5f);  // Fell from where noclip left the player: lands on the floor.
+    game.take_footsteps();
+    game.update({.rise = 1.0f}, 0.01f);  // A jump of 0.5 m, in the air for about 0.64 s.
+    run(game, {}, 0.3f);
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {}, 0.7f);
+    EXPECT_EQ(game.take_footsteps(), 1);
+}
+
+TEST(GameTest, FootstepsAndTextureKindStartAgainInTheNextLevel) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_EQ(game.level().texture_kind, TextureKind::kStone);
+    game.set_texture_kind(TextureKind::kGrass);
+    EXPECT_EQ(game.level().texture_kind, TextureKind::kGrass);
+    run(game, {.forward = 1.0f}, 0.5f);
+    game.next_level();
+    EXPECT_EQ(game.take_footsteps(), 0);
+    EXPECT_EQ(game.level().texture_kind, TextureKind::kStone);
+}
+
 TEST(GameTest, StandingOnFloorKeepsVerticalSpeedZero) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     for (int i = 0; i < 10; ++i) {

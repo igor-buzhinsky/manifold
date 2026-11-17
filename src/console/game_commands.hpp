@@ -53,6 +53,9 @@ struct ConsoleState {
     std::vector<ScreenshotRequest> screenshots;  ///< To take after this frame is drawn, in order.
     bool quit = false;                           ///< Whether to quit after this frame.
     bool debug_overlay = false;                  ///< Whether the debug overlay is shown.
+    /// For how many more frames the player walks forward as if W were held, see the `walk` command. The main loop
+    /// counts it down.
+    int walk_frames = 0;
 };
 
 /// Largest width and height of a screenshot, in pixels.
