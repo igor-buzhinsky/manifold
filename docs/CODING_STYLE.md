@@ -100,6 +100,8 @@ poetry run pyrefly check  # check types
 - Every module and function has a docstring in reStructuredText. The first line is the summary, further details
   go into new paragraphs. Parameters, return values and exceptions are documented with `:param name:`,
   `:returns:` and `:raises Type:` fields, following the same rules as for C++ above: `:param:` only when it adds
-  something, and `:raises:` whenever a function can raise, including `SystemExit` from `sys.exit`.
-- The module docstring describes the script and how to run it. It is shown by `--help`, so it stays readable as
-  plain text: use `Usage::` with an indented example for literal blocks.
+  something, and `:raises:` for the failures a caller can expect, including `SystemExit` from `sys.exit` and
+  argparse. Failures of the environment, such as a missing `ffmpeg` or `git`, need not be listed.
+- The module docstring describes the script and how to run it. It, or its first paragraph, is the description
+  shown by `--help`, so keep it readable as plain text: little markup beyond `Usage::` with an indented example
+  for literal blocks.

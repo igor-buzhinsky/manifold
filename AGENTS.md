@@ -30,8 +30,8 @@ asked or when unsure what a change affects.
   changing one, run the Python checks, which must pass:
 
   ```sh
-  cd scripts && poetry install    # once, to install the tools
-  poetry run black . && poetry run ruff check . && poetry run pyrefly check
+  poetry -C scripts install    # once, to install the tools
+  cd scripts && poetry run black . && poetry run ruff check . && poetry run pyrefly check
   ```
 
 - Credit every third-party asset (textures, sounds, models, fonts, ...), even when its license doesn't

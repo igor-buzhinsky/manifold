@@ -14,7 +14,7 @@ On Ubuntu 24.04, everything needed to build and lint the project is installed wi
 sudo apt install build-essential cmake ninja-build git clang-format clang-tidy pkg-config \
     libx11-dev libxext-dev libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
     libxkbcommon-dev libwayland-dev wayland-protocols libdecor-0-dev libegl1-mesa-dev libgl1-mesa-dev \
-    libasound2-dev libpulse-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev
+    libasound2-dev libpulse-dev libpipewire-0.3-dev libdbus-1-dev libudev-dev pipx
 ```
 
 The first line is the toolchain (pkg-config is used by SDL3's build). The rest are system development packages
@@ -65,7 +65,7 @@ scripts/lint_changed.py               # the same, but only for what changed sinc
 ```
 
 The Python scripts in `scripts/` are formatted with black and checked with ruff and pyrefly, installed with
-[Poetry](https://python-poetry.org/) (`pipx install poetry`): run `poetry install` once in `scripts/`, then
+[Poetry](https://python-poetry.org/) 2.0 or newer (`pipx install poetry`): run `poetry install` once in `scripts/`, then
 `poetry run black .`, `poetry run ruff check .` and `poetry run pyrefly check` there.
 
 See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including doc comments.

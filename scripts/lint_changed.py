@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lints only the sources that changed: the same checks as the ``lint`` target, but faster.
+"""Lints only the sources that changed: the same checks as the `lint` target, but faster.
 
 Checks the formatting of the changed sources with clang-format, then runs clang-tidy on the changed .cpp
 files and on every .cpp file that includes a changed header, directly or through other headers.
@@ -177,7 +177,8 @@ def main() -> int:
     """Lints the sources given on the command line, or the changed ones.
 
     :returns: The exit code: 0 if all checks passed, nonzero if clang-format or clang-tidy found an issue.
-    :raises SystemExit: If git fails or the build directory isn't set up, see the other functions.
+    :raises SystemExit: With code 2 if the arguments are wrong, or if git fails or the build directory isn't set
+        up, see the other functions.
     """
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("files", nargs="*", help="files to lint instead of the changed ones")

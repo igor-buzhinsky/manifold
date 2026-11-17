@@ -61,6 +61,7 @@ def main() -> int:
     """Cuts the parts given on the command line and writes them as OGG files.
 
     :returns: The exit code: 0 on success, 1 if a part is too short or silent.
+    :raises SystemExit: With code 2 if the arguments are wrong.
     :raises subprocess.CalledProcessError: If ffmpeg fails.
     """
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
