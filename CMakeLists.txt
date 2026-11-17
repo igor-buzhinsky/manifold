@@ -86,6 +86,11 @@ add_library(glad STATIC external/glad/src/gl.c)
 target_include_directories(glad SYSTEM PUBLIC external/glad/include)
 
 set(MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wpedantic>)
+# CI turns this on. Unlike CMAKE_COMPILE_WARNING_AS_ERROR, it leaves the third-party libraries alone.
+option(MANIFOLD_WARNINGS_AS_ERRORS "Treat compiler warnings in Manifold's own code as errors" OFF)
+if(MANIFOLD_WARNINGS_AS_ERRORS)
+    list(APPEND MANIFOLD_WARNINGS $<$<CXX_COMPILER_ID:GNU,Clang>:-Werror>)
+endif()
 
 # Game logic and everything else that doesn't need a window or OpenGL lives in a library,
 # so that tests can link against it.

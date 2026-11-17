@@ -41,7 +41,8 @@ asked or when unsure what a change affects.
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.
 - When changing key bindings or cheats, update [GAME_MANUAL.md](GAME_MANUAL.md).
-- If a new system package is needed, add it to the install command in [README.md](README.md).
+- If a new system package is needed, add it to the install command in [README.md](README.md) and to
+  `APT_PACKAGES` in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 - To check rendering or levels, run the game with console commands (see the Console section of
   [GAME_MANUAL.md](GAME_MANUAL.md)) and look at the screenshots, e.g.
   `./build/manifold SEED --exec "level_info; arrow on; cutaway HEIGHT; camera X Y 40 90 -90; screenshot FILE.png 800 450; quit"`.

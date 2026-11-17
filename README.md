@@ -1,5 +1,6 @@
 # Manifold
 
+[![CI](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/igor-buzhinsky/manifold)](LICENSE)
 
 A hobby first-person fantasy game about playing as a mage. See [docs/ROADMAP.md](docs/ROADMAP.md).
@@ -51,7 +52,11 @@ Unit tests use GoogleTest, which CMake downloads. Build as above, then:
 ctest --test-dir build --output-on-failure
 ```
 
-Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building the tests.
+Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building the tests, or
+`-DMANIFOLD_WARNINGS_AS_ERRORS=ON` to fail on compiler warnings in Manifold's own code.
+
+[CI](.github/workflows/ci.yml) builds with warnings as errors, runs the tests, and runs the `lint` target and the
+Python checks on each push to `main` and on each pull request.
 
 ## Code style
 
