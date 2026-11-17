@@ -13,11 +13,11 @@ on:
 permissions:
   contents: read
 
-# A new push to a pull request cancels the run that is still going for the previous one. Runs on main are never
-# cancelled, so that each commit there gets a result.
+# A new push to a pull request cancels the run that is still going for the previous one. Every other run has a
+# group of its own, so each commit on main gets a result.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: true
 
 env:
   # Keep in sync with the install command in README.md (pipx is already on the runner).
@@ -45,9 +45,14 @@ jobs:
             cc: clang-18
             cxx: clang++-18
             extra_packages: clang-18
+            # Clang takes the newest GCC's libstdc++ that it finds, and the runner has GCC 14 too. This keeps it on
+            # GCC 13's, which a plain Ubuntu 24.04 has.
+            flags: --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
+      CFLAGS: ${{ matrix.flags }}
+      CXXFLAGS: ${{ matrix.flags }}
     steps:
       - uses: actions/checkout@v7
         with:
