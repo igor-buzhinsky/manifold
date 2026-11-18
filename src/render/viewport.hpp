@@ -1,5 +1,7 @@
 #pragma once
 
+#include <glm/vec2.hpp>
+
 namespace manifold {
 
 /// Size of an image or framebuffer in pixels.
@@ -23,5 +25,16 @@ struct Viewport {
 /// \param framebuffer  Size of the whole framebuffer.
 /// \param aspect_ratio Wanted ratio of width to height.
 Viewport fit_viewport(const PixelSize& framebuffer, float aspect_ratio);
+
+/// Converts a point of the window, e.g. of the mouse, to pixels of the picture in a viewport.
+///
+/// \param point       In window units from the top-left corner of the window, y down, as SDL gives mouse positions.
+/// \param window      Size of the window in window units, which can differ from pixels on high-DPI screens.
+/// \param framebuffer Size of the window's framebuffer in pixels.
+/// \param viewport    Where the picture is in the framebuffer, see fit_viewport().
+/// \return The point in pixels from the top-left corner of the picture, y down, as OverlayMesh uses. It is outside
+///         the picture for points on the black bars. A window of zero size gives the point unscaled.
+glm::vec2 window_to_viewport(const glm::vec2& point, const PixelSize& window, const PixelSize& framebuffer,
+                             const Viewport& viewport);
 
 }  // namespace manifold

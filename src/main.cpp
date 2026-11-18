@@ -22,9 +22,11 @@
 #include <SDL3/SDL_filesystem.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_keycode.h>
+#include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_scancode.h>
 #include <SDL3/SDL_stdinc.h>
 #include <SDL3/SDL_timer.h>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "audio/sound.hpp"
@@ -40,6 +42,7 @@
 #include "platform/terminal_input.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
+#include "render/gl_util.hpp"
 #include "render/lighting.hpp"
 #include "render/marker.hpp"
 #include "render/overlay_renderer.hpp"
@@ -50,8 +53,12 @@
 #include "save/saved_game.hpp"
 #include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
+#include "ui/game_menus.hpp"
 #include "ui/overlay_mesh.hpp"
+#include "ui/screen.hpp"
+#include "ui/screen_stack.hpp"
 #include "ui/text_field.hpp"
+#include "ui/ui_event.hpp"
 #include "util/asset_files.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
@@ -355,6 +362,22 @@ bool load_game(manifold::Game& game, const std::optional<std::filesystem::path>&
     }
 }
 
+/// Whether there is a save at `path` that can be read, e.g. to offer to continue it. A save that can't be read is
+/// logged as a warning.
+bool has_readable_save(const std::optional<std::filesystem::path>& path) {
+    std::error_code error;
+    if (!path || !std::filesystem::exists(*path, error)) {
+        return false;
+    }
+    try {
+        manifold::read_save_file(*path);
+        return true;
+    } catch (const std::runtime_error& read_error) {
+        manifold::log_warning("The saved game can't be read, so a new game starts: {}", read_error.what());
+        return false;
+    }
+}
+
 /// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
 /// each level that starts is saved. The saved game can be loaded either way.
 class LevelSession {
@@ -366,14 +389,16 @@ public:
     /// \param assets    Where the level's texture and exit sound are picked from.
     /// \param save_path Where the game is saved, or nothing if there is no directory for saves.
     /// \param saving    Whether to save each level that starts. If not, the save can still be loaded.
+    /// \param defer     Whether to save the game's level only when save_deferred() is called, e.g. after the player
+    ///                  chose not to continue the save that is there, instead of now.
     LevelSession(manifold::Game& game, manifold::ViewSettings& view, AssetDirs assets,
-                 std::optional<std::filesystem::path> save_path, bool saving)
+                 std::optional<std::filesystem::path> save_path, bool saving, bool defer)
         : assets_(std::move(assets)), save_path_(std::move(save_path)), saving_(saving) {
         if (save_path_ && !saving_) {
             manifold::log_info(
                 "The game isn't saved in this run, since it runs console commands from the command line");
         }
-        set_up(game, view);
+        set_up(game, view, !defer);
     }
 
     /// Sets up the game's level if the game started another one since the last call, e.g. when the player reached
@@ -391,11 +416,50 @@ public:
     /// Loads the saved game into `game` and sets up its level. Unless `stop_on_error` is set, a failure is only logged,
     /// and the level stays.
     ///
+    /// \return Whether the game was loaded.
     /// \throws std::runtime_error if loading fails and `stop_on_error` is set.
-    void load(manifold::Game& game, manifold::ViewSettings& view, bool stop_on_error) {
-        if (load_game(game, save_path_, stop_on_error)) {
-            set_up(game, view);
+    bool load(manifold::Game& game, manifold::ViewSettings& view, bool stop_on_error) {
+        if (!load_game(game, save_path_, stop_on_error)) {
+            return false;
         }
+        set_up(game, view);
+        return true;
+    }
+
+    /// Starts a new game, which replaces the save, with a random seed and `layout` for its first level, see
+    /// manifold::Game::new_game(), and sets up its level.
+    ///
+    /// If the level of the game was set up without saving it (see the constructor), nothing has happened in it yet, so
+    /// it is kept as the new game and saved now. This keeps a seed given on the command line.
+    ///
+    /// \return Whether the new game started. A failure is logged, and the level stays.
+    bool new_game(manifold::Game& game, manifold::ViewSettings& view, std::optional<manifold::LayoutKind> layout) {
+        if (deferred_) {
+            save_deferred(game);
+            return true;
+        }
+        try {
+            game.new_game(random_seed(), layout);
+        } catch (const std::runtime_error& error) {
+            manifold::log_error("Can't start a new game: {}", error.what());
+            return false;
+        }
+        manifold::log_info("Started a new game");
+        set_up(game, view);
+        return true;
+    }
+
+    /// Saves the game's level if it was set up without saving it (see the constructor) and saving is on.
+    void save_deferred(const manifold::Game& game) {
+        if (std::exchange(deferred_, false)) {
+            save(game);
+        }
+    }
+
+    /// Whether there is a save to load. It may still fail to load.
+    bool has_save() const {
+        std::error_code error;
+        return save_path_ && std::filesystem::exists(*save_path_, error);
     }
 
     /// Draws the current level. It is made by the constructor.
@@ -410,11 +474,19 @@ public:
 
 private:
     /// Logs the game's current level, makes its renderer and picks its exit sound, see start_level(), and saves the
-    /// game if saving is on.
-    void set_up(manifold::Game& game, manifold::ViewSettings& view) {
+    /// game if saving is on, now or, if `save_now` is false, when save_deferred() is called.
+    void set_up(manifold::Game& game, manifold::ViewSettings& view, bool save_now = true) {
         log_game(game);
         exit_sound_ = start_level(renderer_, game, view, assets_);
         level_starts_ = game.level_starts();
+        deferred_ = !save_now;
+        if (save_now) {
+            save(game);
+        }
+    }
+
+    /// Saves the game if saving is on.
+    void save(const manifold::Game& game) const {
         if (saving_ && save_path_) {
             save_game(game, *save_path_);
         }
@@ -425,7 +497,8 @@ private:
     bool saving_;  ///< Whether each level that starts is saved, if there is a directory for saves.
     std::optional<manifold::Renderer> renderer_;  ///< The renderer has the meshes of one level.
     std::optional<manifold::Sound> exit_sound_;
-    int level_starts_ = 0;  ///< manifold::Game::level_starts() of the level that is set up.
+    int level_starts_ = 0;   ///< manifold::Game::level_starts() of the level that is set up.
+    bool deferred_ = false;  ///< Whether the level that is set up waits for save_deferred() to be saved.
 };
 
 /// The key that opens and closes the console: the one left of 1, labelled `/~ on US keyboards.
@@ -434,6 +507,44 @@ constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
 constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
 /// The key that loads the saved game. Like the movement keys, it is the key at the place of L on US keyboards.
 constexpr SDL_Scancode kLoadKey = SDL_SCANCODE_L;
+/// With Ctrl, the key that quits the game at once. It is the key labelled Q, wherever it is, as is usual for shortcuts.
+constexpr SDL_Keycode kQuitKey = SDLK_Q;
+
+/// Whether `key` is the shortcut that quits the game: Ctrl+Q.
+bool is_quit_shortcut(const SDL_KeyboardEvent& key) { return key.key == kQuitKey && (key.mod & SDL_KMOD_CTRL) != 0; }
+
+/// The game's interface: the screens that are open, such as a menu, and what they asked for in this frame.
+struct Ui {
+    manifold::ScreenStack screens;
+    /// The first command that the screens gave in this frame, which the main loop carries out at the start of the
+    /// next frame, see apply_ui_command(). Later events of the frame don't reach the screens, since the command may
+    /// close them.
+    std::optional<manifold::UiCommand> command;
+    manifold::PixelSize picture;  ///< Size of the picture that the screens were drawn over last.
+
+    /// Passes an event to the screen on top, unless the screens already asked for something in this frame.
+    void handle(const manifold::UiEvent& event) {
+        if (!command) {
+            command = screens.handle(event, picture);
+        }
+    }
+};
+
+/// The key of the interface's screens that `key` is, if any, besides Escape, which is handled on its own.
+std::optional<manifold::NavKey> nav_key(SDL_Keycode key) {
+    switch (key) {
+        case SDLK_UP:
+            return manifold::NavKey::kUp;
+        case SDLK_DOWN:
+            return manifold::NavKey::kDown;
+        case SDLK_RETURN:
+        case SDLK_KP_ENTER:
+        case SDLK_SPACE:
+            return manifold::NavKey::kConfirm;
+        default:
+            return std::nullopt;
+    }
+}
 
 /// The key of the console window that `key` is, if any.
 std::optional<manifold::ConsoleKey> console_key(SDL_Keycode key) {
@@ -492,33 +603,87 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
     }
 }
 
-/// Handles a key press: the console key, Escape, the keys of the console window while it is open, and otherwise
-/// the load key, which asks `state` to load the game.
-///
-/// \return False when the game should quit.
-bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
-                     manifold::CommandQueue& commands, manifold::ConsoleState& state) {
+/// Handles a key press: the console key; Escape, which closes the console, leaves the screen on top, or asks `state`
+/// for the game menu; the keys of the console window while it is open; those of the screen on top while one is open;
+/// and otherwise the load key, which asks `state` to load the game.
+void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
+                     manifold::CommandQueue& commands, manifold::ConsoleState& state, Ui& ui) {
     if (key.scancode == kConsoleKey) {
         if (!key.repeat) {
             set_console_open(console_window, window, !console_window.is_open());
         }
     } else if (key.key == SDLK_ESCAPE) {
-        if (!key.repeat) {
-            if (!console_window.is_open()) {
-                return false;
-            }
+        if (key.repeat) {
+            return;
+        }
+        if (console_window.is_open()) {
             set_console_open(console_window, window, false);
+        } else if (!ui.screens.empty()) {
+            ui.handle(manifold::NavKey::kCancel);
+        } else {
+            state.menu = manifold::MenuRequest::kGame;
         }
     } else if (console_window.is_open()) {
         handle_console_key(key, console_window, commands);
+    } else if (!ui.screens.empty()) {
+        // Holding Up or Down moves on, but holding Enter doesn't choose again.
+        const std::optional<manifold::NavKey> nav = nav_key(key.key);
+        if (nav && (!key.repeat || *nav != manifold::NavKey::kConfirm)) {
+            ui.handle(*nav);
+        }
     } else if (key.scancode == kLoadKey && !key.repeat) {
         state.load = true;
         state.load_stops_on_error = false;
     }
+}
+
+/// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
+/// left button and a screen is open.
+void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui) {
+    if (ui.screens.empty()) {
+        return;
+    }
+    std::optional<manifold::PointerEvent> pointer;
+    if (event.type == SDL_EVENT_MOUSE_MOTION) {
+        pointer = manifold::PointerEvent{.action = manifold::PointerAction::kMove,
+                                         .position = {event.motion.x, event.motion.y}};
+    } else if ((event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP) &&
+               event.button.button == SDL_BUTTON_LEFT) {
+        pointer = manifold::PointerEvent{.action = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN
+                                                       ? manifold::PointerAction::kPress
+                                                       : manifold::PointerAction::kRelease,
+                                         .position = {event.button.x, event.button.y}};
+    }
+    if (!pointer) {
+        return;
+    }
+    const manifold::PixelSize framebuffer = window.framebuffer_size();
+    pointer->position = manifold::window_to_viewport(pointer->position, window.size(), framebuffer,
+                                                     manifold::fit_viewport(framebuffer, manifold::kAspectRatio));
+    ui.handle(*pointer);
+}
+
+/// Keeps track of whether the console key is held, and types text into the console window while it is open.
+///
+/// \param console_key_held Whether the console key is held down. Kept between calls.
+/// \return Whether the event was text typed while the console window is open, which nothing else should handle.
+bool handle_console_text(const SDL_Event& event, manifold::ConsoleWindow& console_window, bool& console_key_held) {
+    if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) && event.key.scancode == kConsoleKey) {
+        console_key_held = event.type == SDL_EVENT_KEY_DOWN;
+    }
+    if (event.type != SDL_EVENT_TEXT_INPUT || !console_window.is_open()) {
+        return false;
+    }
+    // The console key types a character, which depends on the keyboard layout. It would land in the input line, so
+    // text is ignored while the key is held.
+    if (!console_key_held) {
+        console_window.input().insert(event.text.text);
+    }
     return true;
 }
 
-/// Handles pending window and key events: quitting, the console window, the debug overlay and loading.
+/// Handles pending window, key and mouse events: quitting, the console window, the debug overlay, the screens of the
+/// interface and loading.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
@@ -526,14 +691,17 @@ bool handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
 /// \param console_window     The console window.
 /// \param commands           Where commands run in the console window go.
 /// \param overlay            The debug overlay, which gets the events first and may keep keys from the game.
-/// \param state              Where the debug overlay key shows or hides the overlay, and the load key asks to load.
+/// \param state              Where the debug overlay key shows or hides the overlay, the load key asks to load, and
+///                           Escape asks for the game menu.
+/// \param ui                 The screens, which get keys and the mouse while one is open and the console isn't.
 /// \param console_key_held   Whether the console key is held down. Kept between calls.
 /// \return False when the game should quit.
 bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
-                   manifold::DebugOverlay& overlay, manifold::ConsoleState& state, bool& console_key_held) {
+                   manifold::DebugOverlay& overlay, manifold::ConsoleState& state, Ui& ui, bool& console_key_held) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
+        // Like closing the window, the quit shortcut works even while ImGui or the console has the keyboard.
+        if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && is_quit_shortcut(event.key))) {
             return false;
         }
         // The debug overlay key works even while ImGui has the keyboard, so the overlay can always be hidden.
@@ -546,19 +714,13 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
         if (overlay.handle_event(event)) {
             continue;
         }
-        if ((event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) && event.key.scancode == kConsoleKey) {
-            console_key_held = event.type == SDL_EVENT_KEY_DOWN;
-        }
-        if (event.type == SDL_EVENT_TEXT_INPUT && console_window.is_open()) {
-            // The console key types a character, which depends on the keyboard layout. It would land in the
-            // input line, so text is ignored while the key is held.
-            if (!console_key_held) {
-                console_window.input().insert(event.text.text);
-            }
+        if (handle_console_text(event, console_window, console_key_held)) {
             continue;
         }
-        if (event.type == SDL_EVENT_KEY_DOWN && !handle_key_down(event.key, window, console_window, commands, state)) {
-            return false;
+        if (event.type == SDL_EVENT_KEY_DOWN) {
+            handle_key_down(event.key, window, console_window, commands, state, ui);
+        } else if (!console_window.is_open()) {
+            handle_mouse_event(event, window, ui);
         }
     }
     return true;
@@ -621,20 +783,37 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
     }
 }
 
-/// Takes the screenshots that console commands asked for, each drawn as it asked.
+/// Draws the game into the bound framebuffer, as draw_game() does, with the open screens of the interface over it, or
+/// only the screens if one of them hides the game.
+void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
+                const manifold::Game& game, const manifold::ViewSettings& view, const manifold::ScreenStack& screens,
+                const manifold::PixelSize& framebuffer) {
+    if (screens.hides_game()) {
+        manifold::clear_to_black();
+    } else {
+        draw_game(renderer, overlay_renderer, game, view, framebuffer);
+    }
+    if (!screens.empty()) {
+        const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
+        overlay_renderer.draw(screens.build_mesh({.width = viewport.width, .height = viewport.height}), viewport);
+    }
+}
+
+/// Takes the screenshots that console commands asked for, each drawn as it asked, with the open screens of the
+/// interface, see draw_scene().
 ///
 /// A screenshot that fails is logged, and stops the game only if its request says so.
 ///
 /// \param window_size The size of screenshots that don't give their own.
 /// \throws std::runtime_error if a screenshot that stops on error fails.
 void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-                      const manifold::Game& game, std::span<const manifold::ScreenshotRequest> requests,
-                      const manifold::PixelSize& window_size) {
+                      const manifold::Game& game, const manifold::ScreenStack& screens,
+                      std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
     for (const manifold::ScreenshotRequest& request : requests) {
         const manifold::PixelSize size = request.size.value_or(window_size);
         try {
             const manifold::OffscreenFramebuffer framebuffer(size);
-            draw_game(renderer, overlay_renderer, game, request.view, size);
+            draw_scene(renderer, overlay_renderer, game, request.view, screens, size);
             manifold::save_screenshot(request.path, size.width, size.height);
             manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
         } catch (const std::runtime_error& error) {
@@ -655,6 +834,73 @@ struct LogListenerReset {
     LogListenerReset(LogListenerReset&&) = delete;
     LogListenerReset& operator=(LogListenerReset&&) = delete;
 };
+
+/// Opens the menu that `request` asks for instead of the open screens, or closes them all.
+///
+/// \param can_load Whether the game menu can load a save.
+void open_menu(manifold::MenuRequest request, manifold::ScreenStack& screens, bool can_load) {
+    screens.clear();
+    switch (request) {
+        case manifold::MenuRequest::kStart:
+            screens.push(manifold::make_start_menu());
+            break;
+        case manifold::MenuRequest::kGame:
+            screens.push(manifold::make_game_menu(can_load));
+            break;
+        case manifold::MenuRequest::kClose:
+            break;
+    }
+}
+
+/// Does what a screen of the interface asked for. Loading or starting a new game closes all screens, unless it fails,
+/// which is logged.
+///
+/// \param layout The layout of the first level of a new game, if given on the command line.
+void apply_ui_command(manifold::UiCommand command, manifold::ScreenStack& screens, LevelSession& level,
+                      manifold::Game& game, manifold::ConsoleState& state, std::optional<manifold::LayoutKind> layout) {
+    switch (command) {
+        case manifold::UiCommand::kResume:
+            screens.pop();
+            break;
+        case manifold::UiCommand::kNewGame:
+            if (level.new_game(game, state.view, layout)) {
+                screens.clear();
+            }
+            break;
+        case manifold::UiCommand::kLoad:
+            if (level.load(game, state.view, false)) {
+                screens.clear();
+            }
+            break;
+        case manifold::UiCommand::kExit:
+            state.quit = true;
+            break;
+    }
+}
+
+/// Does what was asked for since the last frame, at the start of a frame: what a screen of the interface asked for,
+/// the menu that Escape or the `menu` command asked for, and loading. Saves the new game that the start menu offered
+/// once no screen is open.
+///
+/// \param layout The layout of the first level of a new game, if given on the command line.
+/// \throws std::runtime_error if the `load` command asked to load and to stop on error, and loading fails.
+void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, manifold::Game& game,
+                    std::optional<manifold::LayoutKind> layout) {
+    if (const std::optional<manifold::UiCommand> command = std::exchange(ui.command, std::nullopt)) {
+        apply_ui_command(*command, ui.screens, level, game, state, layout);
+    }
+    if (const std::optional<manifold::MenuRequest> menu = std::exchange(state.menu, std::nullopt)) {
+        open_menu(*menu, ui.screens, level.has_save());
+    }
+    // Loading comes before the commands, so that those after `load` run in the loaded level.
+    if (std::exchange(state.load, false)) {
+        level.load(game, state.view, state.load_stops_on_error);
+    }
+    // The new game is saved once the start menu is closed without continuing the save.
+    if (ui.screens.empty()) {
+        level.save_deferred(game);
+    }
+}
 
 /// Runs the game until the player quits or a console command does.
 ///
@@ -680,8 +926,16 @@ void run(const Options& options) {
     FootstepSounds footsteps(assets.sounds);
     const manifold::OverlayRenderer overlay_renderer;
     // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
-    // mostly test the game, so they leave the player's save alone.
-    LevelSession level(game, state.view, assets, save_file_path(), options.commands.empty());
+    // mostly test the game, so they leave the player's save alone. If there is a save, the player is asked first
+    // whether to continue it, and the new game is saved only once the start menu is closed without continuing.
+    const bool saving = options.commands.empty();
+    std::optional<std::filesystem::path> save_path = save_file_path();
+    const bool ask = saving && has_readable_save(save_path);
+    LevelSession level(game, state.view, assets, std::move(save_path), saving, ask);
+    Ui ui;
+    if (ask) {
+        ui.screens.push(manifold::make_start_menu());
+    }
 
     manifold::Console console;
     manifold::CommandQueue commands;
@@ -694,10 +948,7 @@ void run(const Options& options) {
     bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
-        // Loading comes before the commands, so that those after `load` run in the loaded level.
-        if (std::exchange(state.load, false)) {
-            level.load(game, state.view, state.load_stops_on_error);
-        }
+        apply_requests(ui, state, level, game, options.layout);
         for (const std::string& line : terminal.read_lines()) {
             commands.add(line, false);
         }
@@ -707,41 +958,45 @@ void run(const Options& options) {
         const float frame_time = static_cast<float>(ticks - previous_ticks) * 1e-9f;
         previous_ticks = ticks;
         frame_times.add(frame_time);
-        // While the console window is open, or the debug overlay has the keyboard, the keys type into them
-        // instead of moving the player.
-        const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
-        manifold::PlayerInput input = keys_taken ? manifold::PlayerInput{} : read_input();
-        if (state.walk_frames > 0) {
-            input.forward = 1.0f;
-            --state.walk_frames;
+        // The game is paused while a screen such as a menu is open.
+        if (ui.screens.empty()) {
+            // While the console window is open, or the debug overlay has the keyboard, the keys type into them
+            // instead of moving the player.
+            const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
+            manifold::PlayerInput input = keys_taken ? manifold::PlayerInput{} : read_input();
+            if (state.walk_frames > 0) {
+                input.forward = 1.0f;
+                --state.walk_frames;
+            }
+            game.update(input, std::min(frame_time, kMaxFrameTime));
         }
-        game.update(input, std::min(frame_time, kMaxFrameTime));
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
         play_door_sounds(game, door_sounds, audio);
         footsteps.play(game, audio);
 
         const manifold::PixelSize window_size = window.framebuffer_size();
-        draw_game(level.renderer(), overlay_renderer, game, state.view, window_size);
+        const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
+        ui.picture = {.width = viewport.width, .height = viewport.height};
+        draw_scene(level.renderer(), overlay_renderer, game, state.view, ui.screens, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = level.renderer().stats();
         if (state.debug_overlay) {
             overlay.draw(game, state.view, render_stats, frame_times);
         }
         if (console_window.is_open()) {
-            const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
-            overlay_renderer.draw(console_window.build_mesh({.width = viewport.width, .height = viewport.height}),
-                                  viewport);
+            overlay_renderer.draw(console_window.build_mesh(ui.picture), viewport);
         }
-        take_screenshots(level.renderer(), overlay_renderer, game, state.screenshots, window_size);
+        take_screenshots(level.renderer(), overlay_renderer, game, ui.screens, state.screenshots, window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;
         }
         window.swap_buffers();
-        // The console window has the keys while it is open, so the overlay gets no events then.
-        overlay.set_input(state.debug_overlay && !console_window.is_open());
-    } while (handle_events(window, console_window, commands, overlay, state, console_key_held));
+        // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
+        // overlay gets no events then.
+        overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());
+    } while (handle_events(window, console_window, commands, overlay, state, ui, console_key_held));
 }
 
 }  // namespace

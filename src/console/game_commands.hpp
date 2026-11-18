@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -47,6 +48,13 @@ struct ScreenshotRequest {
     bool stop_on_error = false;
 };
 
+/// Which menu the `menu` command asks the main loop to show, see ConsoleState::menu.
+enum class MenuRequest : std::uint8_t {
+    kStart,  ///< The menu shown at the start when there is a save, see make_start_menu().
+    kGame,   ///< The game menu that Escape opens, see make_game_menu().
+    kClose,  ///< No menu.
+};
+
 /// What console commands change, and what they ask the main loop to do.
 struct ConsoleState {
     ViewSettings view;                           ///< How the game is shown.
@@ -61,6 +69,9 @@ struct ConsoleState {
     bool load = false;
     /// Whether failing to load should stop the game, as it does for the commands of `--exec`, or only be logged.
     bool load_stops_on_error = false;
+    /// The menu to show instead of those that are open, as the `menu` command asks, or nothing to leave them. The main
+    /// loop does it at the start of the next frame and resets this.
+    std::optional<MenuRequest> menu;
 };
 
 /// Largest width and height of a screenshot, in pixels.

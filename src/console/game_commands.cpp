@@ -239,7 +239,7 @@ void add_door_commands(Console& console, Game& game) {
 }
 
 /// Adds the commands that change how the game is shown, take screenshots and control the script: cutaway,
-/// arrow, crosshair, lighting, shadows, imgui, screenshot, wait and quit.
+/// arrow, crosshair, lighting, shadows, imgui, screenshot, menu, wait and quit.
 void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& state) {
     console.add("cutaway", "cutaway HEIGHT|off",
                 "Leaves out everything above HEIGHT, to look into a layer from above, or shows everything again.",
@@ -282,6 +282,26 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                                                  .height = parse_screenshot_size(arguments[2])};
                     }
                     state.screenshots.push_back(std::move(request));
+                });
+
+    const std::string menu_usage = "menu start|game|close";
+    console.add("menu", menu_usage,
+                "Shows the start menu or the game menu instead of the open menus, or closes them. The game is paused "
+                "while a menu is open.",
+                [&queue, &state, menu_usage](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, menu_usage);
+                    if (arguments[0] == "start") {
+                        state.menu = MenuRequest::kStart;
+                    } else if (arguments[0] == "game") {
+                        state.menu = MenuRequest::kGame;
+                    } else if (arguments[0] == "close") {
+                        state.menu = MenuRequest::kClose;
+                    } else {
+                        throw CommandError("usage: " + menu_usage);
+                    }
+                    // The main loop opens the menu at the start of the next frame, so that a screenshot after it
+                    // shows the menu.
+                    queue.wait(1);
                 });
 
     console.add("wait", "wait FRAMES", "Runs the next commands after this many frames.",

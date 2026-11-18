@@ -118,9 +118,14 @@ add_library(manifold_core STATIC
     src/render/viewport.cpp
     src/render/world_mesh.cpp
     src/save/saved_game.cpp
+    src/ui/button_list.cpp
     src/ui/crosshair.cpp
+    src/ui/game_menus.cpp
+    src/ui/menu_screen.cpp
     src/ui/overlay_mesh.cpp
+    src/ui/screen_stack.cpp
     src/ui/text_field.cpp
+    src/ui/ui_style.cpp
     src/util/asset_files.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
@@ -182,6 +187,7 @@ if(MANIFOLD_BUILD_TESTS)
 
     add_executable(manifold_tests
         tests/asset_files_test.cpp
+        tests/button_list_test.cpp
         tests/camera_test.cpp
         tests/collision_test.cpp
         tests/console_test.cpp
@@ -198,11 +204,13 @@ if(MANIFOLD_BUILD_TESTS)
         tests/lighting_test.cpp
         tests/log_test.cpp
         tests/marker_test.cpp
+        tests/menu_screen_test.cpp
         tests/overlay_mesh_test.cpp
         tests/raycast_test.cpp
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
         tests/saved_game_test.cpp
+        tests/screen_stack_test.cpp
         tests/shadow_map_test.cpp
         tests/sound_set_test.cpp
         tests/sound_test.cpp

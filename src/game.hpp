@@ -114,6 +114,16 @@ public:
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void next_level();
 
+    /// Starts a new game: generates its first level from `seed`, as the constructor does, and puts the player at its
+    /// start.
+    ///
+    /// The level number and the game time start again from 0. Noclip stays as it is.
+    ///
+    /// \param seed   Seed for level generation.
+    /// \param layout The layout of the first level, or nothing to choose it at random.
+    /// \throws std::runtime_error if the level can't be generated. The current level then stays.
+    void new_game(std::uint64_t seed, std::optional<LayoutKind> layout);
+
     /// Starts the saved level again from its start, as next_level() starts a level.
     ///
     /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
@@ -180,8 +190,8 @@ public:
     std::uint64_t seed() const { return seed_; }
     /// How many levels came before this one: 0 in the first level.
     int level_number() const { return level_number_; }
-    /// How many times a level was started after the first one, by next_level() or load(), e.g. to tell when to make a
-    /// new renderer. Unlike level_number(), it changes when a game is loaded at the same level.
+    /// How many times a level was started after the first one, by next_level(), load() or new_game(), e.g. to tell when
+    /// to make a new renderer. Unlike level_number(), it changes when a game is loaded at the same level.
     int level_starts() const { return level_starts_; }
     /// Seconds of game time since the start: the sum of the durations passed to update().
     double time() const { return time_; }

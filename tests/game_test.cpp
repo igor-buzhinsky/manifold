@@ -511,6 +511,22 @@ TEST(GameTest, LoadStartsTheSavedLevelAgain) {
     EXPECT_EQ(game.save_point(), save);
 }
 
+TEST(GameTest, NewGameStartsAgainFromTheFirstLevel) {
+    Game game(GameConfig{}, 3, LayoutKind::kDebug);
+    game.update({}, 2.0f);
+    game.next_level();
+    game.set_noclip(true);
+    const int starts = game.level_starts();
+    game.new_game(7, LayoutKind::kDebug);
+    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 7, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0}));
+    EXPECT_EQ(game.time(), 0.0);
+    EXPECT_EQ(game.level_starts(), starts + 1);
+    EXPECT_EQ(game.player().position(), game.level().player_start);
+    EXPECT_TRUE(game.noclip());
+    const Game fresh(GameConfig{}, 7, LayoutKind::kDebug);
+    EXPECT_EQ(game.level().player_start, fresh.level().player_start);
+}
+
 TEST(GameTest, LoadKeepsTheGivenLayoutOfTheFirstLevel) {
     const Game original(make_config(), 3, LayoutKind::kDebug);
     // Without the layout, the seed would choose rooms.

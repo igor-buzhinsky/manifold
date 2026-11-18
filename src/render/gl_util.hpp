@@ -18,6 +18,9 @@ GLuint compile_shader(GLenum type, const char* source);
 /// \throws std::runtime_error with the compiler or linker log if anything fails.
 GLuint link_program(const char* vertex_source, const char* fragment_source);
 
+/// Clears the whole bound framebuffer to black, e.g. when a screen of the interface hides the game.
+void clear_to_black();
+
 /// Converts an offset into the bound array buffer to the pointer that OpenGL takes for it.
 const void* buffer_offset(std::size_t offset);
 
