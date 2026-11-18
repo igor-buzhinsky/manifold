@@ -30,7 +30,7 @@ asked or when unsure what a change affects.
   changing one, run the Python checks, which must pass:
 
   ```sh
-  poetry -C scripts install    # once, to install the tools
+  poetry -C scripts install    # once, to install the packages and tools
   cd scripts && poetry run black . && poetry run ruff check . && poetry run pyrefly check
   ```
 

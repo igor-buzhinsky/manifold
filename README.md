@@ -80,9 +80,12 @@ cmake --build build --target lint     # check formatting, then run clang-tidy (f
 scripts/lint_changed.py               # the same, but only for what changed since the last commit
 ```
 
-The Python scripts in `scripts/` are formatted with black and checked with ruff and pyrefly, installed with
-[Poetry](https://python-poetry.org/) 2.0 or newer (`pipx install poetry`): run `poetry install` once in `scripts/`, then
-`poetry run black .`, `poetry run ruff check .` and `poetry run pyrefly check` there.
+The Python scripts in `scripts/` need Python 3.11 or newer. They are formatted with black and checked with ruff and
+pyrefly, which are installed with [Poetry](https://python-poetry.org/) 2.0 or newer (`pipx install poetry`) together
+with the packages that some scripts need, such as Pillow: run `poetry install` once in `scripts/`, then
+`poetry run black .`, `poetry run ruff check .` and `poetry run pyrefly check` there. A script that needs such a
+package is run with `poetry run python NAME.py` from `scripts/`; see the
+[Python scripts](docs/CODING_STYLE.md#python-scripts) section of the coding style.
 
 See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including doc comments.
 

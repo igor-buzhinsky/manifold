@@ -14,5 +14,5 @@ Museum of Art, New York.
 | File | Object | Crop arguments |
 | ---- | ------ | -------------- |
 | `11058-healy-portrait-of-the-artist.png` | George P. A. Healy, [*Portrait of the Artist*](https://www.metmuseum.org/art/collection/search/11058), 1851, oil on canvas | 956 975 1638 |
-| `856295-biard-study-of-a-man.png` | François-Auguste Biard, [*Bust-Length Study of a Man*](https://www.metmuseum.org/art/collection/search/856295), 1848, oil on paper | 1934 1734 2934 |
-| `406437-allen-ginter-clam-fish.png` | Allen & Ginter, [*Clam Fish, Warm Springs*](https://www.metmuseum.org/art/collection/search/406437), from the American Indian Chiefs series of cigarette cards, 1888, color lithograph | 516 791 1008 |
+| `856295-biard-study-of-a-man.png` | François-Auguste Biard, [*Bust-Length Study of a Man*](https://www.metmuseum.org/art/collection/search/856295), 1848, oil on paper, laid down on canvas | 1934 1734 2934 |
+| `406437-allen-ginter-clam-fish.png` | Allen & Ginter, [*Clam Fish, Warm Springs*](https://www.metmuseum.org/art/collection/search/406437), from the American Indian Chiefs series of cigarette cards, 1888, commercial color lithograph | 516 791 1008 |
