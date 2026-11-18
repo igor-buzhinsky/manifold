@@ -638,6 +638,28 @@ TEST(GameTest, ActivationIsLimitedByReachAndWalls) {
     EXPECT_EQ(game.activate(), Activation::kOpened);
 }
 
+TEST(GameTest, ClickActivatesInItsDirectionWithTheSameReach) {
+    Game game(make_config(), make_door_level());
+    // Facing along +x, with the door to the left, 1.45 m from the eyes.
+    game.teleport({0.0f, -1.5f, 0.0f}, 0.0f);
+    EXPECT_EQ(game.activate(), Activation::kNothing);
+    EXPECT_EQ(game.activate(glm::vec3(0.0f, 1.0f, 0.0f)), Activation::kOpened);
+    game.update({}, Door::kMoveTime);
+    // A click in the update activates after the player moved. Each click activates, without a new press.
+    game.teleport({0.9f, -1.5f, 0.0f}, 0.0f);  // The frame to the left.
+    game.update({.click = glm::vec3(0.0f, 1.0f, 0.0f)}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 0.0f);
+    game.update({}, Door::kMoveTime);
+    game.update({.click = glm::vec3(0.0f, 1.0f, 0.0f)}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
+    // The door is 2.05 m from the eyes, out of reach as for the center of the view.
+    game.update({}, Door::kMoveTime);
+    ASSERT_TRUE(game.set_door_open(0, false));
+    game.update({}, Door::kMoveTime);
+    game.teleport({0.0f, -2.1f, 0.0f}, 0.0f);
+    EXPECT_EQ(game.activate(glm::vec3(0.0f, 1.0f, 0.0f)), Activation::kNothing);
+}
+
 TEST(GameTest, DoorDoesNotCloseOnThePlayer) {
     Game game(make_config(), make_door_level());
     ASSERT_TRUE(game.set_door_open(0, true));

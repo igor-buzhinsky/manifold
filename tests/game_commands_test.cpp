@@ -291,5 +291,25 @@ TEST(GameCommandsTest, ActivateActsLikeTheKey) {
     fixture.expect_error("activate now");
 }
 
+TEST(GameCommandsTest, ActivateAtAPointActsLikeAClick) {
+    Fixture fixture(Game(make_config(), make_door_level()));
+    // Facing along -y, away from the door, the view's center and a point at the edge see nothing to activate.
+    fixture.game.teleport({0.0f, -1.0f, 0.0f}, -std::numbers::pi_v<float> / 2.0f);
+    fixture.run("activate");
+    fixture.run("activate 1 0.5");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 0.0f);
+    // Facing 60 degrees right of the door, the center of the view sees a wall, and the left edge of the view, about
+    // 50 degrees from the center, sees the door 1.5 m away.
+    fixture.game.teleport({-0.5f, -1.5f, 0.0f}, std::numbers::pi_v<float> / 6.0f);
+    fixture.run("activate");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 0.0f);
+    fixture.run("activate 0 0.5");
+    EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
+    for (const char* command :
+         {"activate 0.5", "activate 0.5 0.5 0.5", "activate -0.1 0.5", "activate 0.5 1.1", "activate x 0.5"}) {
+        fixture.expect_error(command);
+    }
+}
+
 }  // namespace
 }  // namespace manifold

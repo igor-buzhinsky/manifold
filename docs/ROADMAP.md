@@ -195,6 +195,11 @@ and tools for inspecting the game. Done:
   for every event and drawing; `MenuScreen` with a `ButtonList`, drawn as an `OverlayMesh` in shared colors
   (`ui_style.hpp`). Later screens, such as the party screen with tabs, add controls to this. The `menu` command opens
   and closes menus, and screenshots show them.
+- **Activating with the mouse**: a click with the left button over the game activates what the clicked point of the
+  view shows, as E does at the center: a ray from the eyes through that point (`Camera::ray_direction`), with the
+  same 2 m reach. Since the point can be anywhere in the view, clicks reach things that E can't, beyond the 30° that
+  the view can be turned up or down, which is fine for now. Clicks are ignored while a camera put in place with
+  `camera` shows the view. `activate X Y` does the same from the console.
 - TODO
   - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
     stamina, sanity. The party has shared mana.

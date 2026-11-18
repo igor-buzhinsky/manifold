@@ -1,6 +1,7 @@
 #pragma once
 
 #include <glm/mat4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "world/player.hpp"
@@ -27,6 +28,11 @@ struct Camera {
     glm::mat4 view() const;
     /// Matrix that transforms camera coordinates into OpenGL clip coordinates, for a 16:9 picture.
     glm::mat4 projection() const;
+    /// Unit vector from the camera through a point of its picture, e.g. where the mouse was clicked.
+    ///
+    /// \param point The point as fractions of the picture's width and height from its top-left corner, y down:
+    ///              (0.5, 0.5) is the center, which gives forward(), and (0, 0) the top-left corner.
+    glm::vec3 ray_direction(const glm::vec2& point) const;
 };
 
 /// Creates a camera at the player's eyes, looking where the player looks.

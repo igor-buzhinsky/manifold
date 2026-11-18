@@ -11,6 +11,7 @@
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or levitation (not implemented yet): fly up |
 | Page Down | With noclip or levitation (not implemented yet): fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
+| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 30° that the view can be turned up or down. Each click activates once |
 | L | Load the saved game: start the saved level again from its start, see Saving below |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
@@ -47,7 +48,8 @@ start menu.
 
 ## Screen
 
-A thin white crosshair with a black outline marks the center of the view, which E activates. The `crosshair`
+A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
+shows what a click activates. The `crosshair`
 command hides or shows it.
 
 ## Levels
@@ -63,7 +65,8 @@ the level's texture shows: grass, wood, metal or stone (also bricks, tiles, plas
 In room levels, some openings between rooms (10% to 100% of them, random for each level) have doors: two
 halves between two dark frames. All doors of a level are wooden or all are metal, each with a chance of 50%.
 A closed door blocks the way. E on the door opens it: the halves slide into the walls within a second, and
-only then can the player pass. To close an open door, aim at one of its frames and press E. A door that is moving ignores E, and a door doesn't close while the player stands in it.
+only then can the player pass. To close an open door, aim at one of its frames and press E. Clicking the door or a frame does the same. A door
+that is moving ignores E and clicks, and a door doesn't close while the player stands in it.
 A door makes a sound when it starts to open and when it starts to close, also with the `door` command. Each door
 has its own two sounds, picked when the level is generated.
 
@@ -129,7 +132,7 @@ it types can't be typed.
 | `teleport X Y Z [YAW]` | Move the player's feet to (X, Y, Z), facing YAW if given. Obstacles are not checked, and the player falls from there unless noclip is on |
 | `doors` | List the doors of the level: what they are made of, their numbers, where they stand, the direction of their wall, and whether they are open, closed, opening or closing |
 | `door N open\|close` | Start to open or close door N, as E does. Fails if the door moves, is already open or closed, or the player stands in it |
-| `activate` | Activate what the center of the player's view points at, like E |
+| `activate [X Y]` | Activate what the center of the player's view points at, like E, or what a click at (X, Y) would: fractions of the view's width and height from its top-left corner, from 0 to 1. Uses the player's eyes also while `camera` shows another view |
 | `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |

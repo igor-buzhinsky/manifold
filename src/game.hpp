@@ -48,6 +48,9 @@ struct PlayerInput {
     float rise = 0.0f;
     /// Whether the activation key is held. A new press activates what the player looks at, see Game::activate().
     bool activate = false;
+    /// If set, the player clicked on the view in this frame, to activate what is in this direction from the eyes, see
+    /// Game::activate(). A unit vector. Unlike `activate`, each click activates, since it is a single event.
+    std::optional<glm::vec3> click = std::nullopt;
 };
 
 /// What Game::activate() did.
@@ -96,7 +99,8 @@ public:
     /// moves up and down by `input.rise`, doesn't fall, and goes through everything.
     ///
     /// Doors move first. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
-    /// When `input.activate` becomes true, the player activates what they look at, see activate().
+    /// When `input.activate` becomes true, the player activates what they look at, and then, if `input.click` is set,
+    /// what is in its direction, see activate(). Both happen after the player moved.
     ///
     /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
     ///
@@ -138,11 +142,15 @@ public:
     /// level generated from that seed instead.
     SavedGame save_point() const;
 
-    /// Activates what the center of the player's view points at, within kActivationReach of the eyes.
+    /// Activates what the center of the player's view points at, or what is in another direction from the eyes, within
+    /// kActivationReach of the eyes.
     ///
     /// Aiming at a door that is not passable opens it, and aiming at a frame of a door opens or closes it, see
     /// set_door_open(). Walls, slabs and doors in front stop the view.
-    Activation activate();
+    ///
+    /// \param direction Unit vector from the eyes, e.g. through the point of the view that the player clicked, or none
+    ///                  for the center of the view, see Player::view_direction(). The reach is the same either way.
+    Activation activate(std::optional<glm::vec3> direction = std::nullopt);
 
     /// Starts to open or close a door. A door that starts to move is added to take_door_moves().
     ///
