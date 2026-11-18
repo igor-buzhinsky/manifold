@@ -78,11 +78,19 @@ TEST(MenuScreenTest, GameMenuWithoutASaveCantLoad) {
 }
 
 TEST(MenuScreenTest, StartMenuHidesTheGameAndCantBeLeftWithEscape) {
-    const auto menu = make_start_menu();
+    const auto menu = make_start_menu(true);
     EXPECT_TRUE(menu->hides_game());
     EXPECT_EQ(menu->handle(NavKey::kCancel, kPicture), std::nullopt);
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kLoad);
     EXPECT_EQ(click(*menu, 1), UiCommand::kNewGame);
+    EXPECT_EQ(click(*menu, 2), UiCommand::kExit);
+}
+
+TEST(MenuScreenTest, StartMenuWithoutASaveCantContinue) {
+    const auto menu = make_start_menu(false);
+    EXPECT_EQ(menu->buttons().focus(), 1U);
+    EXPECT_EQ(click(*menu, 0), std::nullopt);
+    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kNewGame);
 }
 
 TEST(MenuScreenTest, BackgroundCoversThePicture) {
