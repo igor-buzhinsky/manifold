@@ -32,6 +32,18 @@ bool has_extension(const std::filesystem::path& path, std::string_view extension
 
 }  // namespace
 
+std::filesystem::path find_assets_dir(const std::filesystem::path& executable_dir,
+                                      const std::filesystem::path& fallback) {
+    if (!executable_dir.empty()) {
+        std::filesystem::path next_to_executable = executable_dir / kAssetsDirName;
+        std::error_code error;
+        if (std::filesystem::is_directory(next_to_executable, error)) {
+            return next_to_executable;
+        }
+    }
+    return fallback;
+}
+
 std::vector<std::filesystem::path> find_asset_files(const std::filesystem::path& root, std::string_view extension) {
     std::vector<std::filesystem::path> paths;
     std::error_code error;

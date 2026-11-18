@@ -149,10 +149,12 @@ add_executable(manifold
 )
 target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad imgui)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
-# Textures and sounds are read from the source tree, so the game finds them however it is started.
-target_compile_definitions(manifold PRIVATE
-    MANIFOLD_TEXTURES_DIR="${CMAKE_SOURCE_DIR}/assets/textures"
-    MANIFOLD_SOUNDS_DIR="${CMAKE_SOURCE_DIR}/assets/sounds")
+# Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
+# `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
+target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+# `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets.
+install(TARGETS manifold RUNTIME DESTINATION .)
+install(DIRECTORY assets/ DESTINATION assets)
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()

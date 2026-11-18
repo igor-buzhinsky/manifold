@@ -126,8 +126,25 @@ std::uint64_t random_seed() {
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
-/// Directory searched for level textures, set by CMake to `assets/textures` in the source tree.
-constexpr const char* kTexturesDir = MANIFOLD_TEXTURES_DIR;
+/// The directories of the game's textures and sounds.
+struct AssetDirs {
+    std::filesystem::path textures;  ///< Searched for level textures.
+    std::filesystem::path sounds;    ///< Has a directory for each kind of sound, e.g. `portal`.
+};
+
+/// Finds the game's assets, see manifold::find_assets_dir(): the `assets` directory next to the executable, or else
+/// the one in the source tree, whose path CMake sets. Logs which is used.
+AssetDirs find_asset_dirs() {
+    // SDL keeps the string, so it isn't freed.
+    const char* base_path = SDL_GetBasePath();
+    if (base_path == nullptr) {
+        manifold::log_warning("The directory of the executable isn't known: {}", SDL_GetError());
+    }
+    const std::filesystem::path assets = manifold::find_assets_dir(
+        base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path(), MANIFOLD_ASSETS_DIR);
+    manifold::log_info("Assets: {}", assets.string());
+    return {.textures = assets / "textures", .sounds = assets / "sounds"};
+}
 
 /// The texture of a level and what it shows.
 struct LevelTexture {
@@ -140,10 +157,10 @@ struct LevelTexture {
 ///
 /// The choice depends only on the level seed, so a seed always gives the same look. If no texture can be
 /// used, a plain grey one is used instead, as stone.
-LevelTexture pick_level_texture(std::uint64_t level_seed) {
+LevelTexture pick_level_texture(std::uint64_t level_seed, const std::filesystem::path& textures_dir) {
     // Mixing the seed keeps the choice independent of the random numbers used by level generation.
     constexpr std::uint64_t kTextureSeedSalt = 0x9e3779b97f4a7c15ULL;
-    const std::vector<manifold::TextureFile> files = manifold::find_level_textures(kTexturesDir);
+    const std::vector<manifold::TextureFile> files = manifold::find_level_textures(textures_dir);
     std::vector<std::filesystem::path> candidates;
     candidates.reserve(files.size());
     for (const manifold::TextureFile& file : files) {
@@ -152,7 +169,7 @@ LevelTexture pick_level_texture(std::uint64_t level_seed) {
     std::optional<manifold::PickedTexture> picked = manifold::pick_texture(candidates, level_seed ^ kTextureSeedSalt);
     if (!picked) {
         manifold::log_warning("No usable texture found among {} PNG files in {}, using plain grey as stone",
-                              candidates.size(), kTexturesDir);
+                              candidates.size(), textures_dir.string());
         return {.image = manifold::fallback_texture(), .kind = manifold::TextureKind::kStone};
     }
     LevelTexture texture{.image = std::move(picked->image), .kind = manifold::TextureKind::kStone};
@@ -166,17 +183,20 @@ LevelTexture pick_level_texture(std::uint64_t level_seed) {
     return texture;
 }
 
-/// Directory searched for the sounds of the level exit portal, `assets/sounds/portal` in the source tree.
-constexpr const char* kPortalSoundsDir = MANIFOLD_SOUNDS_DIR "/portal";
+/// Directory in AssetDirs::sounds searched for the sounds of the level exit portal.
+constexpr const char* kPortalSoundsDir = "portal";
 
-/// Directories of the sounds of doors that start to open and to close, in the source tree.
-constexpr const char* kDoorOpenSoundsDir = MANIFOLD_SOUNDS_DIR "/door_open";
-constexpr const char* kDoorCloseSoundsDir = MANIFOLD_SOUNDS_DIR "/door_close";
+/// Directories in AssetDirs::sounds of the sounds of doors that start to open and to close.
+constexpr const char* kDoorOpenSoundsDir = "door_open";
+constexpr const char* kDoorCloseSoundsDir = "door_close";
 
 /// The sounds of doors, loaded once for all levels.
 struct DoorSoundSets {
-    manifold::SoundSet open{kDoorOpenSoundsDir, "door open"};
-    manifold::SoundSet close{kDoorCloseSoundsDir, "door close"};
+    explicit DoorSoundSets(const std::filesystem::path& sounds_dir)
+        : open(sounds_dir / kDoorOpenSoundsDir, "door open"), close(sounds_dir / kDoorCloseSoundsDir, "door close") {}
+
+    manifold::SoundSet open;
+    manifold::SoundSet close;
 };
 
 /// Plays the sounds of the doors that started to move since the last call, see manifold::Game::take_door_moves().
@@ -191,8 +211,9 @@ void play_door_sounds(manifold::Game& game, const DoorSoundSets& sets, manifold:
     }
 }
 
-/// Directory of the footstep sounds, with a directory for each texture kind, e.g. `footsteps/grass`.
-constexpr const char* kFootstepSoundsDir = MANIFOLD_SOUNDS_DIR "/footsteps";
+/// Directory in AssetDirs::sounds of the footstep sounds, with a directory for each texture kind, e.g.
+/// `footsteps/grass`.
+constexpr const char* kFootstepSoundsDir = "footsteps";
 /// How loud footsteps are played, relative to the files: they are scaled to the same peak as the other sounds, but
 /// come often and from close by.
 constexpr float kFootstepGain = 0.5f;
@@ -200,11 +221,11 @@ constexpr float kFootstepGain = 0.5f;
 /// The footstep sounds of each texture kind, loaded once for all levels, and which was played last.
 class FootstepSounds {
 public:
-    FootstepSounds() : random_(random_seed()) {
+    explicit FootstepSounds(const std::filesystem::path& sounds_dir) : random_(random_seed()) {
         for (const manifold::TextureKind kind : manifold::kTextureKinds) {
             const std::string name = manifold::texture_kind_name(kind);
             sets_.at(static_cast<std::size_t>(kind)) =
-                manifold::SoundSet(std::filesystem::path(kFootstepSoundsDir) / name, name + " footstep");
+                manifold::SoundSet(sounds_dir / kFootstepSoundsDir / name, name + " footstep");
         }
     }
 
@@ -228,18 +249,19 @@ private:
 };
 
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files
-/// under kPortalSoundsDir, at any depth, see manifold::pick_asset_file(), and loads it.
+/// under kPortalSoundsDir in `sounds_dir`, at any depth, see manifold::pick_asset_file(), and loads it.
 ///
 /// Like the texture, the choice depends only on the level seed. The sound is logged as info.
 ///
 /// \return The sound, or an empty optional (after logging a warning) if there is none or it can't be loaded.
-std::optional<manifold::Sound> pick_exit_sound(std::uint64_t level_seed) {
+std::optional<manifold::Sound> pick_exit_sound(std::uint64_t level_seed, const std::filesystem::path& sounds_dir) {
     constexpr std::uint64_t kExitSoundSeedSalt = 0xd1b54a32d192ed03ULL;
-    const std::vector<std::filesystem::path> candidates = manifold::find_asset_files(kPortalSoundsDir, ".ogg");
+    const std::filesystem::path portal_dir = sounds_dir / kPortalSoundsDir;
+    const std::vector<std::filesystem::path> candidates = manifold::find_asset_files(portal_dir, ".ogg");
     const std::optional<std::filesystem::path> picked =
         manifold::pick_asset_file(candidates, level_seed ^ kExitSoundSeedSalt);
     if (!picked) {
-        manifold::log_warning("No exit sound found in {}", kPortalSoundsDir);
+        manifold::log_warning("No exit sound found in {}", portal_dir.string());
         return std::nullopt;
     }
     std::optional<manifold::Sound> sound = manifold::load_sound(*picked);
@@ -254,13 +276,13 @@ std::optional<manifold::Sound> pick_exit_sound(std::uint64_t level_seed) {
 ///
 /// \return The sound of the level's exit, see pick_exit_sound().
 std::optional<manifold::Sound> start_level(std::optional<manifold::Renderer>& renderer, manifold::Game& game,
-                                           manifold::ViewSettings& view) {
-    const LevelTexture texture = pick_level_texture(game.seed());
+                                           manifold::ViewSettings& view, const AssetDirs& assets) {
+    const LevelTexture texture = pick_level_texture(game.seed(), assets.textures);
     game.set_texture_kind(texture.kind);
     view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture.image));
     view.lights.ambient = view.level_ambient;
     renderer.emplace(game.world(), texture.image);
-    return pick_exit_sound(game.seed());
+    return pick_exit_sound(game.seed(), assets.sounds);
 }
 
 /// Logs the seed, the level and the player.
@@ -341,11 +363,12 @@ public:
     ///
     /// \param game      The game, whose level is set up.
     /// \param view      Where the level's ambient light is set.
+    /// \param assets    Where the level's texture and exit sound are picked from.
     /// \param save_path Where the game is saved, or nothing if there is no directory for saves.
     /// \param saving    Whether to save each level that starts. If not, the save can still be loaded.
-    LevelSession(manifold::Game& game, manifold::ViewSettings& view, std::optional<std::filesystem::path> save_path,
-                 bool saving)
-        : save_path_(std::move(save_path)), saving_(saving) {
+    LevelSession(manifold::Game& game, manifold::ViewSettings& view, AssetDirs assets,
+                 std::optional<std::filesystem::path> save_path, bool saving)
+        : assets_(std::move(assets)), save_path_(std::move(save_path)), saving_(saving) {
         if (save_path_ && !saving_) {
             manifold::log_info(
                 "The game isn't saved in this run, since it runs console commands from the command line");
@@ -390,13 +413,14 @@ private:
     /// game if saving is on.
     void set_up(manifold::Game& game, manifold::ViewSettings& view) {
         log_game(game);
-        exit_sound_ = start_level(renderer_, game, view);
+        exit_sound_ = start_level(renderer_, game, view, assets_);
         level_starts_ = game.level_starts();
         if (saving_ && save_path_) {
             save_game(game, *save_path_);
         }
     }
 
+    AssetDirs assets_;
     std::optional<std::filesystem::path> save_path_;
     bool saving_;  ///< Whether each level that starts is saved, if there is a directory for saves.
     std::optional<manifold::Renderer> renderer_;  ///< The renderer has the meshes of one level.
@@ -651,12 +675,13 @@ void run(const Options& options) {
     manifold::Window window("Manifold", kWindowWidth, window_height);
     manifold::ConsoleState state;
     manifold::AudioOutput audio;
-    const DoorSoundSets door_sounds;
-    FootstepSounds footsteps;
+    const AssetDirs assets = find_asset_dirs();
+    const DoorSoundSets door_sounds(assets.sounds);
+    FootstepSounds footsteps(assets.sounds);
     const manifold::OverlayRenderer overlay_renderer;
     // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
     // mostly test the game, so they leave the player's save alone.
-    LevelSession level(game, state.view, save_file_path(), options.commands.empty());
+    LevelSession level(game, state.view, assets, save_file_path(), options.commands.empty());
 
     manifold::Console console;
     manifold::CommandQueue commands;

@@ -56,6 +56,22 @@ TEST_F(AssetFilesTest, MissingDirectoryGivesNoFiles) {
     EXPECT_TRUE(find_asset_files(dir() / "missing", ".ogg").empty());
 }
 
+TEST_F(AssetFilesTest, AssetsNextToTheExecutableComeFirst) {
+    std::filesystem::create_directories(dir() / "game" / "assets");
+    EXPECT_EQ(find_assets_dir(dir() / "game", dir() / "source"), dir() / "game" / "assets");
+}
+
+TEST_F(AssetFilesTest, WithoutAssetsNextToTheExecutableTheFallbackIsUsed) {
+    std::filesystem::create_directories(dir() / "game");
+    EXPECT_EQ(find_assets_dir(dir() / "game", dir() / "source"), dir() / "source");
+    // A file named like the directory doesn't count.
+    write_file("game/assets");
+    EXPECT_EQ(find_assets_dir(dir() / "game", dir() / "source"), dir() / "source");
+    // Nor does a missing executable directory, or an unknown one.
+    EXPECT_EQ(find_assets_dir(dir() / "missing", dir() / "source"), dir() / "source");
+    EXPECT_EQ(find_assets_dir({}, dir() / "source"), dir() / "source");
+}
+
 TEST(AssetFilesPickTest, NoCandidatesGiveNothing) { EXPECT_FALSE(pick_asset_file({}, 1).has_value()); }
 
 TEST(AssetFilesPickTest, PickDependsOnlyOnSeedAndReachesEveryCandidate) {

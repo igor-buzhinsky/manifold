@@ -37,9 +37,16 @@ cmake --build build
 ./build/manifold 42 --exec "lighting off; screenshot flat.png 800 450; quit"   # run console commands
 ```
 
-The game reads its textures from `assets/textures/` and its sounds from `assets/sounds/` in the source tree,
-whose path is built into the executable, so keep the checkout where it was built. If no texture is found,
-surfaces are plain grey. Without an audio output device, the game runs without sound.
+The game reads its textures and sounds from the `assets/` directory next to the executable, if there is one, and
+otherwise from `assets/` in the source tree, whose path is built into the executable. To make a copy of the game
+that runs from anywhere, without the checkout:
+
+```sh
+cmake --install build --prefix ~/games/manifold   # copies the executable and assets/ into that directory
+~/games/manifold/manifold
+```
+
+If no texture is found, surfaces are plain grey. Without an audio output device, the game runs without sound.
 
 Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the
 window to quit.
