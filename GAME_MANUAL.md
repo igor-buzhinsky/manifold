@@ -28,9 +28,10 @@ portal stand still. It has these items:
 - **Load game**: load the save, as L does. It is greyed out if there is no save.
 - **Exit game**: quit the game.
 
-When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game or start
-a **New game**, which replaces the save once it is chosen. Escape doesn't leave this menu. A save that can't be read
-isn't offered: a new game starts, as without a save.
+When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game, start
+a **New game**, which replaces the save once it is chosen, or **Exit game**. Escape doesn't leave this menu. Closing
+it otherwise, with the `menu` command, also starts the new game and replaces the save. A save that can't be read,
+e.g. one of an older version of the game, isn't offered: a new game starts, as without a save, and replaces it.
 
 Menus are used with the keys or the mouse:
 
@@ -40,7 +41,9 @@ Menus are used with the keys or the mouse:
 | Enter or Space | Choose the highlighted item |
 | Mouse | Pointing at an item highlights it, and clicking it with the left button chooses it |
 
-The console can be opened over a menu; while it is open, the menu gets no keys or clicks.
+The console can be opened over a menu; while it is open, the menu gets no keys or clicks. The `load` command closes
+the menus, as Load game does. The debug overlay (F3) can't be used while a menu is open, and isn't shown over the
+start menu.
 
 ## Screen
 

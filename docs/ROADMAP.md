@@ -189,8 +189,8 @@ and tools for inspecting the game. Done:
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
 - **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
   Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of
-  the same style on black asks whether to continue it or to start a new game, which replaces the save only once it is
-  chosen. Menus are used with the arrow keys and Enter or with the mouse. They are built of the game's own controls
+  the same style on black asks whether to continue it, to start a new game, which replaces the save only once it is
+  chosen, or to exit. Menus are used with the arrow keys and Enter or with the mouse. They are built of the game's own controls
   (see [DECISIONS.md](DECISIONS.md)): a stack of screens (`ScreenStack`), each a `Screen` that lays itself out anew
   for every event and drawing; `MenuScreen` with a `ButtonList`, drawn as an `OverlayMesh` in shared colors
   (`ui_style.hpp`). Later screens, such as the party screen with tabs, add controls to this. The `menu` command opens

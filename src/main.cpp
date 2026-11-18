@@ -403,6 +403,9 @@ public:
 
     /// Sets up the game's level if the game started another one since the last call, e.g. when the player reached
     /// the exit or a console command started the next level. Plays the exit sound of the level before.
+    ///
+    /// If the level before waited for save_deferred(), so does the new one, so that the save offered by the start menu
+    /// stays until the player chooses, e.g. when `next_level` is run over the start menu.
     void follow(manifold::Game& game, manifold::ViewSettings& view, manifold::AudioOutput& audio) {
         if (game.level_starts() == level_starts_) {
             return;
@@ -410,7 +413,7 @@ public:
         if (exit_sound_) {
             audio.play(*exit_sound_);
         }
-        set_up(game, view);
+        set_up(game, view, !deferred_);
     }
 
     /// Loads the saved game into `game` and sets up its level. Unless `stop_on_error` is set, a failure is only logged,
@@ -657,9 +660,11 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
     if (!pointer) {
         return;
     }
+    // The screens are laid out for the current size, not that of the last drawing, in case the window was resized.
     const manifold::PixelSize framebuffer = window.framebuffer_size();
-    pointer->position = manifold::window_to_viewport(pointer->position, window.size(), framebuffer,
-                                                     manifold::fit_viewport(framebuffer, manifold::kAspectRatio));
+    const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
+    ui.picture = {.width = viewport.width, .height = viewport.height};
+    pointer->position = manifold::window_to_viewport(pointer->position, window.size(), framebuffer, viewport);
     ui.handle(*pointer);
 }
 
@@ -837,12 +842,12 @@ struct LogListenerReset {
 
 /// Opens the menu that `request` asks for instead of the open screens, or closes them all.
 ///
-/// \param can_load Whether the game menu can load a save.
+/// \param can_load Whether there is a save to load, which the menus offer only then.
 void open_menu(manifold::MenuRequest request, manifold::ScreenStack& screens, bool can_load) {
     screens.clear();
     switch (request) {
         case manifold::MenuRequest::kStart:
-            screens.push(manifold::make_start_menu());
+            screens.push(manifold::make_start_menu(can_load));
             break;
         case manifold::MenuRequest::kGame:
             screens.push(manifold::make_game_menu(can_load));
@@ -892,11 +897,12 @@ void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, 
     if (const std::optional<manifold::MenuRequest> menu = std::exchange(state.menu, std::nullopt)) {
         open_menu(*menu, ui.screens, level.has_save());
     }
-    // Loading comes before the commands, so that those after `load` run in the loaded level.
-    if (std::exchange(state.load, false)) {
-        level.load(game, state.view, state.load_stops_on_error);
+    // Loading comes before the commands, so that those after `load` run in the loaded level. As from a menu, loading
+    // closes the menus.
+    if (std::exchange(state.load, false) && level.load(game, state.view, state.load_stops_on_error)) {
+        ui.screens.clear();
     }
-    // The new game is saved once the start menu is closed without continuing the save.
+    // The new game is saved once the start menu is closed without continuing the save, also by the `menu` command.
     if (ui.screens.empty()) {
         level.save_deferred(game);
     }
@@ -934,7 +940,7 @@ void run(const Options& options) {
     LevelSession level(game, state.view, assets, std::move(save_path), saving, ask);
     Ui ui;
     if (ask) {
-        ui.screens.push(manifold::make_start_menu());
+        ui.screens.push(manifold::make_start_menu(true));
     }
 
     manifold::Console console;
@@ -981,7 +987,8 @@ void run(const Options& options) {
         draw_scene(level.renderer(), overlay_renderer, game, state.view, ui.screens, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = level.renderer().stats();
-        if (state.debug_overlay) {
+        // A screen that hides the game hides the overlay too, whose numbers would be of the last drawing of the game.
+        if (state.debug_overlay && !ui.screens.hides_game()) {
             overlay.draw(game, state.view, render_stats, frame_times);
         }
         if (console_window.is_open()) {
