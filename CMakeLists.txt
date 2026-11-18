@@ -166,6 +166,7 @@ install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
 install(FILES ${stb_SOURCE_DIR}/LICENSE DESTINATION licenses RENAME stb.txt)
 install(FILES ${imgui_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME imgui.txt)
 install(FILES ${nlohmann_json_SOURCE_DIR}/LICENSE.MIT DESTINATION licenses RENAME nlohmann_json.txt)
+install(FILES external/glad/LICENSE DESTINATION licenses RENAME glad.txt)
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()

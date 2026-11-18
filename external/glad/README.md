@@ -6,6 +6,10 @@ the same settings are at the top of `include/glad/gl.h`. The files are generated
 hand. They are left out of `format` and `lint`. See [docs/DECISIONS.md](../../docs/DECISIONS.md) for
 why glad is used.
 
+The generated code is under CC0 1.0 (glad also offers public domain and WTFPL), and the parts that come from the
+Khronos OpenGL registry are under the Apache License 2.0: see [LICENSE](LICENSE), which `cmake --install` copies
+along with the game.
+
 `Window` calls `gladLoadGL` once its OpenGL context is current. Before that, every OpenGL function is a
 null pointer.
 
