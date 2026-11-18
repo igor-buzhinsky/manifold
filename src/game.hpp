@@ -100,7 +100,8 @@ public:
     ///
     /// Doors move first. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
     /// When `input.activate` becomes true, the player activates what they look at, and then, if `input.click` is set,
-    /// what is in its direction, see activate(). Both happen after the player moved.
+    /// what is in its direction, see activate(). Both happen after the player moved. The click's direction is not
+    /// turned with the player, so it stays that of the picture that was clicked.
     ///
     /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
     ///

@@ -11,7 +11,7 @@
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or levitation (not implemented yet): fly up |
 | Page Down | With noclip or levitation (not implemented yet): fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
-| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 30° that the view can be turned up or down. Each click activates once |
+| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 30° that the view can be turned up or down. Each click activates once. Clicks do nothing while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |
 | L | Load the saved game: start the saved level again from its start, see Saving below |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
@@ -49,8 +49,7 @@ start menu.
 ## Screen
 
 A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
-shows what a click activates. The `crosshair`
-command hides or shows it.
+shows what a click activates. The `crosshair` command hides or shows the crosshair.
 
 ## Levels
 
@@ -65,8 +64,9 @@ the level's texture shows: grass, wood, metal or stone (also bricks, tiles, plas
 In room levels, some openings between rooms (10% to 100% of them, random for each level) have doors: two
 halves between two dark frames. All doors of a level are wooden or all are metal, each with a chance of 50%.
 A closed door blocks the way. E on the door opens it: the halves slide into the walls within a second, and
-only then can the player pass. To close an open door, aim at one of its frames and press E. Clicking the door or a frame does the same. A door
-that is moving ignores E and clicks, and a door doesn't close while the player stands in it.
+only then can the player pass. To close an open door, aim at one of its frames and press E. Clicking the door or
+a frame does the same. A door that is moving ignores E and clicks, and a door doesn't close while the player stands
+in it.
 A door makes a sound when it starts to open and when it starts to close, also with the `door` command. Each door
 has its own two sounds, picked when the level is generated.
 
@@ -169,5 +169,6 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
   back to the defaults, with the level's ambient light. Each new level sets the ambient light again.
 
 Ctrl+click on a slider to type a value. While a value is typed, or a control is held with the mouse, the
-keys don't move the player and don't open the console; only F3 still works. The overlay can't be used while
+keys don't move the player and don't open the console; only F3 still works. Clicks on the overlay don't
+activate what the game shows behind it. The overlay can't be used while
 the console is open. Screenshots don't show it, but they show the lights it set.

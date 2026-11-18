@@ -996,7 +996,7 @@ void run(const Options& options) {
         // The game is paused while a screen such as a menu is open.
         if (ui.screens.empty()) {
             // While the console window is open, or the debug overlay has the keyboard, the keys type into them
-            // instead of moving the player.
+            // instead of moving the player, and clicks don't activate.
             const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
             manifold::PlayerInput input =
                 keys_taken ? manifold::PlayerInput{} : read_input(ui, state.view, game.player());
