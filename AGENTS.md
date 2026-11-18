@@ -112,4 +112,4 @@ When the user asks for a PR:
 5. Address the findings as for other changes, with new commits on the branch, then push them and reply to
    each review comment: fixed in which commit, or rejected and why.
 6. Don't wait for CI: the local checks are faster. Tell the user the PR's link. The user merges it once CI
-   is green; don't merge it yourself.
+   is green (a PR that changes only `.md` files runs no CI); don't merge it yourself.
