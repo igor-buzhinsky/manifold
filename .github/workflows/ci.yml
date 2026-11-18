@@ -1,13 +1,15 @@
 # Builds the game with GCC and with Clang, with warnings as errors, and runs the unit tests; runs the `lint` target;
 # and checks the Python scripts of scripts/. The runner is the Ubuntu release that README.md documents, so the
 # compilers and the clang-format and clang-tidy versions match a local setup. CMake is the runner's own, which is
-# newer than Ubuntu's.
+# newer than Ubuntu's. A pull request that changes only Markdown files doesn't run it, since nothing it checks can
+# change; pushes to main always run it.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+    paths-ignore: ['**.md']
   workflow_dispatch:
 
 permissions:
