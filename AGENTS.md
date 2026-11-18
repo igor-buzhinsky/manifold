@@ -78,10 +78,11 @@ Then address the findings:
   Start it from an up-to-date `origin/main`.
 - PRs are merged by rebasing, so each of their commits lands on `main` as it is. Each commit must build
   without warnings and pass the tests and lint, and have a full commit message. Fold "WIP" or "fix the
-  previous commit" changes into the commits they belong to before pushing. Once a review is posted, add new
-  commits rather than rewriting the ones it refers to.
-- To bring a PR branch up to date with `main`, rebase it onto `origin/main` and push it with
-  `--force-with-lease`. Never force-push `main`.
+  previous commit" changes into the commits they belong to before pushing.
+- Don't force-push the branch of an open PR unless the user explicitly asks: add new commits instead of
+  rewriting pushed ones. A PR needn't be kept up to date with `main`, since GitHub rebases it when merging.
+  If it conflicts with `main`, tell the user; rebase it onto `origin/main` and push it with
+  `--force-with-lease` only when they ask. Never force-push `main`.
 - End everything you post on GitHub (PR descriptions, reviews, each review comment, replies and other
   comments) with the line `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
 
