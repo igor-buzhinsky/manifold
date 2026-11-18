@@ -43,6 +43,17 @@ std::vector<CharacterPlacement> layout_party_hud(const PixelSize& picture, std::
     return placements;
 }
 
+bool party_hud_contains(const PixelSize& picture, std::size_t count, const glm::vec2& point) {
+    const std::vector<CharacterPlacement> placements = layout_party_hud(picture, count);
+    if (placements.empty()) {
+        return false;
+    }
+    const glm::vec2 top_left = placements.front().portrait.top_left;
+    const Rect& last_bar = placements.back().hp_bar;
+    const Rect area{.top_left = top_left, .size = last_bar.top_left + last_bar.size - top_left};
+    return area.contains(point);
+}
+
 void add_party_hud(OverlayMesh& mesh, std::span<const CharacterPlacement> placements,
                    std::span<const Character> party) {
     const std::size_t count = std::min(placements.size(), party.size());
