@@ -114,14 +114,17 @@ void Game::update(const PlayerInput& input, float dt) {
     if (activate_pressed) {
         activate();
     }
+    if (input.click) {
+        activate(input.click);
+    }
     const std::optional<LevelExit>& exit = level_.world.exit();
     if (exit && exit->touches(player_.body())) {
         next_level();
     }
 }
 
-Activation Game::activate() {
-    const Ray view{.origin = player_.eye_position(), .direction = player_.view_direction()};
+Activation Game::activate(std::optional<glm::vec3> direction) {
+    const Ray view{.origin = player_.eye_position(), .direction = direction.value_or(player_.view_direction())};
     const std::optional<RayHit> hit = cast_ray(level_.world, doors_, view, kActivationReach);
     if (!hit || hit->target == RayTarget::kWorld) {
         return Activation::kNothing;

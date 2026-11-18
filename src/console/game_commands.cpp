@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "console/console.hpp"
@@ -174,7 +175,7 @@ const char* door_state_name(const DoorState& door) {
     return door.openness >= 1.0f ? "open" : "closed";
 }
 
-/// Adds the commands that inspect and use doors: doors, door and activate.
+/// Adds the commands that inspect and use doors: doors and door.
 void add_door_commands(Console& console, Game& game) {
     console.add("doors", "doors",
                 "Lists the doors: what they are made of, their number, where they are, and whether they are open.",
@@ -217,24 +218,45 @@ void add_door_commands(Console& console, Game& game) {
                                                                      : "it is " + std::string(door_state_name(state))));
                     }
                 });
+}
 
-    console.add("activate", "activate", "Activates what the center of the player's view points at, like the E key.",
-                [&game](std::span<const std::string> arguments) {
-                    expect_count(arguments, 0, "activate");
-                    switch (game.activate()) {
-                        case Activation::kNothing:
-                            log_info("Nothing to activate");
-                            break;
-                        case Activation::kOpened:
-                            log_info("A door opens");
-                            break;
-                        case Activation::kClosed:
-                            log_info("A door closes");
-                            break;
-                        case Activation::kRefused:
-                            log_info("The door can't move now");
-                            break;
+/// Logs what an activation did.
+void log_activation(Activation activation) {
+    switch (activation) {
+        case Activation::kNothing:
+            log_info("Nothing to activate");
+            break;
+        case Activation::kOpened:
+            log_info("A door opens");
+            break;
+        case Activation::kClosed:
+            log_info("A door closes");
+            break;
+        case Activation::kRefused:
+            log_info("The door can't move now");
+            break;
+    }
+}
+
+/// Adds the activate command.
+void add_activate_command(Console& console, Game& game) {
+    const std::string activate_usage = "activate [X Y]";
+    console.add("activate", activate_usage,
+                "Activates what the center of the player's view points at, like the E key, or what a click at X Y "
+                "would: fractions of the view's width and height from its top-left corner.",
+                [&game, activate_usage](std::span<const std::string> arguments) {
+                    if (!arguments.empty() && arguments.size() != 2) {
+                        throw CommandError("usage: " + activate_usage);
                     }
+                    std::optional<glm::vec3> direction;
+                    if (arguments.size() == 2) {
+                        const glm::vec2 point{parse_float_argument(arguments[0]), parse_float_argument(arguments[1])};
+                        if (point.x < 0.0f || point.x > 1.0f || point.y < 0.0f || point.y > 1.0f) {
+                            throw CommandError("X and Y must be from 0 to 1");
+                        }
+                        direction = make_player_camera(game.player()).ray_direction(point);
+                    }
+                    log_activation(game.activate(direction));
                 });
 }
 
@@ -333,6 +355,7 @@ Camera view_camera(const ViewSettings& view, const Player& player) {
 void add_game_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     add_player_commands(console, queue, game, state);
     add_door_commands(console, game);
+    add_activate_command(console, game);
     add_view_commands(console, queue, state);
 }
 

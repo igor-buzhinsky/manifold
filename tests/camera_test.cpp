@@ -1,8 +1,11 @@
 #include "render/camera.hpp"
 
+#include <array>
 #include <numbers>
+#include <utility>
 
 #include <glm/geometric.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 #include <gtest/gtest.h>
@@ -58,6 +61,28 @@ TEST(CameraTest, PointBehindIsNotVisible) {
     const Camera camera{.position = {0.0f, 0.0f, 1.5f}, .yaw = 0.0f};
     const glm::vec4 clip = camera.projection() * camera.view() * glm::vec4(-5.0f, 0.0f, 1.5f, 1.0f);
     EXPECT_LT(clip.w, 0.0f);
+}
+
+TEST(CameraTest, RayDirectionThroughCenterIsForward) {
+    const Camera camera{.position = {1.0f, 2.0f, 1.5f}, .yaw = 2.0f, .pitch = 0.4f};
+    EXPECT_NEAR(glm::distance(camera.ray_direction({0.5f, 0.5f}), camera.forward()), 0.0f, 1e-6f);
+}
+
+TEST(CameraTest, RayDirectionGoesThroughThePointOfThePicture) {
+    const Camera camera{.position = {1.0f, 2.0f, 1.5f}, .yaw = 2.0f, .pitch = -0.3f};
+    // Points of the picture from its top-left corner, y down, and where they are in normalized device coordinates.
+    const std::array<std::pair<glm::vec2, glm::vec2>, 3> points{{
+        {{0.0f, 0.0f}, {-1.0f, 1.0f}},
+        {{1.0f, 1.0f}, {1.0f, -1.0f}},
+        {{0.75f, 0.25f}, {0.5f, 0.5f}},
+    }};
+    for (const auto& [point, expected] : points) {
+        const glm::vec3 direction = camera.ray_direction(point);
+        EXPECT_NEAR(glm::length(direction), 1.0f, 1e-6f);
+        const glm::vec3 ndc = project(camera, camera.position + (3.0f * direction));
+        EXPECT_NEAR(ndc.x, expected.x, 1e-5f);
+        EXPECT_NEAR(ndc.y, expected.y, 1e-5f);
+    }
 }
 
 TEST(CameraTest, PlayerCameraIsAtEyes) {

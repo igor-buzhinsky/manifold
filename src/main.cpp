@@ -524,6 +524,10 @@ struct Ui {
     /// close them.
     std::optional<manifold::UiCommand> command;
     manifold::PixelSize picture;  ///< Size of the picture that the screens were drawn over last.
+    /// Where the left button was pressed over the game in this frame while no screen was open, as fractions of the
+    /// picture's width and height from its top-left corner, see Camera::ray_direction(). Presses on the black bars
+    /// are left out.
+    std::optional<glm::vec2> game_click;
 
     /// Passes an event to the screen on top, unless the screens already asked for something in this frame.
     void handle(const manifold::UiEvent& event) {
@@ -640,10 +644,29 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     }
 }
 
+/// The point of the picture under a point of the window, in pixels from its top-left corner, y down.
+///
+/// The picture is laid out for the current size of the window, not that of the last drawing, in case the window was
+/// resized. Also updates `ui.picture` to its size.
+glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, Ui& ui) {
+    const manifold::PixelSize framebuffer = window.framebuffer_size();
+    const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
+    ui.picture = {.width = viewport.width, .height = viewport.height};
+    return manifold::window_to_viewport(point, window.size(), framebuffer, viewport);
+}
+
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
-/// left button and a screen is open.
+/// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
+/// `ui.game_click`, to activate what is there.
 void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui) {
     if (ui.screens.empty()) {
+        if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+            const glm::vec2 point = picture_point({event.button.x, event.button.y}, window, ui);
+            const glm::vec2 size{static_cast<float>(ui.picture.width), static_cast<float>(ui.picture.height)};
+            if (point.x >= 0.0f && point.y >= 0.0f && point.x < size.x && point.y < size.y) {
+                ui.game_click = point / size;
+            }
+        }
         return;
     }
     std::optional<manifold::PointerEvent> pointer;
@@ -660,11 +683,7 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
     if (!pointer) {
         return;
     }
-    // The screens are laid out for the current size, not that of the last drawing, in case the window was resized.
-    const manifold::PixelSize framebuffer = window.framebuffer_size();
-    const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
-    ui.picture = {.width = viewport.width, .height = viewport.height};
-    pointer->position = manifold::window_to_viewport(pointer->position, window.size(), framebuffer, viewport);
+    pointer->position = picture_point(pointer->position, window, ui);
     ui.handle(*pointer);
 }
 
@@ -734,15 +753,24 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
 /// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
 constexpr float kMaxFrameTime = 0.1f;
 
-/// Reads the keys that are held down.
+/// Reads the keys that are held down, and the click of this frame over the game.
 ///
 /// These are the key bindings, with those of handle_events(). Keep GAME_MANUAL.md up to date when changing
 /// them.
-manifold::PlayerInput read_input() {
+///
+/// \param ui     Where the left button was pressed over the game, see Ui::game_click.
+/// \param view   How the game is shown. While a camera put in place shows the picture, clicks are ignored, since they
+///               activate what the player's eyes see at that point of the picture.
+/// \param player The player whose eyes the click activates from.
+manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& view, const manifold::Player& player) {
     const bool* keys = SDL_GetKeyboardState(nullptr);
     const auto axis = [keys](SDL_Scancode positive, SDL_Scancode negative) {
         return (keys[positive] ? 1.0f : 0.0f) - (keys[negative] ? 1.0f : 0.0f);
     };
+    std::optional<glm::vec3> click;
+    if (ui.game_click && !view.camera) {
+        click = manifold::make_player_camera(player).ray_direction(*ui.game_click);
+    }
     return {
         .turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT),
         .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN),
@@ -750,6 +778,7 @@ manifold::PlayerInput read_input() {
         .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
         .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
         .activate = keys[SDL_SCANCODE_E],
+        .click = click,
     };
 }
 
@@ -969,13 +998,15 @@ void run(const Options& options) {
             // While the console window is open, or the debug overlay has the keyboard, the keys type into them
             // instead of moving the player.
             const bool keys_taken = console_window.is_open() || overlay.wants_keyboard();
-            manifold::PlayerInput input = keys_taken ? manifold::PlayerInput{} : read_input();
+            manifold::PlayerInput input =
+                keys_taken ? manifold::PlayerInput{} : read_input(ui, state.view, game.player());
             if (state.walk_frames > 0) {
                 input.forward = 1.0f;
                 --state.walk_frames;
             }
             game.update(input, std::min(frame_time, kMaxFrameTime));
         }
+        ui.game_click.reset();
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
         play_door_sounds(game, door_sounds, audio);
