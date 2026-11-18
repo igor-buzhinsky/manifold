@@ -82,6 +82,8 @@ Then address the findings:
   commits rather than rewriting the ones it refers to.
 - To bring a PR branch up to date with `main`, rebase it onto `origin/main` and push it with
   `--force-with-lease`. Never force-push `main`.
+- End everything you post on GitHub (PR descriptions, reviews, each review comment, replies and other
+  comments) with the line `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
 
 When the user asks for a PR:
 
