@@ -42,9 +42,12 @@ otherwise from `assets/` in the source tree, whose path is built into the execut
 that runs from anywhere, without the checkout:
 
 ```sh
-cmake --install build --prefix ~/games/manifold   # copies the executable and assets/ into that directory
+cmake --install build --prefix ~/games/manifold   # copies the executable, assets/ and the licenses there
 ~/games/manifold/manifold
 ```
+
+Without `--prefix`, the copy goes into `build/install/`. The build is a Debug one unless the first `cmake` command
+has `-DCMAKE_BUILD_TYPE=Release`, which makes the game faster.
 
 If no texture is found, surfaces are plain grey. Without an audio output device, the game runs without sound.
 

@@ -152,9 +152,20 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 # Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
-# `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets.
+# `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
+# with the licenses of the game and of the libraries built into it. The layout isn't the usual one of /usr/local,
+# so without --prefix the copy goes into the build directory.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
+endif()
 install(TARGETS manifold RUNTIME DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
+install(FILES LICENSE DESTINATION .)
+install(FILES ${sdl3_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME SDL3.txt)
+install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
+install(FILES ${stb_SOURCE_DIR}/LICENSE DESTINATION licenses RENAME stb.txt)
+install(FILES ${imgui_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME imgui.txt)
+install(FILES ${nlohmann_json_SOURCE_DIR}/LICENSE.MIT DESTINATION licenses RENAME nlohmann_json.txt)
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()
