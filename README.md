@@ -102,6 +102,10 @@ taken and how they were processed. A pack whose files are in several groups, suc
   [RPG Audio](https://kenney.nl/assets/rpg-audio) by Kenney (kenney.nl), CC0 1.0.
 - Footstep sounds: from [Freesound](https://freesound.org/), CC0 1.0. The author of each is in the README next to
   it, under `assets/sounds/footsteps/`.
+- Portraits: paintings, prints and photographs from the
+  [Metropolitan Museum of Art](https://www.metmuseum.org/hubs/open-access) (Open Access, CC0 1.0) and the
+  [Rijksmuseum](https://www.rijksmuseum.nl/) (public domain), cropped. The artist and title of each are in the
+  README next to it, under `assets/portraits/`.
 
 ## License
 
