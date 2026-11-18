@@ -645,7 +645,7 @@ TEST(GameTest, ClickActivatesInItsDirectionWithTheSameReach) {
     EXPECT_EQ(game.activate(), Activation::kNothing);
     EXPECT_EQ(game.activate(glm::vec3(0.0f, 1.0f, 0.0f)), Activation::kOpened);
     game.update({}, Door::kMoveTime);
-    // A click in the update activates after the player moved. Each click activates, without a new press.
+    // Each click in an update activates, without a new press.
     game.teleport({0.9f, -1.5f, 0.0f}, 0.0f);  // The frame to the left.
     game.update({.click = glm::vec3(0.0f, 1.0f, 0.0f)}, 0.1f);
     EXPECT_FLOAT_EQ(game.doors()[0].target, 0.0f);
@@ -658,6 +658,9 @@ TEST(GameTest, ClickActivatesInItsDirectionWithTheSameReach) {
     game.update({}, Door::kMoveTime);
     game.teleport({0.0f, -2.1f, 0.0f}, 0.0f);
     EXPECT_EQ(game.activate(glm::vec3(0.0f, 1.0f, 0.0f)), Activation::kNothing);
+    // Stepping 0.2 m to the left in the same update brings it within reach: the click activates after the move.
+    game.update({.strafe = -1.0f, .click = glm::vec3(0.0f, 1.0f, 0.0f)}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
 }
 
 TEST(GameTest, DoorDoesNotCloseOnThePlayer) {

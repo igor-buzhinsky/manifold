@@ -37,7 +37,9 @@ public:
     /// Passes an event to ImGui, if input is on.
     ///
     /// \return True if the game should ignore the event, because ImGui uses it: a key or typed text while
-    ///         ImGui has the keyboard, see wants_keyboard().
+    ///         ImGui has the keyboard, see wants_keyboard(), or a mouse button or wheel event while the pointer is
+    ///         over the overlay or a control is held with the mouse, so that clicking the overlay doesn't activate
+    ///         what the game shows behind it.
     bool handle_event(const SDL_Event& event);
 
     /// Whether ImGui uses the keyboard, so the keys shouldn't move the player: while a value is typed into a

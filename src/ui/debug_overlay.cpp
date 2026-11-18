@@ -180,7 +180,10 @@ bool DebugOverlay::handle_event(const SDL_Event& event) {
     ImGui_ImplSDL3_ProcessEvent(&event);
     const bool keyboard_event =
         event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP || event.type == SDL_EVENT_TEXT_INPUT;
-    return keyboard_event && wants_keyboard();
+    // Motion is left to the game, which may want to know where the pointer is.
+    const bool mouse_event = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN || event.type == SDL_EVENT_MOUSE_BUTTON_UP ||
+                             event.type == SDL_EVENT_MOUSE_WHEEL;
+    return (keyboard_event && wants_keyboard()) || (mouse_event && ImGui::GetIO().WantCaptureMouse);
 }
 
 bool DebugOverlay::wants_keyboard() const { return input_ && ImGui::GetIO().WantCaptureKeyboard; }
