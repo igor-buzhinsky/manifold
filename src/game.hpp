@@ -13,6 +13,7 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "party/party.hpp"
 #include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
@@ -33,6 +34,9 @@ struct GameConfig {
     /// How high a jump lifts the player's feet under Earth gravity, in metres. The take-off speed is the same
     /// in every level, so the jump is higher where gravity is weaker: jump_height * kEarthGravity / gravity.
     float jump_height = 0.5f;
+    /// The portraits that the characters of a new party are chosen from, see make_party().
+    std::vector<PortraitFile> portraits;
+    PartyConfig party;  ///< How many characters a new party has, and their hit points.
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -73,10 +77,10 @@ struct DoorMove {
 /// to it, so systems such as physics or AI can work on both.
 class Game {
 public:
-    /// Generates the level and places the player at its start.
+    /// Generates the level, places the player at its start, and makes a new party, see new_game().
     ///
     /// \param config Game settings.
-    /// \param seed   Seed for level generation. The same seed gives the same level.
+    /// \param seed   Seed for level generation and the party. The same seed gives the same level and party.
     /// \param layout The layout of this level. If not given, it is chosen at random, see LevelConfig. The
     ///               layouts of the next levels are always chosen at random.
     /// \throws std::runtime_error if the level can't be generated.
@@ -87,7 +91,8 @@ public:
     /// \param config Game settings. The level settings are used for the next levels, with layouts chosen at
     ///               random.
     /// \param level  The level. The player starts at its start.
-    /// \param seed   The seed reported by seed(). The next level is generated from next_level_seed() of it.
+    /// \param seed   The seed reported by seed(). The next level is generated from next_level_seed() of it. The party
+    ///               is made from it, as by new_game().
     Game(const GameConfig& config, Level level, std::uint64_t seed = 0);
 
     /// Advances the game by one frame.
@@ -114,7 +119,7 @@ public:
     ///
     /// The layout is chosen at random, see LevelConfig, even if the first level was given one.
     ///
-    /// The player stands still and looks straight ahead. Noclip and the game time stay as they are.
+    /// The player stands still and looks straight ahead. Noclip, the game time and the party stay as they are.
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void next_level();
@@ -122,7 +127,8 @@ public:
     /// Starts a new game: generates its first level from `seed`, as the constructor does, and puts the player at its
     /// start.
     ///
-    /// The level number and the game time start again from 0. Noclip stays as it is.
+    /// The level number and the game time start again from 0. Noclip stays as it is. A new party is made with
+    /// make_party(), from GameConfig::portraits and a seed derived from `seed`, so the same seed gives the same party.
     ///
     /// \param seed   Seed for level generation.
     /// \param layout The layout of the first level, or nothing to choose it at random.
@@ -132,12 +138,13 @@ public:
     /// Starts the saved level again from its start, as next_level() starts a level.
     ///
     /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
-    /// the game time become the saved ones. Noclip stays as it is.
+    /// the game time and the party become the saved ones. Noclip stays as it is.
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void load(const SavedGame& save);
 
-    /// What a save of this level holds, to start it again with load(): the level as it was at its start.
+    /// What a save of this level holds, to start it again with load(): the level and the party as they were at its
+    /// start.
     ///
     /// A level that was not generated, but given to the constructor, is saved with its seed, so loading it gives the
     /// level generated from that seed instead.
@@ -161,6 +168,13 @@ public:
     ///         should close while the player overlaps it, see Door::blocker().
     /// \throws std::out_of_range if there is no such door.
     bool set_door_open(std::size_t index, bool open);
+
+    /// Sets the hit points of a character of the party, e.g. as a cheat. They are clamped to [0, Character::max_hp].
+    ///
+    /// \param index Index of the character in party().
+    /// \param hp    The new hit points.
+    /// \throws std::out_of_range if there is no such character.
+    void set_hp(std::size_t index, int hp);
 
     /// Sets what the surfaces of the level are made of, see Level::texture_kind. The next level is stone until this
     /// is called again.
@@ -193,6 +207,8 @@ public:
     const Level& level() const { return level_; }
     const World& world() const { return level_.world; }
     const Player& player() const { return player_; }
+    /// The characters of the party, in the order of their portraits from the left.
+    std::span<const Character> party() const { return party_; }
     /// The state of each door of World::doors(), in the same order.
     std::span<const DoorState> doors() const { return doors_; }
     /// The seed the level was generated from.
@@ -247,13 +263,18 @@ private:
     /// The blockers of the doors that are not passable, see Door::blocker().
     std::vector<Obstacle> door_blockers() const;
 
+    /// A new party for a game whose first level has the seed `seed`, see new_game().
+    std::vector<Character> make_new_party(std::uint64_t seed) const;
+
     LevelConfig level_config_;
     PlayerParams player_params_;
     float turn_speed_;
     float look_speed_;
     float move_speed_;
     float max_snap_slope_;
-    float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
+    float jump_speed_;                     ///< Take-off speed of a jump, in metres per second.
+    std::vector<PortraitFile> portraits_;  ///< See GameConfig::portraits.
+    PartyConfig party_config_;
     bool noclip_ = false;
     bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
     bool activate_held_ = false;  ///< Whether input.activate was true in the previous frame.
@@ -265,9 +286,11 @@ private:
     int level_starts_ = 0;  ///< See level_starts().
     Level level_;
     Player player_;
-    std::vector<DoorState> doors_;      ///< The state of each door of the level.
-    std::vector<DoorMove> door_moves_;  ///< See take_door_moves().
-    int footsteps_ = 0;                 ///< See take_footsteps().
+    std::vector<Character> party_;
+    std::vector<Character> level_start_party_;  ///< The party when the level started, see save_point().
+    std::vector<DoorState> doors_;              ///< The state of each door of the level.
+    std::vector<DoorMove> door_moves_;          ///< See take_door_moves().
+    int footsteps_ = 0;                         ///< See take_footsteps().
     /// How far the player has walked on the ground since the last footstep, in metres.
     float step_distance_ = kStepLength - kFirstStepLength;
 };

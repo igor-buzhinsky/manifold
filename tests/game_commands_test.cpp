@@ -282,6 +282,22 @@ TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {
     }
 }
 
+TEST(GameCommandsTest, PartyListsAndHpSetsTheHitPoints) {
+    Fixture fixture;
+    EXPECT_NO_THROW(fixture.run("party"));
+    const int max_hp = fixture.game.party()[1].max_hp;
+    fixture.run("hp 1 7");
+    EXPECT_EQ(fixture.game.party()[1].hp, 7);
+    fixture.run("hp 1 " + std::to_string(max_hp));
+    EXPECT_EQ(fixture.game.party()[1].hp, max_hp);
+    for (const std::string& command :
+         {std::string("hp 3 1"), std::string("hp -1 1"), std::string("hp 0 -1"), "hp 0 " + std::to_string(max_hp + 1),
+          std::string("hp 0"), std::string("hp x 1"), std::string("party 0")}) {
+        fixture.expect_error(command);
+    }
+    EXPECT_EQ(fixture.game.party()[0].hp, fixture.game.party()[0].max_hp);
+}
+
 TEST(GameCommandsTest, ActivateActsLikeTheKey) {
     Fixture fixture(Game(make_config(), make_door_level()));
     fixture.run("activate");

@@ -17,6 +17,7 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "party/party.hpp"
 #include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/world.hpp"
@@ -476,20 +477,34 @@ TEST(GameTest, NextLevelChoosesLayoutAtRandomAndFollowsSeeds) {
     }
 }
 
+/// The characters of the game's party.
+std::vector<Character> party_of(const Game& game) { return {game.party().begin(), game.party().end()}; }
+
 TEST(GameTest, SavePointIsTheStartOfTheLevel) {
     Game game(make_config(), 3, LayoutKind::kDebug);
+    const std::vector<Character> start_party = party_of(game);
     game.update({.forward = 1.0f}, 0.5f);
-    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 3, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0}));
+    game.set_hp(1, 40);
+    EXPECT_EQ(
+        game.save_point(),
+        (SavedGame{.seed = 3, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = start_party}));
     game.next_level();
+    const std::vector<Character> second_party = party_of(game);
+    EXPECT_EQ(second_party[1].hp, 40);
     game.update({.forward = 1.0f}, 0.25f);
+    game.set_hp(1, 10);
     // Only the first level has the given layout.
-    EXPECT_EQ(game.save_point(),
-              (SavedGame{.seed = next_level_seed(3), .level_number = 1, .layout = std::nullopt, .time = 0.5}));
+    EXPECT_EQ(game.save_point(), (SavedGame{.seed = next_level_seed(3),
+                                            .level_number = 1,
+                                            .layout = std::nullopt,
+                                            .time = 0.5,
+                                            .party = second_party}));
 }
 
 TEST(GameTest, LoadStartsTheSavedLevelAgain) {
     Game original(make_config(), 3, LayoutKind::kDebug);
     original.update({}, 0.5f);
+    original.set_hp(0, 25);
     original.next_level();
     const SavedGame save = original.save_point();
 
@@ -508,6 +523,8 @@ TEST(GameTest, LoadStartsTheSavedLevelAgain) {
     EXPECT_DOUBLE_EQ(game.time(), 0.5);
     EXPECT_TRUE(game.noclip());
     EXPECT_EQ(game.doors().size(), game.world().doors().size());
+    EXPECT_EQ(party_of(game), party_of(original));
+    EXPECT_EQ(game.party()[0].hp, 25);
     EXPECT_EQ(game.save_point(), save);
 }
 
@@ -516,14 +533,20 @@ TEST(GameTest, NewGameStartsAgainFromTheFirstLevel) {
     game.update({}, 2.0f);
     game.next_level();
     game.set_noclip(true);
+    game.set_hp(0, 1);
     const int starts = game.level_starts();
     game.new_game(7, LayoutKind::kDebug);
-    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 7, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0}));
+    const Game fresh(GameConfig{}, 7, LayoutKind::kDebug);
+    // The new party is unhurt, and the same as a game started with this seed has.
+    EXPECT_EQ(party_of(game), party_of(fresh));
+    EXPECT_EQ(game.party()[0].hp, game.party()[0].max_hp);
+    EXPECT_EQ(
+        game.save_point(),
+        (SavedGame{.seed = 7, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = party_of(fresh)}));
     EXPECT_EQ(game.time(), 0.0);
     EXPECT_EQ(game.level_starts(), starts + 1);
     EXPECT_EQ(game.player().position(), game.level().player_start);
     EXPECT_TRUE(game.noclip());
-    const Game fresh(GameConfig{}, 7, LayoutKind::kDebug);
     EXPECT_EQ(game.level().player_start, fresh.level().player_start);
 }
 
@@ -536,6 +559,33 @@ TEST(GameTest, LoadKeepsTheGivenLayoutOfTheFirstLevel) {
     EXPECT_EQ(game.level().layout, LayoutKind::kDebug);
     EXPECT_EQ(game.level().info, original.level().info);
     EXPECT_EQ(game.save_point(), original.save_point());
+}
+
+TEST(GameTest, PartyIsMadeFromThePortraitsAndTheSeed) {
+    GameConfig config = make_config();
+    config.portraits = {{.path = "male/a.png", .gender = Gender::kMale},
+                        {.path = "female/b.png", .gender = Gender::kFemale},
+                        {.path = "any/c.png", .gender = std::nullopt},
+                        {.path = "male/d.png", .gender = Gender::kMale}};
+    config.party = {.size = 3, .max_hp = 50};
+    const Game game(config, 5, LayoutKind::kDebug);
+    ASSERT_EQ(game.party().size(), 3U);
+    for (const Character& character : game.party()) {
+        EXPECT_FALSE(character.portrait.empty());
+        EXPECT_EQ(character.hp, 50);
+        EXPECT_EQ(character.max_hp, 50);
+    }
+    EXPECT_EQ(party_of(game), party_of(Game(config, 5, LayoutKind::kDebug)));
+}
+
+TEST(GameTest, SetHpIsClampedAndChecksTheIndex) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    const int max_hp = game.party()[2].max_hp;
+    game.set_hp(2, -5);
+    EXPECT_EQ(game.party()[2].hp, 0);
+    game.set_hp(2, max_hp + 5);
+    EXPECT_EQ(game.party()[2].hp, max_hp);
+    EXPECT_THROW(game.set_hp(3, 1), std::out_of_range);
 }
 
 /// Walks forward for `seconds`, in frames of 0.1 s.

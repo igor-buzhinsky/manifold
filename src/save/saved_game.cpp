@@ -1,5 +1,6 @@
 #include "save/saved_game.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -12,11 +13,14 @@
 #include <string>
 #include <string_view>
 #include <system_error>
+#include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 #include <nlohmann/json_fwd.hpp>
 
 #include "level/layout_factory.hpp"
+#include "party/party.hpp"
 
 namespace manifold {
 
@@ -42,6 +46,64 @@ const nlohmann::json& field(const nlohmann::json& object, const char* name) {
                              expected);
 }
 
+/// Whether `value` is an integer from `min` to `max`.
+bool is_int_in(const nlohmann::json& value, std::int64_t min, std::int64_t max) {
+    if (!value.is_number_integer()) {
+        return false;
+    }
+    // A large unsigned number doesn't fit into std::int64_t, but is out of range anyway.
+    if (value.is_number_unsigned() && value.get<std::uint64_t>() > static_cast<std::uint64_t>(max)) {
+        return false;
+    }
+    const auto number = value.get<std::int64_t>();
+    return number >= min && number <= max;
+}
+
+/// Whether `path` can be the portrait of a character: a relative path that doesn't leave the directory of portraits.
+bool is_portrait_path(const std::string& path) {
+    const std::filesystem::path portrait(path);
+    if (portrait.has_root_name() || portrait.has_root_directory()) {
+        return false;
+    }
+    return std::ranges::none_of(portrait, [](const std::filesystem::path& part) { return part == ".."; });
+}
+
+/// Reads a character of the party of a save.
+///
+/// 	hrows std::runtime_error if it lacks a field or has a wrong one.
+Character parse_character(const nlohmann::json& object) {
+    if (!object.is_object()) {
+        throw_invalid("character", object, "an object");
+    }
+    Character character;
+    const nlohmann::json& portrait = field(object, "portrait");
+    if (!portrait.is_string() || !is_portrait_path(portrait.get<std::string>())) {
+        throw_invalid("portrait", portrait, "a relative path without .., or an empty string");
+    }
+    character.portrait = portrait.get<std::string>();
+
+    const nlohmann::json& gender = field(object, "gender");
+    const std::optional<Gender> parsed =
+        gender.is_string() ? parse_gender_name(gender.get<std::string>()) : std::nullopt;
+    if (!parsed) {
+        throw_invalid("gender", gender, "male or female");
+    }
+    character.gender = *parsed;
+
+    const nlohmann::json& max_hp = field(object, "max_hp");
+    if (!is_int_in(max_hp, 1, std::numeric_limits<int>::max())) {
+        throw_invalid("max_hp", max_hp, "a positive integer");
+    }
+    character.max_hp = max_hp.get<int>();
+
+    const nlohmann::json& hp = field(object, "hp");
+    if (!is_int_in(hp, 0, character.max_hp)) {
+        throw_invalid("hp", hp, "an integer from 0 to max_hp");
+    }
+    character.hp = hp.get<int>();
+    return character;
+}
+
 }  // namespace
 
 std::string save_to_json(const SavedGame& save) {
@@ -51,6 +113,16 @@ std::string save_to_json(const SavedGame& save) {
         {"level_number", save.level_number},
         {"time", save.time},
     };
+    nlohmann::ordered_json party = nlohmann::ordered_json::array();
+    for (const Character& character : save.party) {
+        party.push_back({
+            {"portrait", character.portrait},
+            {"gender", gender_name(character.gender)},
+            {"hp", character.hp},
+            {"max_hp", character.max_hp},
+        });
+    }
+    json["party"] = std::move(party);
     if (save.layout) {
         json["layout"] = std::string(layout_name(*save.layout));
     }
@@ -93,6 +165,14 @@ SavedGame parse_saved_game(std::string_view json) {
         throw_invalid("time", time, "a non-negative number");
     }
     save.time = time.get<double>();
+
+    const nlohmann::json& party = field(object, "party");
+    if (!party.is_array() || party.empty()) {
+        throw_invalid("party", party, "an array of at least one character");
+    }
+    for (const nlohmann::json& character : party) {
+        save.party.push_back(parse_character(character));
+    }
 
     if (const auto layout = object.find("layout"); layout != object.end()) {
         if (layout->is_string()) {

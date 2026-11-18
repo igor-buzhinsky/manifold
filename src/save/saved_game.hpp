@@ -5,8 +5,10 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "level/level.hpp"
+#include "party/party.hpp"
 
 namespace manifold {
 
@@ -21,6 +23,9 @@ struct SavedGame {
     /// have one, given on the command line.
     std::optional<LayoutKind> layout;
     double time = 0.0;  ///< Game time at the start of the level, in seconds, see Game::time().
+    /// The party at the start of the level, see Game::party(). It isn't made again from the seed, so it is kept even
+    /// if the portraits change.
+    std::vector<Character> party;
 
     bool operator==(const SavedGame&) const = default;
 };
@@ -29,16 +34,21 @@ struct SavedGame {
 ///
 /// Increase it when the meaning of the fields changes, e.g. when level generation from a seed changes, so older
 /// saves are refused instead of giving other levels.
-inline constexpr int kSaveFormatVersion = 1;
+inline constexpr int kSaveFormatVersion = 2;
 
-/// Writes a save as JSON: an object with `version` (kSaveFormatVersion), `seed`, `level_number`, `time` and, only if
-/// the layout was given, `layout` with its name, see layout_name().
+/// Writes a save as JSON: an object with `version` (kSaveFormatVersion), `seed`, `level_number`, `time`, `party` and,
+/// only if the layout was given, `layout` with its name, see layout_name().
+///
+/// `party` is an array with an object for each character: `portrait` (an empty string for none), `gender` (see
+/// gender_name()), `hp` and `max_hp`.
 std::string save_to_json(const SavedGame& save);
 
 /// Reads a save written by save_to_json().
 ///
 /// \throws std::runtime_error if `json` is not valid JSON, has another version, or lacks a field or has a wrong one,
-///         such as a negative level number or an unknown layout. Unknown fields are ignored.
+///         such as a negative level number or an unknown layout. A party must have at least one character, and each
+///         a positive `max_hp`, an `hp` from 0 to it, and a portrait that is a relative path without `..`. Unknown
+///         fields are ignored.
 SavedGame parse_saved_game(std::string_view json);
 
 /// Writes a save file, replacing the old one.

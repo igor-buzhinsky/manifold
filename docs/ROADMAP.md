@@ -200,9 +200,17 @@ and tools for inspecting the game. Done:
   same 2 m reach. Since the point can be anywhere in the view, clicks reach things that E can't, beyond the 30° that
   the view can be turned up or down, which is fine for now. Clicks are ignored while a camera put in place with
   `camera` shows the view. `activate X Y` does the same from the console.
+- **Basic party implementation** (see [DECISIONS.md](DECISIONS.md)): a new game makes a party of 3 characters, which
+  moves as one body, the player. Each gets another portrait, chosen at random from the game's seed among the PNG files
+  in `assets/portraits/male/`, `female/` and `any/`, and the gender of its directory, or a random one in `any/`. If
+  there are too few portraits, a warning is logged and the last characters get none. Each character has current and
+  maximum hit points (100), which nothing lowers yet. The portraits are drawn scaled down in the bottom-left corner of
+  the screen, side by side with small gaps (`layout_party_hud()`, textured by `ImageRenderer`), with a thin red bar of
+  hit points below each, or an empty dark place for a missing portrait. The save (format version 2) holds the party at
+  the start of the level: portraits, genders and hit points. `party` lists the characters, and the `hp` cheat sets
+  their hit points.
 - TODO
-  - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
-    stamina, sanity. The party has shared mana.
+  - **Mana**: the party has shared mana, which spells will use.
   - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
     but with collision.
   - The party's light becomes a spell that can be toggled, with an intensity or radius.
@@ -218,6 +226,7 @@ and tools for inspecting the game. Done:
   This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
   and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
 - Items and inventory. Items lying on the level are implemented either as 3D objects (preferred) or billboard sprites.
+- **Damage from falling**: a fall from high enough hurts the characters of the party.
 
 ## Later (unordered)
 
@@ -241,6 +250,7 @@ and tools for inspecting the game. Done:
 - **Windows support**: add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb, glad
   and the C++ code are already portable, except reading console commands from the terminal, which uses POSIX
   `poll()` (`src/platform/terminal_input.cpp`).
+- **Stamina and sanity** of each character of the party, next to its hit points.
 - **Advanced party implementation**: The party is bound to a magical orb (?), and characters can transport
   themselves to a pocket dimension.
 - New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.
