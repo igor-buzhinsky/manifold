@@ -51,6 +51,14 @@ start menu.
 A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
 shows what a click activates. The `crosshair` command hides or shows the crosshair.
 
+## Party
+
+The player leads a party of three characters, who move together. Their portraits are in the bottom-left corner of the
+screen, with a thin red bar below each that shows how many of the character's hit points are left. Each new game
+chooses the portraits at random, all different, and each character's gender goes with the portrait. Nothing lowers the
+hit points yet, except the `hp` cheat in the console. Clicking a portrait does nothing yet. If the game has fewer
+portraits than characters, the last characters have an empty dark place instead.
+
 ## Levels
 
 Each level has an exit: a spinning blue portal cube floating above the floor, whose pulsing light shows
@@ -79,8 +87,9 @@ whether to continue it or to start a new game, which replaces the save, see Menu
 also replaces it.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
-`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, and
-the layout if it was given with `--layout`. Levels are generated again from their seed, so a save of an older
+`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
+party as it was then (each character's portrait, gender and hit points), and the layout if it was given with
+`--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
 
 A run with `--exec` or `--screenshot` (see Console below) never saves, not even the levels reached after its commands, so that
@@ -106,7 +115,7 @@ In `--exec`, a command that fails, or a screenshot that can't be saved, stops th
 typed into the console window or the terminal, it only shows the error. Commands are read from the terminal
 only while the game runs in the foreground of the shell. Words are separated by spaces and can't contain
 any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show
-the crosshair and an open menu.
+the crosshair, the portraits of the party and an open menu.
 
 Keys of the console window:
 
@@ -136,6 +145,8 @@ it types can't be typed.
 | `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |
+| `party` | List the characters of the party, from the left: their gender, hit points and portrait |
+| `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

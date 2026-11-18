@@ -15,6 +15,7 @@
 
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "party/party.hpp"
 #include "physics/collision.hpp"
 #include "physics/raycast.hpp"
 #include "save/saved_game.hpp"
@@ -34,6 +35,10 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
     return params;
 }
 
+/// Mixed into the seed of a game's first level for its party, which keeps the party independent of the random numbers
+/// used by level generation.
+constexpr std::uint64_t kPartySeedSalt = 0x8bb84b93962eacc9ULL;
+
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
@@ -49,10 +54,23 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       move_speed_(config.move_speed),
       max_snap_slope_(config.max_snap_slope),
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
+      portraits_(config.portraits),
+      party_config_(config.party),
       seed_(seed),
       level_(std::move(level)),
       player_(at_start(config.player, level_)),
+      party_(make_new_party(seed)),
+      level_start_party_(party_),
       doors_(level_.world.doors().size()) {}
+
+std::vector<Character> Game::make_new_party(std::uint64_t seed) const {
+    return make_party(portraits_, party_config_, seed ^ kPartySeedSalt);
+}
+
+void Game::set_hp(std::size_t index, int hp) {
+    Character& character = party_.at(index);
+    character.hp = std::clamp(hp, 0, character.max_hp);
+}
 
 void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     player_.set_position(position);
@@ -74,17 +92,23 @@ void Game::next_level() {
 void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
     Level level = generate_level(level_config_, layout, player_params_.radius, seed);
     time_ = 0.0;
+    party_ = make_new_party(seed);
     start_level(std::move(level), seed, 0, layout);
 }
 
 void Game::load(const SavedGame& save) {
     Level level = generate_level(level_config_, save.layout, player_params_.radius, save.seed);
     time_ = save.time;
+    party_ = save.party;
     start_level(std::move(level), save.seed, save.level_number, save.layout);
 }
 
 SavedGame Game::save_point() const {
-    return {.seed = seed_, .level_number = level_number_, .layout = given_layout_, .time = level_start_time_};
+    return {.seed = seed_,
+            .level_number = level_number_,
+            .layout = given_layout_,
+            .time = level_start_time_,
+            .party = level_start_party_};
 }
 
 void Game::start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout) {
@@ -94,6 +118,7 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     level_number_ = level_number;
     ++level_starts_;
     level_start_time_ = time_;
+    level_start_party_ = party_;
     player_ = Player(at_start(player_params_, level_));
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();

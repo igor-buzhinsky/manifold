@@ -16,6 +16,7 @@
 #include "console/console.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
+#include "party/party.hpp"
 #include "render/camera.hpp"
 #include "render/viewport.hpp"
 #include "util/log.hpp"
@@ -220,6 +221,40 @@ void add_door_commands(Console& console, Game& game) {
                 });
 }
 
+/// Adds the commands that inspect and change the party: party and hp.
+void add_party_commands(Console& console, Game& game) {
+    console.add("party", "party", "Lists the characters of the party: their gender, hit points and portrait.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "party");
+                    const std::span<const Character> party = game.party();
+                    std::string list;
+                    for (std::size_t i = 0; i < party.size(); ++i) {
+                        const Character& character = party[i];
+                        list += std::format("\nCharacter {}: {}, {}/{} HP, portrait {}", i,
+                                            gender_name(character.gender), character.hp, character.max_hp,
+                                            character.portrait.empty() ? "none" : character.portrait);
+                    }
+                    log_info("Party of {}{}", party.size(), list);
+                });
+
+    const std::string hp_usage = "hp N VALUE";
+    console.add("hp", hp_usage, "Sets the hit points of character N, see party, from 0 to their maximum (a cheat).",
+                [&game, hp_usage](std::span<const std::string> arguments) {
+                    expect_count(arguments, 2, hp_usage);
+                    const int index = parse_int_argument(arguments[0]);
+                    if (index < 0 || static_cast<std::size_t>(index) >= game.party().size()) {
+                        throw CommandError("no such character: " + arguments[0]);
+                    }
+                    const auto character = static_cast<std::size_t>(index);
+                    const int max_hp = game.party()[character].max_hp;
+                    const int hp = parse_int_argument(arguments[1]);
+                    if (hp < 0 || hp > max_hp) {
+                        throw CommandError(std::format("hit points must be from 0 to {}: {}", max_hp, arguments[1]));
+                    }
+                    game.set_hp(character, hp);
+                });
+}
+
 /// Logs what an activation did.
 void log_activation(Activation activation) {
     switch (activation) {
@@ -356,6 +391,7 @@ void add_game_commands(Console& console, CommandQueue& queue, Game& game, Consol
     add_player_commands(console, queue, game, state);
     add_door_commands(console, game);
     add_activate_command(console, game);
+    add_party_commands(console, game);
     add_view_commands(console, queue, state);
 }
 

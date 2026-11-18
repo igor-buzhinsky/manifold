@@ -106,6 +106,7 @@ add_library(manifold_core STATIC
     src/level/level.cpp
     src/level/room_layout.cpp
     src/level/texture_kind.cpp
+    src/party/party.cpp
     src/physics/collision.cpp
     src/physics/raycast.cpp
     src/render/camera.cpp
@@ -123,6 +124,7 @@ add_library(manifold_core STATIC
     src/ui/game_menus.cpp
     src/ui/menu_screen.cpp
     src/ui/overlay_mesh.cpp
+    src/ui/party_hud.cpp
     src/ui/screen_stack.cpp
     src/ui/text_field.cpp
     src/ui/ui_style.cpp
@@ -147,6 +149,7 @@ add_executable(manifold
     src/platform/terminal_input.cpp
     src/platform/window.cpp
     src/render/gl_util.cpp
+    src/render/image_renderer.cpp
     src/render/overlay_renderer.cpp
     src/render/renderer.cpp
     src/render/screenshot.cpp
@@ -206,6 +209,8 @@ if(MANIFOLD_BUILD_TESTS)
         tests/marker_test.cpp
         tests/menu_screen_test.cpp
         tests/overlay_mesh_test.cpp
+        tests/party_hud_test.cpp
+        tests/party_test.cpp
         tests/raycast_test.cpp
         tests/text_field_test.cpp
         tests/room_layout_test.cpp

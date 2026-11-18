@@ -38,11 +38,13 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "party/party.hpp"
 #include "platform/audio.hpp"
 #include "platform/terminal_input.hpp"
 #include "platform/window.hpp"
 #include "render/camera.hpp"
 #include "render/gl_util.hpp"
+#include "render/image_renderer.hpp"
 #include "render/lighting.hpp"
 #include "render/marker.hpp"
 #include "render/overlay_renderer.hpp"
@@ -55,6 +57,7 @@
 #include "ui/debug_overlay.hpp"
 #include "ui/game_menus.hpp"
 #include "ui/overlay_mesh.hpp"
+#include "ui/party_hud.hpp"
 #include "ui/screen.hpp"
 #include "ui/screen_stack.hpp"
 #include "ui/text_field.hpp"
@@ -133,10 +136,11 @@ std::uint64_t random_seed() {
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
-/// The directories of the game's textures and sounds.
+/// The directories of the game's textures, sounds and portraits.
 struct AssetDirs {
-    std::filesystem::path textures;  ///< Searched for level textures.
-    std::filesystem::path sounds;    ///< Has a directory for each kind of sound, e.g. `portal`.
+    std::filesystem::path textures;   ///< Searched for level textures.
+    std::filesystem::path sounds;     ///< Has a directory for each kind of sound, e.g. `portal`.
+    std::filesystem::path portraits;  ///< Searched for portraits, see manifold::find_portraits().
 };
 
 /// Finds the game's assets, see manifold::find_assets_dir(): the `assets` directory next to the executable, or else
@@ -150,7 +154,7 @@ AssetDirs find_asset_dirs() {
     const std::filesystem::path assets = manifold::find_assets_dir(
         base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path(), MANIFOLD_ASSETS_DIR);
     manifold::log_info("Assets: {}", assets.string());
-    return {.textures = assets / "textures", .sounds = assets / "sounds"};
+    return {.textures = assets / "textures", .sounds = assets / "sounds", .portraits = assets / "portraits"};
 }
 
 /// The texture of a level and what it shows.
@@ -291,6 +295,63 @@ std::optional<manifold::Sound> start_level(std::optional<manifold::Renderer>& re
     renderer.emplace(game.world(), texture.image);
     return pick_exit_sound(game.seed(), assets.sounds);
 }
+
+/// The images of the portraits of the party, which are loaded again whenever the party gets other portraits, and draws
+/// them with the bars of hit points, see manifold::layout_party_hud().
+///
+/// Needs a current OpenGL 4.1 core context, see manifold::Window for its whole lifetime.
+class PartyPortraits {
+public:
+    /// \param portraits_dir The directory that manifold::Character::portrait is relative to.
+    explicit PartyPortraits(std::filesystem::path portraits_dir) : portraits_dir_(std::move(portraits_dir)) {}
+
+    /// Loads the images of the portraits of `party` if they are not those loaded last. A portrait that can't be loaded
+    /// is logged as a warning and shows as an empty place, as does a character without one.
+    void follow(std::span<const manifold::Character> party) {
+        std::vector<std::string> portraits;
+        portraits.reserve(party.size());
+        for (const manifold::Character& character : party) {
+            portraits.push_back(character.portrait);
+        }
+        if (portraits == portraits_) {
+            return;
+        }
+        images_.clear();
+        for (const std::string& portrait : portraits) {
+            std::optional<manifold::ImageTexture>& texture = images_.emplace_back();
+            if (portrait.empty()) {
+                continue;
+            }
+            if (const std::optional<manifold::Image> image = manifold::load_image(portraits_dir_ / portrait)) {
+                texture.emplace(*image);
+            }
+        }
+        portraits_ = std::move(portraits);
+    }
+
+    /// Draws the portraits of `party`, which follow() was called for, and their bars into `viewport`.
+    void draw(std::span<const manifold::Character> party, const manifold::OverlayRenderer& overlay_renderer,
+              const manifold::Viewport& viewport) const {
+        const std::vector<manifold::CharacterPlacement> placements =
+            manifold::layout_party_hud({.width = viewport.width, .height = viewport.height}, party.size());
+        manifold::OverlayMesh mesh;
+        manifold::add_party_hud(mesh, placements, party);
+        overlay_renderer.draw(mesh, viewport);
+        for (std::size_t i = 0; i < placements.size() && i < images_.size(); ++i) {
+            const std::optional<manifold::ImageTexture>& image = images_[i];
+            if (image.has_value()) {
+                image_renderer_.draw(*image, placements[i].portrait, viewport);
+            }
+        }
+    }
+
+private:
+    std::filesystem::path portraits_dir_;
+    manifold::ImageRenderer image_renderer_;
+    std::vector<std::string> portraits_;  ///< manifold::Character::portrait of each character loaded last.
+    /// The image of each character loaded last, or nothing if it has none.
+    std::vector<std::optional<manifold::ImageTexture>> images_;
+};
 
 /// Logs the seed, the level and the player.
 void log_game(const manifold::Game& game) {
@@ -782,15 +843,18 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
     };
 }
 
-/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it.
+/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it, and the
+/// portraits of the party.
 ///
 /// \param renderer         Draws the world.
 /// \param overlay_renderer Draws the crosshair.
+/// \param portraits        Draws the portraits of the party.
 /// \param game             What to draw.
 /// \param view             How to show it.
 /// \param framebuffer      Size of the bound framebuffer. The picture is centered in it, see fit_viewport().
 void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-               const manifold::Game& game, const manifold::ViewSettings& view, const manifold::PixelSize& framebuffer) {
+               const PartyPortraits& portraits, const manifold::Game& game, const manifold::ViewSettings& view,
+               const manifold::PixelSize& framebuffer) {
     // The light spell at the player's eyes, the level's ambient light if any, and the lights of the torches and the
     // exit nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
@@ -815,17 +879,18 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
         manifold::add_crosshair(crosshair, {.width = viewport.width, .height = viewport.height});
         overlay_renderer.draw(crosshair, viewport);
     }
+    portraits.draw(game.party(), overlay_renderer, viewport);
 }
 
 /// Draws the game into the bound framebuffer, as draw_game() does, with the open screens of the interface over it, or
 /// only the screens if one of them hides the game.
 void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-                const manifold::Game& game, const manifold::ViewSettings& view, const manifold::ScreenStack& screens,
-                const manifold::PixelSize& framebuffer) {
+                const PartyPortraits& portraits, const manifold::Game& game, const manifold::ViewSettings& view,
+                const manifold::ScreenStack& screens, const manifold::PixelSize& framebuffer) {
     if (screens.hides_game()) {
         manifold::clear_to_black();
     } else {
-        draw_game(renderer, overlay_renderer, game, view, framebuffer);
+        draw_game(renderer, overlay_renderer, portraits, game, view, framebuffer);
     }
     if (!screens.empty()) {
         const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
@@ -841,13 +906,13 @@ void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& o
 /// \param window_size The size of screenshots that don't give their own.
 /// \throws std::runtime_error if a screenshot that stops on error fails.
 void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-                      const manifold::Game& game, const manifold::ScreenStack& screens,
+                      const PartyPortraits& portraits, const manifold::Game& game, const manifold::ScreenStack& screens,
                       std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
     for (const manifold::ScreenshotRequest& request : requests) {
         const manifold::PixelSize size = request.size.value_or(window_size);
         try {
             const manifold::OffscreenFramebuffer framebuffer(size);
-            draw_scene(renderer, overlay_renderer, game, request.view, screens, size);
+            draw_scene(renderer, overlay_renderer, portraits, game, request.view, screens, size);
             manifold::save_screenshot(request.path, size.width, size.height);
             manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
         } catch (const std::runtime_error& error) {
@@ -950,16 +1015,20 @@ void run(const Options& options) {
     });
     const LogListenerReset reset_log_listener;
 
-    manifold::Game game(manifold::GameConfig{}, options.seed.value_or(random_seed()), options.layout);
+    const AssetDirs assets = find_asset_dirs();
+    manifold::GameConfig config;
+    config.portraits = manifold::find_portraits(assets.portraits);
+    manifold::log_info("Portraits: {} in {}", config.portraits.size(), assets.portraits.string());
+    manifold::Game game(config, options.seed.value_or(random_seed()), options.layout);
 
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height);
     manifold::ConsoleState state;
     manifold::AudioOutput audio;
-    const AssetDirs assets = find_asset_dirs();
     const DoorSoundSets door_sounds(assets.sounds);
     FootstepSounds footsteps(assets.sounds);
     const manifold::OverlayRenderer overlay_renderer;
+    PartyPortraits portraits(assets.portraits);
     // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
     // mostly test the game, so they leave the player's save alone. If there is a save, the player is asked first
     // whether to continue it, and the new game is saved only once the start menu is closed without continuing.
@@ -1011,11 +1080,13 @@ void run(const Options& options) {
         level.follow(game, state.view, audio);
         play_door_sounds(game, door_sounds, audio);
         footsteps.play(game, audio);
+        // A new game or a loaded one has another party.
+        portraits.follow(game.party());
 
         const manifold::PixelSize window_size = window.framebuffer_size();
         const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
         ui.picture = {.width = viewport.width, .height = viewport.height};
-        draw_scene(level.renderer(), overlay_renderer, game, state.view, ui.screens, window_size);
+        draw_scene(level.renderer(), overlay_renderer, portraits, game, state.view, ui.screens, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = level.renderer().stats();
         // A screen that hides the game hides the overlay too, whose numbers would be of the last drawing of the game.
@@ -1025,7 +1096,8 @@ void run(const Options& options) {
         if (console_window.is_open()) {
             overlay_renderer.draw(console_window.build_mesh(ui.picture), viewport);
         }
-        take_screenshots(level.renderer(), overlay_renderer, game, ui.screens, state.screenshots, window_size);
+        take_screenshots(level.renderer(), overlay_renderer, portraits, game, ui.screens, state.screenshots,
+                         window_size);
         state.screenshots.clear();
         if (state.quit) {
             return;

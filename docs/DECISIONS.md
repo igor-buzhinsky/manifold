@@ -447,3 +447,37 @@ Drawbacks:
 - The font has only ASCII characters and one size, scaled by whole pixels.
 - Layouts are computed for every event and drawing. This is cheap for a few controls, but large screens may need to
   cache them.
+
+## 2026-11-19: A party of three characters with random portraits, kept in the save
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: the player is a party of three characters that moves as one body: the player's cylinder, as before. A new
+game chooses each character's portrait at random, without repeats, from the game's seed, among those in
+`assets/portraits/`, whose directories (`male/`, `female/`, `any/`) give the character's gender; for `any/` the gender is
+random. Each character has its own hit points. The party is stored in the save, as it was at the start of the level,
+instead of being made again from the seed when the game is loaded.
+
+Gains:
+
+- A party gives the feel of classic party role-playing games, with room for each character to have its own
+  stats, spells and portrait, while movement and collision stay as simple as for one body.
+- A seed gives the same party, as it gives the same level, so screenshots and bugs can be reproduced.
+- Keeping the party in the save keeps it unchanged when portraits are added or removed, and keeps what changes during
+  play, such as hit points, and later experience and items.
+- The gender stored with each character lets later features (names, voices, texts) depend on it without looking at the
+  portrait's directory again.
+
+Rejected alternatives:
+
+- **One character**: simpler, but the roadmap plans a party with shared mana, and portraits are a large part of the
+  look of the game.
+- **Four or six characters**: more to manage and to draw for each one, before there is anything that tells them apart.
+- **Making the party again from the seed when loading**: a smaller save, but the party would change with the portraits,
+  and its state during play would still have to be saved.
+
+Drawbacks:
+
+- Old saves (format version 1) are refused, so a player loses a saved game when updating.
+- With few portraits, some characters have none, and with many, players see only a few of them per game.
+- The characters can't be told apart in the world, since they move as one body.
