@@ -66,7 +66,8 @@ Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building 
 `-DMANIFOLD_WARNINGS_AS_ERRORS=ON` to fail on compiler warnings in Manifold's own code.
 
 [CI](.github/workflows/ci.yml) builds with GCC and with Clang, with warnings as errors, runs the tests, and runs the
-`lint` target and the Python checks on each push to `main` and on each pull request.
+`lint` target and the Python checks on each push to `main` and on each pull request that changes more than Markdown
+files.
 
 ## Code style
 
