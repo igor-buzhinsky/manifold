@@ -94,6 +94,12 @@ void Window::set_text_input(bool on) {
     }
 }
 
+PixelSize Window::size() const {
+    PixelSize size;
+    SDL_GetWindowSize(window_, &size.width, &size.height);
+    return size;
+}
+
 PixelSize Window::framebuffer_size() const {
     PixelSize size;
     SDL_GetWindowSizeInPixels(window_, &size.width, &size.height);

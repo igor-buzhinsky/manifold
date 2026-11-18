@@ -35,6 +35,10 @@ public:
     Window(Window&&) = delete;
     Window& operator=(Window&&) = delete;
 
+    /// Size of the window in window units, as mouse positions are given, which can differ from pixels on high-DPI
+    /// screens.
+    PixelSize size() const;
+
     /// Size of the drawable area in pixels, which can differ from the window size on high-DPI screens.
     PixelSize framebuffer_size() const;
 

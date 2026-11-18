@@ -410,3 +410,40 @@ Drawbacks:
   The version number must be increased when generation from a seed changes, which refuses older saves.
 - When levels get state that changes during play (monsters, items), it must be added to the save, but only the state
   at the start of a level, since saves are made only then.
+
+## 2026-11-18: Build the game's interface from own controls on the overlay renderer
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: the game's menus, and later the party screen with tabs for stats, level-ups and inventory, are built from a
+small set of own controls in `manifold_core` (`src/ui/`), drawn as an `OverlayMesh` with the blocky font of the
+console. Open screens form a stack (`ScreenStack`): only the top one gets input, all are drawn, and the game is paused
+while any is open. A `Screen` keeps its state (which control has the focus) but no layout: it lays itself out for each
+event and each drawing from the size of the picture, so that the mouse always hits what is shown, also in screenshots
+of other sizes. Input reaches screens as device-independent events (`NavKey`, `PointerEvent`), so every control is
+used with the keys and with the mouse. Escape opens the game menu, and Ctrl+Q quits at once.
+
+Gains:
+
+- No new library: the menus look like the console, with the same retro font, and the colors are shared in
+  `ui_style.hpp`, so later screens look the same.
+- Everything except drawing the mesh is in `manifold_core` and unit tested: layout, focus, clicks, which item does
+  what.
+- New screens are new `Screen` classes made of the same controls (`ButtonList` now, later tabs, labels, lists), and a
+  dialog opened from a menu is pushed onto the stack above it.
+- Ctrl+Q is the usual quit shortcut of Linux applications, and hard to press by accident.
+
+Rejected alternatives:
+
+- **Dear ImGui with a custom style**: it already draws the debug overlay and has tabs, tables and drag and drop, but
+  it looks like a tool unless it is restyled heavily, uses another font, and can't be tested without a window.
+- **RmlUi** (HTML and CSS for game interfaces): good for large screens such as an inventory, but it needs FreeType and
+  a render backend, which is a lot for a few menus. It can still be adopted if the own controls grow too complex.
+- **Shift+Escape to quit**: easy to remember next to Escape, but unusual elsewhere.
+
+Drawbacks:
+
+- Every control must be written by hand: tabs, scrolling lists and drag and drop for the inventory are still to come.
+- The font has only ASCII characters and one size, scaled by whole pixels.
+- Layouts are computed for every event and drawing. This is cheap for a few controls, but large screens may need to
+  cache them.

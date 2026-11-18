@@ -14,7 +14,33 @@
 | L | Load the saved game: start the saved level again from its start, see Saving below |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
-| Escape | Close the console if it is open, otherwise quit |
+| Escape | Close the console if it is open, otherwise open the game menu, or close it to resume, see Menus below |
+| Ctrl+Q | Quit at once, also from the console or a menu. Closing the window does the same |
+
+## Menus
+
+Escape opens the game menu over the darkened game, which is paused while the menu is open: torches, doors and the
+portal stand still. It has these items:
+
+- **Resume**: close the menu and go on playing, as Escape does.
+- **New game**: start a new game with a random level, which replaces the save. A layout given with `--layout` is used
+  for its first level.
+- **Load game**: load the save, as L does. It is greyed out if there is no save.
+- **Exit game**: quit the game.
+
+When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game or start
+a **New game**, which replaces the save once it is chosen. Escape doesn't leave this menu. A save that can't be read
+isn't offered: a new game starts, as without a save.
+
+Menus are used with the keys or the mouse:
+
+| Key | Action |
+|---|---|
+| Up / Down | Move to the previous / next item, skipping greyed out ones |
+| Enter or Space | Choose the highlighted item |
+| Mouse | Pointing at an item highlights it, and clicking it with the left button chooses it |
+
+The console can be opened over a menu; while it is open, the menu gets no keys or clicks.
 
 ## Screen
 
@@ -42,8 +68,9 @@ has its own two sounds, picked when the level is generated.
 
 The game saves itself when it starts and when the player reaches a new level. There is only one save, of the
 level the player is in, so a level that is left can't be returned to, and there are no saves made by hand. L loads
-the save: the saved level starts again from its start. Starting the game always starts a new game, which replaces
-the save.
+the save: the saved level starts again from its start. When the game starts and there is a save, it asks
+whether to continue it or to start a new game, which replaces the save, see Menus above. New game in the game menu
+also replaces it.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
 `~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, and
@@ -51,7 +78,8 @@ the layout if it was given with `--layout`. Levels are generated again from thei
 version of the game may give another level, or be refused if the save format changed.
 
 A run with `--exec` or `--screenshot` (see Console below) never saves, not even the levels reached after its commands, so that
-test runs don't replace the player's save. They can still load it.
+test runs don't replace the player's save. They can still load it. They also don't ask whether to continue the save,
+but start a new game.
 
 ## Console
 
@@ -72,7 +100,7 @@ In `--exec`, a command that fails, or a screenshot that can't be saved, stops th
 typed into the console window or the terminal, it only shows the error. Commands are read from the terminal
 only while the game runs in the foreground of the shell. Words are separated by spaces and can't contain
 any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show
-the crosshair.
+the crosshair and an open menu.
 
 Keys of the console window:
 
@@ -110,6 +138,7 @@ it types can't be typed.
 | `lighting [on\|off]` | Turn lights off to see the plain texture colors, or on again |
 | `shadows [on\|off]` | Turn shadows off or on |
 | `imgui [on\|off]` | Show or hide the debug overlay, like F3 |
+| `menu start\|game\|close` | Show the start menu or the game menu (see Menus above) instead of the open menus, or close them. The commands after it run in the next frame, when the menu is open, so that a screenshot shows it. The game is paused while a menu is open, but commands still run |
 | `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window. Other sizes keep the 16:9 view, with black bars |
 | `wait FRAMES` | Run the next commands this many frames later: with 1 in the next frame. E.g. to let the player fall |
 | `quit` | Quit the game after this frame, without running the commands after it |

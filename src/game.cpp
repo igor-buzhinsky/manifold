@@ -71,6 +71,12 @@ void Game::next_level() {
                 std::nullopt);
 }
 
+void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
+    Level level = generate_level(level_config_, layout, player_params_.radius, seed);
+    time_ = 0.0;
+    start_level(std::move(level), seed, 0, layout);
+}
+
 void Game::load(const SavedGame& save) {
     Level level = generate_level(level_config_, save.layout, player_params_.radius, save.seed);
     time_ = save.time;

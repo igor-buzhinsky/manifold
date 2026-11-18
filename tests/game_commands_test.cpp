@@ -120,6 +120,23 @@ TEST(GameCommandsTest, LoadAsksTheMainLoopAndTheNextCommandsWait) {
     fixture.expect_error("load now");
 }
 
+TEST(GameCommandsTest, MenuAsksTheMainLoopAndTheNextCommandsWait) {
+    Fixture fixture;
+    fixture.run("menu game; teleport 1 2 3");
+    EXPECT_EQ(fixture.state.menu, MenuRequest::kGame);
+    EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
+    fixture.run("menu start");
+    EXPECT_EQ(fixture.state.menu, MenuRequest::kStart);
+    fixture.queue.run_frame(fixture.console);
+    fixture.run("menu close");
+    EXPECT_EQ(fixture.state.menu, MenuRequest::kClose);
+    fixture.queue.run_frame(fixture.console);
+    fixture.expect_error("menu");
+    fixture.expect_error("menu party");
+}
+
 TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     Fixture fixture;
     EXPECT_FALSE(fixture.game.noclip());

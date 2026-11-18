@@ -43,6 +43,11 @@ GLuint link_program(const char* vertex_source, const char* fragment_source) {
     return program;
 }
 
+void clear_to_black() {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
 const void* buffer_offset(std::size_t offset) {
     // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast,performance-no-int-to-ptr)
     return reinterpret_cast<const void*>(offset);

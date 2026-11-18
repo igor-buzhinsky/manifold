@@ -51,8 +51,8 @@ has `-DCMAKE_BUILD_TYPE=Release`, which makes the game faster.
 
 If no texture is found, surfaces are plain grey. Without an audio output device, the game runs without sound.
 
-Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Press Escape or close the
-window to quit.
+Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Escape opens the game menu, from
+which the game can be left. Ctrl+Q or closing the window quits at once.
 
 ## Tests
 

@@ -37,6 +37,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 | Models | **cgltf** (glTF 2.0) | Planned | glTF is the single asset format. Blender converts other formats to it. |
 | Collision | Own code | In use | See below. **Jolt Physics** is considered, see [DECISIONS.md](DECISIONS.md). |
 | Debug UI | **Dear ImGui** | In use | The debug overlay (F3): live tuning of lights, frame times, player state. |
+| Game UI | Own code | In use | Menus, later the party screen: own controls drawn with the console's blocky font, see [DECISIONS.md](DECISIONS.md). |
 | Navigation | **Recast/Detour** | Later | Navmeshes for monsters, including multi-layer levels. |
 | Sound decoding | **stb_vorbis** | In use | OGG Vorbis, decoded when the game or a level starts. SDL3 mixes up to 4 sounds at a time. |
 | Save files | **nlohmann/json** | In use | Saves are plain JSON, see [DECISIONS.md](DECISIONS.md). |
@@ -186,11 +187,15 @@ and tools for inspecting the game. Done:
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
   returned to. L or the `load` command starts the saved level again from its start. A save holds the level seed, the
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
+- **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
+  Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of
+  the same style on black asks whether to continue it or to start a new game, which replaces the save only once it is
+  chosen. Menus are used with the arrow keys and Enter or with the mouse. They are built of the game's own controls
+  (see [DECISIONS.md](DECISIONS.md)): a stack of screens (`ScreenStack`), each a `Screen` that lays itself out anew
+  for every event and drawing; `MenuScreen` with a `ButtonList`, drawn as an `OverlayMesh` in shared colors
+  (`ui_style.hpp`). Later screens, such as the party screen with tabs, add controls to this. The `menu` command opens
+  and closes menus, and screenshots show them.
 - TODO
-  - When the game starts and there is a save, ask whether to continue it or to start a new game, which replaces the
-    save. Now every start begins a new game.
-  - Rudimentary game menu activated by Esc: load game, exit game. Closing the game is still possible with a new
-    keyboard shortcut (e.g., Shift+Esc).
   - **Basic party implementation**: 3 characters with randomly selected portraits. Each character has health,
     stamina, sanity. The party has shared mana.
   - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
