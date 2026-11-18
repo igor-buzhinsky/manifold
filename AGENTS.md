@@ -98,7 +98,8 @@ When the user asks for a PR:
    description has these sections:
    - **Goal**: why the change is made.
    - **Solution**: a summary of the technical solution.
-   - **Pros and cons** of the solution, and the alternatives that were considered, if any.
+   - **Pros and cons** of the solution, as two separate lists under "Pros:" and "Cons:", and the alternatives that
+     were considered, if any.
    - **Testing**: how the change was checked: tests added, screenshots looked at, and so on.
    - **TODO**, only if a screenshot would show the change (rendering, levels, UI): a request to the user to
      add one, with the console command that takes it and the screenshot's path, if one was taken. `gh`
