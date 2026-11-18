@@ -89,7 +89,10 @@ When the user asks for a PR:
 
 1. Before starting, ask the user about the decisions that aren't obvious from the request, the code and the
    docs (design trade-offs, scope). Then do the whole task without stopping.
-2. Make the change on a new branch, with the checks of "Before finishing a change".
+2. Make the change on a new branch, with the checks of "Before finishing a change". If the change is
+   substantial, affects gameplay and has plausible alternatives, it also adds a decision to
+   [docs/DECISIONS.md](docs/DECISIONS.md), with the status **ACCEPTED**, in the format of the entries there:
+   the decision, its gains, the rejected alternatives and the drawbacks.
 3. Push the branch and open the PR with `gh pr create`. Its title is like a commit summary, and its
    description has these sections:
    - **Goal**: why the change is made.
