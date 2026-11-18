@@ -84,12 +84,15 @@ void rotate(float delta_yaw, float delta_pitch);
 
 ## Python scripts
 
-Helper scripts in `scripts/` are written in Python 3.10+ with only the standard library. Their development tools
-(black, ruff and pyrefly) are set up as a Poetry project in `scripts/pyproject.toml`:
+Helper scripts in `scripts/` are written in Python 3.11+. Most need only the standard library; the third-party
+packages that some need, such as Pillow, and the development tools (black, ruff and pyrefly) are set up as a Poetry
+project in `scripts/pyproject.toml`. A script that imports a third-party package is run with
+`poetry run python NAME.py` from `scripts/` (`poetry -C scripts run` would also run it there, so relative paths in its
+arguments would be wrong), and its docstring says so.
 
 ```sh
 cd scripts
-poetry install            # once, to install the tools
+poetry install            # once, to install the packages and tools
 poetry run black .        # reformat the scripts in place
 poetry run ruff check .   # lint, including docstrings
 poetry run pyrefly check  # check types
