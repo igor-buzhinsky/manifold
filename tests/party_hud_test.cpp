@@ -42,6 +42,24 @@ TEST(PartyHudTest, PortraitsGoSideBySideInTheBottomLeftCornerWithBarsBelow) {
     EXPECT_TRUE(layout_party_hud(picture, 0).empty());
 }
 
+TEST(PartyHudTest, ContainsThePortraitsTheBarsAndTheGapsBetweenThem) {
+    const PixelSize picture{.width = 800, .height = 450};
+    const std::vector<CharacterPlacement> placements = layout_party_hud(picture, 3);
+    const Rect& first = placements[0].portrait;
+    const Rect& last_bar = placements[2].hp_bar;
+    EXPECT_TRUE(party_hud_contains(picture, 3, first.top_left));
+    EXPECT_TRUE(party_hud_contains(picture, 3, last_bar.top_left + last_bar.size - glm::vec2(1.0f)));
+    // The gap between the first two portraits, and the gap between a portrait and its bar.
+    EXPECT_TRUE(party_hud_contains(picture, 3, {first.top_left.x + first.size.x + 1.0f, first.top_left.y + 10.0f}));
+    EXPECT_TRUE(party_hud_contains(picture, 3, {first.top_left.x + 10.0f, first.top_left.y + first.size.y + 1.0f}));
+    // Outside: left of, above, right of and below the portraits.
+    EXPECT_FALSE(party_hud_contains(picture, 3, first.top_left - glm::vec2(1.0f, 0.0f)));
+    EXPECT_FALSE(party_hud_contains(picture, 3, first.top_left - glm::vec2(0.0f, 1.0f)));
+    EXPECT_FALSE(party_hud_contains(picture, 3, {last_bar.top_left.x + last_bar.size.x, last_bar.top_left.y}));
+    EXPECT_FALSE(party_hud_contains(picture, 3, {first.top_left.x, last_bar.top_left.y + last_bar.size.y}));
+    EXPECT_FALSE(party_hud_contains(picture, 0, first.top_left));
+}
+
 /// Six vertices per rectangle.
 constexpr std::size_t kRectangleVertices = 6;
 

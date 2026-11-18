@@ -130,7 +130,7 @@ public:
     /// The level number and the game time start again from 0. Noclip stays as it is. A new party is made with
     /// make_party(), from GameConfig::portraits and a seed derived from `seed`, so the same seed gives the same party.
     ///
-    /// \param seed   Seed for level generation.
+    /// \param seed   Seed for level generation and the party.
     /// \param layout The layout of the first level, or nothing to choose it at random.
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void new_game(std::uint64_t seed, std::optional<LayoutKind> layout);

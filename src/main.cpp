@@ -718,13 +718,17 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
 
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
 /// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
-/// `ui.game_click`, to activate what is there.
-void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui) {
+/// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, see
+/// manifold::party_hud_contains().
+///
+/// \param party_size How many characters the party has.
+void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, std::size_t party_size) {
     if (ui.screens.empty()) {
         if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
             const glm::vec2 point = picture_point({event.button.x, event.button.y}, window, ui);
             const glm::vec2 size{static_cast<float>(ui.picture.width), static_cast<float>(ui.picture.height)};
-            if (point.x >= 0.0f && point.y >= 0.0f && point.x < size.x && point.y < size.y) {
+            if (point.x >= 0.0f && point.y >= 0.0f && point.x < size.x && point.y < size.y &&
+                !manifold::party_hud_contains(ui.picture, party_size, point)) {
                 ui.game_click = point / size;
             }
         }
@@ -780,9 +784,11 @@ bool handle_console_text(const SDL_Event& event, manifold::ConsoleWindow& consol
 ///                           Escape asks for the game menu.
 /// \param ui                 The screens, which get keys and the mouse while one is open and the console isn't.
 /// \param console_key_held   Whether the console key is held down. Kept between calls.
+/// \param party_size         How many characters the party has, whose portraits clicks don't reach the game through.
 /// \return False when the game should quit.
 bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
-                   manifold::DebugOverlay& overlay, manifold::ConsoleState& state, Ui& ui, bool& console_key_held) {
+                   manifold::DebugOverlay& overlay, manifold::ConsoleState& state, Ui& ui, bool& console_key_held,
+                   std::size_t party_size) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         // Like closing the window, the quit shortcut works even while ImGui or the console has the keyboard.
@@ -805,7 +811,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
         if (event.type == SDL_EVENT_KEY_DOWN) {
             handle_key_down(event.key, window, console_window, commands, state, ui);
         } else if (!console_window.is_open()) {
-            handle_mouse_event(event, window, ui);
+            handle_mouse_event(event, window, ui, party_size);
         }
     }
     return true;
@@ -1106,7 +1112,8 @@ void run(const Options& options) {
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
         // overlay gets no events then.
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());
-    } while (handle_events(window, console_window, commands, overlay, state, ui, console_key_held));
+    } while (
+        handle_events(window, console_window, commands, overlay, state, ui, console_key_held, game.party().size()));
 }
 
 }  // namespace

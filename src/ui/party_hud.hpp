@@ -4,6 +4,8 @@
 #include <span>
 #include <vector>
 
+#include <glm/vec2.hpp>
+
 #include "party/party.hpp"
 #include "render/viewport.hpp"
 #include "ui/overlay_mesh.hpp"
@@ -36,6 +38,14 @@ struct CharacterPlacement {
 /// Where the portraits of a party of `count` characters and their bars go in a picture of `picture` size: from left to
 /// right in the order of the party, the bars kHudMargin above the bottom edge.
 std::vector<CharacterPlacement> layout_party_hud(const PixelSize& picture, std::size_t count);
+
+/// Whether `point` is on the party's portraits and bars, or in the gaps between them: in the smallest rectangle around
+/// all of them, see layout_party_hud(). Clicks there don't reach the game behind.
+///
+/// \param picture Size of the picture.
+/// \param count   How many characters the party has.
+/// \param point   In pixels from the top-left corner of the picture, y down.
+bool party_hud_contains(const PixelSize& picture, std::size_t count, const glm::vec2& point);
 
 /// Adds the shapes of the party to `mesh`: a dark rectangle where each portrait goes, which shows when it has no
 /// image, and each bar of hit points, dark with the part of Character::hp_fraction() from its left red. The red part is

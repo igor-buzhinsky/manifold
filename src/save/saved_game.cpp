@@ -70,7 +70,7 @@ bool is_portrait_path(const std::string& path) {
 
 /// Reads a character of the party of a save.
 ///
-/// 	hrows std::runtime_error if it lacks a field or has a wrong one.
+/// \throws std::runtime_error if it lacks a field or has a wrong one.
 Character parse_character(const nlohmann::json& object) {
     if (!object.is_object()) {
         throw_invalid("character", object, "an object");
