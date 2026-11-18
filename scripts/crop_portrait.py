@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Crops a 3:4 portrait out of a picture and scales it to a fixed size, e.g. a head and chest from a painting.
+r"""Crops a 3:4 portrait out of a picture and scales it to a fixed size, e.g. a head and chest from a painting.
 
 The crop is given by its center and height in pixels of the original, which can be read off any image viewer;
-its width is three quarters of its height. The result is written as PNG without metadata. Needs Pillow, so run
-it with ``poetry run`` from this folder: ``poetry -C scripts run`` also runs it in this folder, so relative paths
-in the arguments would be wrong.
+its width is three quarters of its height. The result is written as PNG in sRGB without metadata: a picture with
+a color profile is converted to sRGB first. Needs Pillow, so run it with ``poetry run`` from this folder, not with
+``poetry -C scripts run`` from elsewhere: that also runs it in this folder, so relative paths in the arguments
+would be wrong.
 
 Usage::
 
@@ -13,13 +14,15 @@ Usage::
 
 For example, to crop a box 1638 pixels high around (956, 975) and scale it to 240 x 320::
 
-    poetry run python crop_portrait.py ~/Downloads/met-11058.jpg ../assets/portraits/portrait.png 956 975 1638
+    poetry run python crop_portrait.py ~/Downloads/met-11058.jpg \
+        ../assets/portraits/male/metmuseum-org/11058-healy-portrait-of-the-artist.png 956 975 1638
 """
 
 import argparse
+import io
 import sys
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageCms, ImageOps
 
 ASPECT = 3 / 4  # Width divided by height.
 
@@ -33,6 +36,21 @@ def crop_box(center_x: int, center_y: int, height: int) -> tuple[int, int, int, 
     left = center_x - width // 2
     top = center_y - height // 2
     return left, top, left + width, top + height
+
+
+def to_srgb(image: Image.Image) -> Image.Image:
+    """The picture as RGB in the sRGB color space.
+
+    A picture with an embedded color profile, such as Adobe RGB, is converted from it, so that its colors look the
+    same once the profile is dropped. A picture without one is taken to be sRGB already.
+    """
+    icc_profile = image.info.get("icc_profile")
+    if not icc_profile:
+        return image.convert("RGB")
+    source = ImageCms.ImageCmsProfile(io.BytesIO(icc_profile))
+    converted = ImageCms.profileToProfile(image, source, ImageCms.createProfile("sRGB"), outputMode="RGB")
+    assert converted is not None  # Only None when converting in place.
+    return converted
 
 
 def main() -> int:
@@ -55,7 +73,7 @@ def main() -> int:
 
     with Image.open(args.original) as original:
         # Turns the picture as its EXIF orientation says, so that the coordinates match what viewers show.
-        image = ImageOps.exif_transpose(original).convert("RGB")
+        image = to_srgb(ImageOps.exif_transpose(original))
     left, top, right, bottom = crop_box(args.center_x, args.center_y, args.height)
     if left < 0 or top < 0 or right > image.width or bottom > image.height:
         print(
