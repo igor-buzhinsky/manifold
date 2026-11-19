@@ -113,7 +113,7 @@ public:
     /// cast, see cast(). So a spell cast in this frame lasts its whole duration from the end of the frame, and a
     /// Levitate cast in it already lets the player fly.
     ///
-    /// Doors move first. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
+    /// Then the doors move. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
     /// When `input.activate` becomes true, the player activates what they look at, and then, if `input.click` is set,
     /// what is in its direction, see activate(). Both happen after the player moved. The click's direction is not
     /// turned with the player, so it stays that of the picture that was clicked.

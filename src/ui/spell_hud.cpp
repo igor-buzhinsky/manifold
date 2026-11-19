@@ -19,9 +19,6 @@ namespace manifold {
 
 namespace {
 
-/// Height of the letters of the font at scale 1, in pixels, from the top of capitals to the bottom of descenders, as
-/// in `g`, see kTextLineHeight.
-constexpr float kLetterHeight = 9.0f;
 /// The box of a spell, and its name.
 constexpr glm::vec4 kSpellBoxColor{1.0f, 1.0f, 1.0f, 1.0f};
 constexpr glm::vec4 kSpellTextColor{0.0f, 0.0f, 0.0f, 1.0f};
@@ -42,7 +39,7 @@ float spell_box_width() {
 
 std::vector<Rect> layout_spell_hud(const PixelSize& picture, std::size_t count) {
     const float scale = ui_scale(picture);
-    const glm::vec2 size = glm::vec2(spell_box_width(), kLetterHeight + (2.0f * kHudSpellPaddingY)) * scale;
+    const glm::vec2 size = glm::vec2(spell_box_width(), kTextLetterHeight + (2.0f * kHudSpellPaddingY)) * scale;
     const float left = static_cast<float>(picture.width) - (kHudMargin * scale) - size.x;
     std::vector<Rect> boxes;
     boxes.reserve(count);

@@ -17,14 +17,6 @@
 
 namespace manifold {
 
-namespace {
-
-/// Height of the letters of the font at scale 1, in pixels, from the top of capitals to the bottom of descenders, as
-/// in `g`. Lines are kTextLineHeight high, with empty rows below this.
-constexpr float kLetterHeight = 9.0f;
-
-}  // namespace
-
 ButtonList::ButtonList(std::vector<Button> buttons) : buttons_(std::move(buttons)) {
     for (std::size_t i = 0; i < buttons_.size(); ++i) {
         if (buttons_[i].enabled) {
@@ -142,7 +134,7 @@ void ButtonList::add_to(OverlayMesh& mesh, const Placement& placement) const {
         const float text_x =
             rect.top_left.x + (std::floor((rect.size.x - text_width(button.label, scale)) / 2.0f / scale) * scale);
         const float text_y =
-            rect.top_left.y + (std::floor((rect.size.y - (kLetterHeight * scale)) / 2.0f / scale) * scale);
+            rect.top_left.y + (std::floor((rect.size.y - (kTextLetterHeight * scale)) / 2.0f / scale) * scale);
         mesh.add_text({text_x, text_y}, button.label, scale, button.enabled ? kUiTextColor : kUiDisabledTextColor);
     }
 }

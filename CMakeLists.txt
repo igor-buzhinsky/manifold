@@ -126,8 +126,8 @@ add_library(manifold_core STATIC
     src/ui/menu_screen.cpp
     src/ui/overlay_mesh.cpp
     src/ui/party_hud.cpp
-    src/ui/spell_hud.cpp
     src/ui/screen_stack.cpp
+    src/ui/spell_hud.cpp
     src/ui/text_field.cpp
     src/ui/ui_style.cpp
     src/util/asset_files.cpp

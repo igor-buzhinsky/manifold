@@ -187,7 +187,7 @@ and tools for inspecting the game. Done:
   metre.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
-  returned to. L (F9 since the spells, see below) or the `load` command starts the saved level again from its start. A save holds the level seed, the
+  returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
 - **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
   Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of

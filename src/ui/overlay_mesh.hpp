@@ -17,6 +17,9 @@ struct OverlayVertex {
 
 /// Height of a line of text at scale 1, in pixels.
 inline constexpr float kTextLineHeight = 12.0f;
+/// Height of the letters at scale 1, in pixels, from the top of capitals to the bottom of descenders, as in `g`. Lines
+/// are kTextLineHeight high, with empty rows below this.
+inline constexpr float kTextLetterHeight = 9.0f;
 
 /// Width of one line of text at `scale`, in pixels. All characters are equally wide, see OverlayMesh::add_text().
 float text_width(std::string_view text, float scale);
