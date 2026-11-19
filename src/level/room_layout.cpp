@@ -628,13 +628,17 @@ bool valid_chances(float min, float max) {
     return !std::isnan(min) && !std::isnan(max) && min >= 0.0f && max <= 1.0f && min <= max;
 }
 
-/// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
-///
-/// The torch chances must be valid, see RoomLayout::generate().
-void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
-                 LevelRng& rng) {
-    const TorchFlame flame = choose_torch_flame(rng);
-    const float torch_chance = random_float(rng, config.min_torch_chance, config.max_torch_chance);
+/// A place for a torch: the side of a wall tile that faces the floor of a room, where no ramp runs along the wall.
+struct TorchSpot {
+    Torch torch;    ///< The torch that would hang there.
+    int layer = 0;  ///< Index of the layer.
+    int room = 0;   ///< Index of the room it faces, in its layer.
+};
+
+/// All places for torches, layer by layer, row by row, see TorchSpot. The torches have the flame `flame`.
+std::vector<TorchSpot> find_torch_spots(const LayeredPlan& plan, const GridPlacement& grid,
+                                        const RoomLayoutConfig& config, TorchFlame flame) {
+    std::vector<TorchSpot> spots;
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
         const RoomPlan& layer = plan.layers[index];
         for (int y = 0; y < layer.height; ++y) {
@@ -647,19 +651,52 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
                     const int front_y = y + direction.y;
                     const std::optional<Hole> hole = plan.hole_at(static_cast<int>(index), front_x, front_y);
                     const bool ramp_in_front = hole && hole->ramp != RampRise::kNone;
-                    if (layer.room_at(front_x, front_y) < 0 || ramp_in_front || !random_chance(rng, torch_chance)) {
+                    const int room = layer.room_at(front_x, front_y);
+                    if (room < 0 || ramp_in_front) {
                         continue;
                     }
                     const glm::vec3 outward{static_cast<float>(direction.x), static_cast<float>(direction.y), 0.0f};
                     const glm::vec3 floor_center = grid.tile_center(x, y, grid.floor_z[index]);
-                    world.add_torch({.mount = floor_center + (outward * (grid.tile / 2.0f)) +
-                                              glm::vec3(0.0f, 0.0f, config.torch_height),
-                                     .yaw = std::atan2(outward.y, outward.x),
-                                     .flame = flame});
+                    spots.push_back({.torch = {.mount = floor_center + (outward * (grid.tile / 2.0f)) +
+                                                        glm::vec3(0.0f, 0.0f, config.torch_height),
+                                               .yaw = std::atan2(outward.y, outward.x),
+                                               .flame = flame},
+                                     .layer = static_cast<int>(index),
+                                     .room = room});
                 }
             }
         }
     }
+    return spots;
+}
+
+/// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
+///
+/// The torch chances must be valid, see RoomLayout::generate().
+///
+/// \return The torches that could hang in the room where the player starts but didn't get one, if that room got no
+///         torch at all, see Level::spare_start_torches. Otherwise empty.
+std::vector<Torch> add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid,
+                               const RoomLayoutConfig& config, LevelRng& rng) {
+    const int start_room =
+        plan.layers.at(static_cast<std::size_t>(plan.start_layer)).room_at(plan.start_x, plan.start_y);
+    const TorchFlame flame = choose_torch_flame(rng);
+    const float torch_chance = random_float(rng, config.min_torch_chance, config.max_torch_chance);
+    std::vector<Torch> spare;
+    bool start_room_lit = false;
+    for (const TorchSpot& spot : find_torch_spots(plan, grid, config, flame)) {
+        const bool in_start_room = spot.layer == plan.start_layer && spot.room == start_room;
+        if (random_chance(rng, torch_chance)) {
+            world.add_torch(spot.torch);
+            start_room_lit = start_room_lit || in_start_room;
+        } else if (in_start_room) {
+            spare.push_back(spot.torch);
+        }
+    }
+    if (start_room_lit) {
+        spare.clear();
+    }
+    return spare;
 }
 
 /// Puts doors into openings and chooses what they are made of, see RoomLayout.
@@ -771,7 +808,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_walls(world, plan, grid, config_.height);
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
-    add_torches(world, plan, grid, config_, rng);
+    std::vector<Torch> spare_start_torches = add_torches(world, plan, grid, config_, rng);
     const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
     std::string info = describe(plan, grid, config_.height, doors, world.door_look());
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
@@ -783,7 +820,8 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .world = std::move(world),
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
-            .info = std::move(info)};
+            .info = std::move(info),
+            .spare_start_torches = std::move(spare_start_torches)};
 }
 
 }  // namespace manifold

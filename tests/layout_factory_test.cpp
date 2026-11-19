@@ -1,5 +1,6 @@
 #include "level/layout_factory.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -10,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
+#include "world/torch.hpp"
 
 namespace manifold {
 namespace {
@@ -92,6 +94,34 @@ TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {
     EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 1).layout, LayoutKind::kDebug);
     // Without a layout, the choice depends only on the seed.
     EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).info, generate_level(config, std::nullopt, 0.3f, 5).info);
+}
+
+TEST(LayoutFactoryTest, StartTorchIsAddedOnlyIfAskedAndTheStartRoomHasNone) {
+    LevelConfig config;
+    config.rooms.min_torch_chance = 0.0f;
+    config.rooms.max_torch_chance = 0.0f;
+    const Level dark = generate_level(config, LayoutKind::kRooms, 0.3f, 4);
+    EXPECT_TRUE(dark.world.torches().empty());
+    ASSERT_FALSE(dark.spare_start_torches.empty());
+    const Level lit = generate_level(config, LayoutKind::kRooms, 0.3f, 4, true);
+    ASSERT_EQ(lit.world.torches().size(), 1U);
+    EXPECT_TRUE(lit.spare_start_torches.empty());
+    EXPECT_TRUE(std::ranges::any_of(dark.spare_start_torches, [&](const Torch& torch) {
+        return torch.mount == lit.world.torches()[0].mount && torch.yaw == lit.world.torches()[0].yaw;
+    }));
+    // The rest of the level stays the same, and the choice depends only on the seed.
+    EXPECT_EQ(lit.info, dark.info);
+    EXPECT_EQ(lit.world.doors().size(), dark.world.doors().size());
+    EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, 4, true).world.torches()[0].mount,
+              lit.world.torches()[0].mount);
+
+    // A start room that has a torch gets no other, and the debug layout has no rooms.
+    config.rooms.min_torch_chance = 1.0f;
+    config.rooms.max_torch_chance = 1.0f;
+    EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, 4, true).world.torches().size(),
+              generate_level(config, LayoutKind::kRooms, 0.3f, 4).world.torches().size());
+    EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 4, true).world.torches().size(),
+              generate_level(config, LayoutKind::kDebug, 0.3f, 4).world.torches().size());
 }
 
 TEST(LayoutFactoryTest, DoorSoundsDependOnlyOnTheSeedAndDiffer) {

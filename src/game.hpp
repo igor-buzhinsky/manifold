@@ -83,6 +83,10 @@ class Game {
 public:
     /// Generates the level, places the player at its start, and makes a new party, see new_game().
     ///
+    /// The first level of a game, here and in new_game() and load(), gets a torch in the room where the player starts
+    /// if it has no ambient light (see level_has_ambient_light()) and that room got no torch, if a wall of it has room
+    /// for one (see generate_level()). The party has no light of its own until it casts Candlelight.
+    ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation and the party. The same seed gives the same level and party.
     /// \param layout The layout of this level. If not given, it is chosen at random, see LevelConfig. The

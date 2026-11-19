@@ -49,11 +49,15 @@ std::uint64_t next_level_seed(std::uint64_t seed);
 /// \param layout    The layout to use. If not given, a random one is chosen.
 /// \param clearance Radius around the player start that must stay free of obstacles, in metres.
 /// \param seed      Seed for all random choices. The same seed gives the same level.
+/// \param start_torch Whether to make sure that the room where the player starts has a torch: if it has none, one of
+///                    Level::spare_start_torches is added, if there are any, chosen from its own random numbers. The
+///                    rest of the level is the same either way.
 ///
 /// The sounds of the doors are chosen last, from their own random numbers, so the rest of the level doesn't depend on
 /// them.
 /// \throws std::invalid_argument if `layout` is not given and the layout probabilities are invalid.
 /// \throws std::runtime_error if the level can't be generated.
-Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed);
+Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed,
+                     bool start_torch = false);
 
 }  // namespace manifold

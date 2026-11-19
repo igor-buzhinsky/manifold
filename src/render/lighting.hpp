@@ -166,8 +166,8 @@ float luminance(const glm::vec3& color);
 /// Luminance of the ambient light of the levels that have it, see level_ambient().
 inline constexpr float kLevelAmbientLuminance = 0.1f;
 
-/// The ambient light of a level: none for half of the seeds, and for the others light of the hue of the level's
-/// texture, so that the level seems lit without a visible source.
+/// The ambient light of a level: none for half of the seeds (see level_has_ambient_light()), and for the others light
+/// of the hue of the level's texture, so that the level seems lit without a visible source.
 ///
 /// The light has the color of the texture scaled to a luminance of kLevelAmbientLuminance, so that light and dark
 /// textures give equally bright light. A near-black texture, whose hue is uncertain, gives grey light. A very

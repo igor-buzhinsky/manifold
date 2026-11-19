@@ -779,6 +779,45 @@ TEST(RoomLayoutTest, TorchesHangOnWallsFacingRooms) {
     }
 }
 
+TEST(RoomLayoutTest, SpareStartTorchesHangInTheStartRoomIfItHasNoTorch) {
+    RoomLayoutConfig config = make_config();
+    config.min_torch_chance = 0.0f;
+    config.max_torch_chance = 0.0f;
+    for (std::uint64_t seed = 0; seed < 5; ++seed) {
+        const Level level = generate(seed, config);
+        ASSERT_TRUE(level.world.torches().empty());
+        ASSERT_FALSE(level.spare_start_torches.empty()) << "seed " << seed;
+        for (const Torch& torch : level.spare_start_torches) {
+            // On a wall of the start's layer, in the open, and with a clear line to the start.
+            EXPECT_NEAR(torch.mount.z - level.player_start.z, config.torch_height, 1e-4f) << "seed " << seed;
+            EXPECT_TRUE(inside_obstacle(level.world, torch.mount - (0.1f * torch.outward()))) << "seed " << seed;
+            EXPECT_FALSE(inside_obstacle(level.world, torch.tip())) << "seed " << seed;
+        }
+        // The same places, whatever the chance: a level whose torches all hang has the spare ones among them.
+        RoomLayoutConfig all = config;
+        all.min_torch_chance = 1.0f;
+        all.max_torch_chance = 1.0f;
+        const Level lit = generate(seed, all);
+        EXPECT_TRUE(lit.spare_start_torches.empty()) << "seed " << seed;
+        for (const Torch& torch : level.spare_start_torches) {
+            EXPECT_TRUE(std::ranges::any_of(
+                lit.world.torches(),
+                [&](const Torch& other) { return other.mount == torch.mount && other.yaw == torch.yaw; }))
+                << "seed " << seed;
+        }
+    }
+    // With the usual chances, a start room with a torch has no spare ones.
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(seed);
+        const bool start_lit = std::ranges::any_of(level.world.torches(), [&](const Torch& torch) {
+            return std::abs(torch.mount.z - level.player_start.z - make_config().torch_height) < 1e-3f;
+        });
+        if (!start_lit) {
+            EXPECT_FALSE(level.spare_start_torches.empty()) << "seed " << seed;
+        }
+    }
+}
+
 TEST(RoomLayoutTest, TorchChanceControlsTorchCount) {
     RoomLayoutConfig config = make_config();
     config.min_torch_chance = 0.0f;
