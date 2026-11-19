@@ -63,8 +63,9 @@ rewrites.
 - A level is a 3D data structure: obstacles, ramps, bounds, gravity and the player start (position and yaw). Later also
   lights and volumes (for example water). Generators may work on a 2D grid internally, but nothing
   downstream depends on that.
-- Level generation is deterministic from a seed, so levels can be reproduced for debugging, on every platform: all
-  random choices are made with the helpers of `src/util/random.hpp` (see [DECISIONS.md](DECISIONS.md)).
+- Level generation is deterministic from a seed, so levels can be reproduced for debugging. All random choices are
+  made with the helpers of `src/util/random.hpp`, whose results are the same on every platform (see
+  [DECISIONS.md](DECISIONS.md)).
 - Each level can have its own gravity. The jump take-off speed is the same everywhere, so the player
   jumps higher where gravity is weaker.
 
@@ -207,15 +208,17 @@ and tools for inspecting the game. Done:
   there are too few portraits, a warning is logged and the last characters get none. Each character has current and
   maximum hit points (100), which nothing lowers yet. The portraits are drawn scaled down in the bottom-left corner of
   the screen, side by side with small gaps (`layout_party_hud()`, textured by `ImageRenderer`), with a thin red bar of
-  hit points below each, or an empty dark place for a missing portrait. The save (in a new format version) holds the party at
-  the start of the level: portraits, genders and hit points. `party` lists the characters, and the `hp` cheat sets
+  hit points below each, or an empty dark place for a missing portrait. The save holds the party at the start of the
+  level: portraits, genders and hit points. `party` lists the characters, and the `hp` cheat sets
   their hit points.
 - **Portable random choices** (see [DECISIONS.md](DECISIONS.md)): all random choices made from a seed (levels,
   textures, sounds, ambient light, the party) use the helpers of `src/util/random.hpp` on the raw output of
   `std::mt19937_64`, instead of the standard distributions and `std::shuffle`, whose results differ between standard
-  libraries. So a seed, and a save, give the same level on Linux, Windows and macOS. A test (`PortableRandomChoices`)
-  fails if a source uses the standard tools, and `random_test.cpp` pins the results for a seed. Levels of a seed are
-  not those of before, so the save format version is 3.
+  libraries. So the random choices of a seed are the same on Linux, Windows and macOS. Levels may still differ, since
+  the math functions such as `std::cos`, which level generation also uses, may differ in their last bits between
+  platforms (see Windows and macOS support below). A test (`PortableRandomChoices`) fails if a source uses the
+  standard tools, and `random_test.cpp` pins the results for a seed. Levels of a seed are not those of before, so the
+  save format version is 3, which also refuses saves of version 2, the first with a party.
 - TODO
   - **Mana**: the party has shared mana, which spells will use.
   - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
@@ -257,6 +260,11 @@ and tools for inspecting the game. Done:
 - **Windows support**: add MSVC warning flags, and send logs to a file or console. SDL3, GLM, stb, glad
   and the C++ code are already portable, except reading console commands from the terminal, which uses POSIX
   `poll()` (`src/platform/terminal_input.cpp`).
+- **The same levels on every platform**: random choices already are the same everywhere (`src/util/random.hpp`), but
+  level generation also uses math functions such as `std::sin` and `std::cos` (e.g. `bounding_half_size()` in
+  `src/world/geometry.cpp`, which decides whether a block of a debug level fits), whose last bits can differ between C
+  libraries. Before saves move between platforms, compare the levels of many seeds on each platform, and make
+  generation independent of such differences where they show, e.g. by deciding on the tile grid.
 - **Stamina and sanity** of each character of the party, next to its hit points.
 - **Advanced party implementation**: The party is bound to a magical orb (?), and characters can transport
   themselves to a pocket dimension.

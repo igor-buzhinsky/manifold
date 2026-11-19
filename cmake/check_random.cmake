@@ -8,16 +8,18 @@ if(NOT SOURCE_DIR)
     message(FATAL_ERROR "SOURCE_DIR is not set")
 endif()
 
-# What may only be used in src/util/random.*: distributions, algorithms that draw random numbers themselves, other
-# engines than Rng, and the C library's generator.
+# What may only be used in src/util/random.*: distributions, algorithms that draw random numbers themselves, also
+# unqualified (argument-dependent lookup finds std::shuffle for std iterators), other engines than Rng, and the C
+# library's generator. The check is textual, so a comment that names them fails it too: refer to them in comments
+# without `std::` and without the parenthesis or angle bracket after their name.
 set(BANNED
     "_distribution[ \t]*<"
     "_distribution[ \t]*\\("
-    "std::(ranges::)?shuffle"
-    "std::(ranges::)?sample"
-    "std::random_shuffle"
+    "std::(ranges::)?(shuffle|sample|random_shuffle)"
+    "(^|[^_a-zA-Z0-9.>:])(shuffle|sample|s?rand)[ \t]*\\("
     "generate_canonical"
     "std::(mt19937|minstd_rand|ranlux|knuth_b|default_random_engine|random_device)"
+    "_engine[ \t]*<"
     "std::s?rand[ \t]*\\("
 )
 # random_device seeds a new game, which is meant to differ, so main.cpp may use it.

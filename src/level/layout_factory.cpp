@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <stdexcept>
 #include <string_view>
 #include <utility>
 
@@ -48,22 +47,11 @@ std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& con
 }
 
 LayoutKind choose_layout(const LevelConfig& config, LevelRng& rng) {
-    std::array<float, kLayoutNames.size()> probabilities{};
-    float total = 0.0f;
-    for (std::size_t i = 0; i < kLayoutNames.size(); ++i) {
-        probabilities.at(i) = layout_probability(kLayoutNames.at(i).first, config);
-        if (probabilities.at(i) < 0.0f) {
-            throw std::invalid_argument("layout probabilities can't be negative");
-        }
-        total += probabilities.at(i);
-    }
-    if (total <= 0.0f) {
-        throw std::invalid_argument("at least one layout probability must be positive");
-    }
     std::array<double, kLayoutNames.size()> weights{};
     for (std::size_t i = 0; i < weights.size(); ++i) {
-        weights.at(i) = probabilities.at(i);
+        weights.at(i) = layout_probability(kLayoutNames.at(i).first, config);
     }
+    // random_weighted_index() refuses negative, infinite and NaN weights, and weights that are all zero.
     return kLayoutNames.at(random_weighted_index(rng, weights)).first;
 }
 

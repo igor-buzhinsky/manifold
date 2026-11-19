@@ -454,8 +454,8 @@ Status: **ACCEPTED**. Done in v0.3.
 
 Decision: the player is a party of three characters that moves as one body: the player's cylinder, as before. A new
 game chooses each character's portrait at random, without repeats, from the game's seed, among those in
-`assets/portraits/`, whose directories (`male/`, `female/`, `any/`) give the character's gender; for `any/` the gender is
-random. Each character has its own hit points. The party is stored in the save, as it was at the start of the level,
+`assets/portraits/`, whose directories (`male/`, `female/`, `any/`) give the character's gender; for `any/` the
+gender is random. Each character has its own hit points. The party is stored in the save, as it was at the start of the level,
 instead of being made again from the seed when the game is loaded.
 
 Gains:
@@ -495,9 +495,9 @@ sources for them.
 Gains:
 
 - The C++ standard fixes the output of `std::mt19937_64` for each seed, but not the algorithms of the distributions
-  and of `std::shuffle`, which differ between libstdc++, libc++ and MSVC's library. With the helpers, a seed gives the
-  same level on Linux, macOS and Windows, so saves, which store only the seed, can move between platforms, and seeds
-  in bug reports and PRs show the same level everywhere.
+  and of `std::shuffle`, which differ between libstdc++, libc++ and MSVC's library. With the helpers, the random
+  choices of a seed are the same on Linux, macOS and Windows, which is needed for saves, which store only the seed, to
+  move between platforms, and for seeds in bug reports and PRs to show the same level everywhere.
 - The helpers are unbiased (`random_index` draws again instead of taking a biased modulo), and their results for a seed
   are pinned by a test, so a change that would change all levels can't happen unnoticed.
 - One place explains why, instead of a comment at each use.
@@ -514,3 +514,7 @@ Drawbacks:
 
 - Changing to the helpers changed the levels of all seeds, so saves of the earlier format are refused.
 - Each new kind of random choice needs a helper of its own, with tests.
+- It is necessary but not enough for the same levels everywhere: level generation also uses math functions such as
+  `std::cos`, whose last bits can differ between C libraries, see "The same levels on every platform" in
+  [ROADMAP.md](ROADMAP.md).
+- The check for banned functions is textual, so it fails on a comment that names them as code would use them.

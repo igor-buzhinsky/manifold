@@ -48,6 +48,11 @@ ctest --test-dir build --output-on-failure
   library, e.g. on Windows or macOS. The test `PortableRandomChoices` (`cmake/check_random.cmake`) fails if a source
   uses them. `std::random_device` is allowed only in `main.cpp`, for seeds that are meant to differ.
 - If a new kind of choice is needed, add a helper to `src/util/random.hpp` with tests, rather than writing it inline.
+  Its arithmetic must give the same bits everywhere: integers, or double operations that are rounded once. Write a
+  multiplication followed by an addition as `std::fma`, since compilers fuse them into one instruction on some
+  platforms only.
+- The helpers make the choices portable, but math functions such as `std::cos` may still differ in their last bits
+  between C libraries, so levels that depend on them may differ (see ROADMAP.md).
 - Derive a separate generator for each independent choice from the seed with its own salt (`Rng rng(seed ^ kSalt)`),
   so that adding random numbers to one part doesn't change the others.
 - Changing a helper, or the order of the choices of level generation, changes the levels of all seeds: increase the

@@ -58,9 +58,16 @@ TEST(RandomTest, IndicesAndIntegersStayInRangeAndReachEveryValue) {
     EXPECT_EQ(integers.size(), 7U);
     EXPECT_EQ(random_index(rng, 1), 0U);
     EXPECT_EQ(random_int(rng, 4, 4), 4);
-    // The full range of int doesn't overflow.
-    const int any = random_int(rng, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-    EXPECT_GE(any, std::numeric_limits<int>::min());
+    // The full range of int doesn't overflow, and reaches far to both sides.
+    bool far_below = false;
+    bool far_above = false;
+    for (int i = 0; i < 100; ++i) {
+        const int any = random_int(rng, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+        far_below = far_below || any < std::numeric_limits<int>::min() / 2;
+        far_above = far_above || any > std::numeric_limits<int>::max() / 2;
+    }
+    EXPECT_TRUE(far_below);
+    EXPECT_TRUE(far_above);
 }
 
 TEST(RandomTest, FloatsAndUnitsStayInRange) {

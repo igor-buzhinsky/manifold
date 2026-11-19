@@ -27,7 +27,7 @@ std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& con
 
 /// Picks one of the layout kinds at random, using the probabilities from `config`.
 ///
-/// \throws std::invalid_argument if a probability is negative or all of them are zero.
+/// \throws std::invalid_argument if a probability is negative or not finite, or all of them are zero.
 LayoutKind choose_layout(const LevelConfig& config, LevelRng& rng);
 
 /// Short name of a layout kind, as used on the command line: "debug" or "rooms".
