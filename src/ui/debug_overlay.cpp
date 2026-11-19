@@ -61,7 +61,7 @@ void frame_section(const FrameTimes& frames, const RenderStats& stats, float sca
                      stats.shadow_maps_drawn));
 }
 
-/// Shows where the player is and how it moves, with a checkbox for noclip.
+/// Shows where the player is and how it moves, the party's mana, and a checkbox for noclip.
 void player_section(Game& game) {
     const Player& player = game.player();
     text(std::format("Position ({:.2f}, {:.2f}, {:.2f})", player.position().x, player.position().y,
@@ -69,6 +69,8 @@ void player_section(Game& game) {
     text(std::format("Yaw {:.1f} deg, pitch {:.1f} deg", to_degrees(player.yaw()), to_degrees(player.pitch())));
     text(std::format("Vertical speed {:.2f} m/s, {}", player.vertical_speed(),
                      player.on_ground() ? "on the ground" : "in the air"));
+    text(std::format("Mana {:.1f} / {:.0f}, levitating: {}", game.magic().mana, game.magic().max_mana,
+                     game.levitating() ? "yes" : "no"));
     bool noclip = game.noclip();
     if (ImGui::Checkbox("Noclip", &noclip)) {
         game.set_noclip(noclip);

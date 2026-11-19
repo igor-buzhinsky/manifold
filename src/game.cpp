@@ -16,6 +16,7 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 #include "physics/collision.hpp"
 #include "physics/raycast.hpp"
 #include "save/saved_game.hpp"
@@ -93,6 +94,7 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
     Level level = generate_level(level_config_, layout, player_params_.radius, seed);
     time_ = 0.0;
     party_ = make_new_party(seed);
+    magic_ = PartyMagic{};
     start_level(std::move(level), seed, 0, layout);
 }
 
@@ -100,6 +102,7 @@ void Game::load(const SavedGame& save) {
     Level level = generate_level(level_config_, save.layout, player_params_.radius, save.seed);
     time_ = save.time;
     party_ = save.party;
+    magic_ = save.magic;
     start_level(std::move(level), save.seed, save.level_number, save.layout);
 }
 
@@ -108,7 +111,8 @@ SavedGame Game::save_point() const {
             .level_number = level_number_,
             .layout = given_layout_,
             .time = level_start_time_,
-            .party = level_start_party_};
+            .party = level_start_party_,
+            .magic = level_start_magic_};
 }
 
 void Game::start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout) {
@@ -119,6 +123,7 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     ++level_starts_;
     level_start_time_ = time_;
     level_start_party_ = party_;
+    level_start_magic_ = magic_;
     player_ = Player(at_start(player_params_, level_));
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();
@@ -130,6 +135,10 @@ float Game::animation_time() const { return static_cast<float>(std::fmod(time_, 
 
 void Game::update(const PlayerInput& input, float dt) {
     time_ += dt;
+    magic_.advance(dt);
+    for (const Spell spell : input.casts) {
+        cast(spell);
+    }
     for (DoorState& door : doors_) {
         door.advance(dt);
     }
@@ -208,6 +217,15 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
         displacement.z = input.rise * move_speed_ * dt;
         player_.set_position(player_.position() + displacement);
         // When noclip is turned off in the air, the fall starts from rest.
+        player_.set_vertical_speed(0.0f);
+        player_.set_on_ground(false);
+        return;
+    }
+    if (levitating()) {
+        // As with noclip, but stopped by what is in the way. Without gravity there is nothing to stand on, so there
+        // are no footsteps and no sticking to ramps, and when the spell ends the fall starts from rest.
+        displacement.z = input.rise * move_speed_ * dt;
+        player_.set_position(move_and_slide(level_.world, player_.body(), displacement, blockers).position);
         player_.set_vertical_speed(0.0f);
         player_.set_on_ground(false);
         return;

@@ -148,14 +148,14 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
 /// The lights of a scene, which the debug overlay can change while the game runs.
 struct LightSettings {
     glm::vec3 ambient{0.0f};  ///< See Lighting::ambient. Each level sets it, see level_ambient().
-    /// Color of the light spell: a light at the player's eyes, linear RGB.
+    /// Color of the party's light, which Candlelight casts at the player's eyes, linear RGB.
     glm::vec3 player_color{1.0f, 0.85f, 0.6f};
     float player_intensity = 5.0f;  ///< Brightness of the player's light at 1 m.
     float player_range = 15.0f;     ///< Range of the player's light, in metres.
     TorchLightParams torch;
     ExitLightParams exit;
     float fade_distance = kLightFadeDistance;  ///< See select_lights().
-    /// Most lights drawn at once, including the player's, from 1 to kMaxLights. Fewer show how lights
+    /// Most lights drawn at once, including the player's if there is one, from 1 to kMaxLights. Fewer show how lights
     /// fade out, see select_lights().
     std::size_t max_lights = kMaxLights;
 };
@@ -178,17 +178,20 @@ inline constexpr float kLevelAmbientLuminance = 0.1f;
 /// \return The ambient light, linear RGB.
 glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color);
 
-/// The light in the scene at a moment: the ambient light, the player's light, and the lights of the torches
-/// and the exit that matter most to the viewer.
+/// The light in the scene at a moment: the ambient light, the player's light if there is one, and the lights of the
+/// torches and the exit that matter most to the viewer.
 ///
 /// \param settings The lights. A `max_lights` outside [1, kMaxLights] counts as the nearest limit.
-/// \param eyes     Where the player's light is: at the player's eyes.
+/// \param eyes     Where the player's light is: at the player's eyes, or none if there is no such light, e.g. while
+///                 Candlelight is not in effect. Without it, the torches and the exit get its place too.
 /// \param torches  The torches, see torch_lights().
 /// \param exit     The level exit, see exit_light(), or none.
 /// \param time     Seconds since the start of the game.
 /// \param viewer   Where the scene is seen from, see select_lights().
-/// \return The player's light first, then the chosen lights of the torches and the exit, nearest first.
-Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
-                        const std::optional<LevelExit>& exit, float time, const glm::vec3& viewer);
+/// \return The player's light first, if there is one, then the chosen lights of the torches and the exit, nearest
+///         first.
+Lighting scene_lighting(const LightSettings& settings, const std::optional<glm::vec3>& eyes,
+                        std::span<const Torch> torches, const std::optional<LevelExit>& exit, float time,
+                        const glm::vec3& viewer);
 
 }  // namespace manifold

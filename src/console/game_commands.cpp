@@ -17,6 +17,7 @@
 #include "game.hpp"
 #include "level/layout_factory.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 #include "render/camera.hpp"
 #include "render/viewport.hpp"
 #include "util/log.hpp"
@@ -154,7 +155,7 @@ void add_player_commands(Console& console, CommandQueue& queue, Game& game, Cons
                     queue.wait(1);
                 });
 
-    console.add("load", "load", "Loads the saved game, as the L key does: the saved level starts again.",
+    console.add("load", "load", "Loads the saved game, as F9 does: the saved level starts again.",
                 [&queue, &state](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "load");
                     state.load = true;
@@ -221,7 +222,29 @@ void add_door_commands(Console& console, Game& game) {
                 });
 }
 
-/// Adds the commands that inspect and change the party: party and hp.
+/// The party's mana and the spells in effect, for the log, e.g. `mana 95.0/100, spells: Candlelight 59.5 s`.
+std::string describe_magic(const PartyMagic& magic) {
+    std::string text = std::format("mana {:.1f}/{:.0f}, spells:", magic.mana, magic.max_mana);
+    if (magic.spells.empty()) {
+        return text + " none";
+    }
+    for (std::size_t i = 0; i < magic.spells.size(); ++i) {
+        text += std::format("{} {} {:.1f} s", i == 0 ? "" : ",", spell_title(magic.spells[i].spell),
+                            magic.spells[i].remaining);
+    }
+    return text;
+}
+
+/// The names of all spells, for messages: `candlelight|levitate`.
+std::string spell_names() {
+    std::string names;
+    for (const Spell spell : kAllSpells) {
+        names += std::string(names.empty() ? "" : "|") + spell_name(spell);
+    }
+    return names;
+}
+
+/// Adds the commands that inspect and change the party and its magic: party, hp, cast and mana.
 void add_party_commands(Console& console, Game& game) {
     console.add("party", "party", "Lists the characters of the party: their gender, hit points and portrait.",
                 [&game](std::span<const std::string> arguments) {
@@ -234,7 +257,7 @@ void add_party_commands(Console& console, Game& game) {
                                             gender_name(character.gender), character.hp, character.max_hp,
                                             character.portrait.empty() ? "none" : character.portrait);
                     }
-                    log_info("Party of {}{}", party.size(), list);
+                    log_info("Party of {}, {}{}", party.size(), describe_magic(game.magic()), list);
                 });
 
     const std::string hp_usage = "hp N VALUE";
@@ -252,6 +275,33 @@ void add_party_commands(Console& console, Game& game) {
                         throw CommandError(std::format("hit points must be from 0 to {}: {}", max_hp, arguments[1]));
                     }
                     game.set_hp(character, hp);
+                });
+
+    const std::string cast_usage = "cast " + spell_names();
+    console.add("cast", cast_usage, "Casts a spell, as its key does, if the party has enough mana for it.",
+                [&game, cast_usage](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, cast_usage);
+                    const std::optional<Spell> spell = parse_spell_name(arguments[0]);
+                    if (!spell) {
+                        throw CommandError("no such spell: " + arguments[0] + ", expected " + spell_names());
+                    }
+                    if (!game.cast(*spell)) {
+                        throw CommandError(std::format("not enough mana for {}: it costs {:.0f}, the party has {:.1f}",
+                                                       spell_title(*spell), spell_cost(*spell), game.magic().mana));
+                    }
+                    log_info("Cast {}: {}", spell_title(*spell), describe_magic(game.magic()));
+                });
+
+    const std::string mana_usage = "mana VALUE";
+    console.add("mana", mana_usage, "Sets the party's mana, from 0 to its maximum (a cheat).",
+                [&game, mana_usage](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, mana_usage);
+                    const float max_mana = game.magic().max_mana;
+                    const float mana = parse_float_argument(arguments[0]);
+                    if (mana < 0.0f || mana > max_mana) {
+                        throw CommandError(std::format("mana must be from 0 to {:.0f}: {}", max_mana, arguments[0]));
+                    }
+                    game.set_mana(mana);
                 });
 }
 

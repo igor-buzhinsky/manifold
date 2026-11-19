@@ -187,7 +187,7 @@ and tools for inspecting the game. Done:
   metre.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
-  returned to. L or the `load` command starts the saved level again from its start. A save holds the level seed, the
+  returned to. L (F9 since the spells, see below) or the `load` command starts the saved level again from its start. A save holds the level seed, the
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
 - **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
   Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of
@@ -219,11 +219,20 @@ and tools for inspecting the game. Done:
   platforms (see Windows and macOS support below). A test (`PortableRandomChoices`) fails if a source uses the
   standard tools, and `random_test.cpp` pins the results for a seed. Levels of a seed are not those of before, so the
   save format version is 3, which also refuses saves of version 2, the first with a party.
+- **Spells and mana** (see [DECISIONS.md](DECISIONS.md)): the party has shared mana (`PartyMagic`), 100 of 100 at the
+  start, which regains 1 per second of game time. Spells are effects that last 60 seconds: casting one costs mana and
+  starts its duration, also again while it is in effect, without adding what was left. Without enough mana, a cast does
+  nothing. **Candlelight** (C, cost 5) is the party's light at the eyes, which was always on before, so a new game
+  starts darker; without it the torches get its place among the lights drawn. **Levitate** (L, cost 10) turns off
+  gravity: Page Up / Page Down fly as with noclip, but with collision, without footsteps and sticking to ramps; when it
+  ends in the air, the party falls from rest. Loading moved from L to F9. The spells in effect are listed in white
+  boxes in the top-right corner, and a blue bar in the bottom-right corner shows the mana (`spell_hud.hpp`). The save
+  holds the mana and the spells in effect at the start of the level, with the time left of each, so the save format
+  version is 4. The `cast` command casts a spell as its key does, the `mana` cheat sets the mana, and `party` shows
+  both.
 - TODO
-  - **Mana**: the party has shared mana, which spells will use.
-  - **Levitation spell**: turn off gravity for the party and allow vertical movement, as noclip does now
-    but with collision.
-  - The party's light becomes a spell that can be toggled, with an intensity or radius.
+  - Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
+  - The time left of each spell on the screen.
 
 ## v0.4 - Water, rudimentary monsters and inventory
 

@@ -18,6 +18,7 @@
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 #include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/world.hpp"
@@ -122,7 +123,7 @@ TEST(GameTest, DiagonalWalkIsNotFaster) {
 TEST(GameTest, CollisionsStopPlayerAtLevelWall) {
     const GameConfig config = make_config();
     Game game(config, 1, LayoutKind::kDebug);
-    game.update({.forward = 1.0f}, 100.0f);
+    game.update({.forward = 1.0f}, 15.0f);
     EXPECT_NEAR(game.player().position().x, config.level.debug.x_max - game.player().radius(), 1e-4f);
 }
 
@@ -485,9 +486,12 @@ TEST(GameTest, SavePointIsTheStartOfTheLevel) {
     const std::vector<Character> start_party = party_of(game);
     game.update({.forward = 1.0f}, 0.5f);
     game.set_hp(1, 40);
-    EXPECT_EQ(
-        game.save_point(),
-        (SavedGame{.seed = 3, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = start_party}));
+    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 3,
+                                            .level_number = 0,
+                                            .layout = LayoutKind::kDebug,
+                                            .time = 0.0,
+                                            .party = start_party,
+                                            .magic = {}}));
     game.next_level();
     const std::vector<Character> second_party = party_of(game);
     EXPECT_EQ(second_party[1].hp, 40);
@@ -498,7 +502,8 @@ TEST(GameTest, SavePointIsTheStartOfTheLevel) {
                                             .level_number = 1,
                                             .layout = std::nullopt,
                                             .time = 0.5,
-                                            .party = second_party}));
+                                            .party = second_party,
+                                            .magic = {}}));
 }
 
 TEST(GameTest, LoadStartsTheSavedLevelAgain) {
@@ -540,9 +545,12 @@ TEST(GameTest, NewGameStartsAgainFromTheFirstLevel) {
     // The new party is unhurt, and the same as a game started with this seed has.
     EXPECT_EQ(party_of(game), party_of(fresh));
     EXPECT_EQ(game.party()[0].hp, game.party()[0].max_hp);
-    EXPECT_EQ(
-        game.save_point(),
-        (SavedGame{.seed = 7, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = party_of(fresh)}));
+    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 7,
+                                            .level_number = 0,
+                                            .layout = LayoutKind::kDebug,
+                                            .time = 0.0,
+                                            .party = party_of(fresh),
+                                            .magic = {}}));
     EXPECT_EQ(game.time(), 0.0);
     EXPECT_EQ(game.level_starts(), starts + 1);
     EXPECT_EQ(game.player().position(), game.level().player_start);
@@ -593,6 +601,89 @@ void walk(Game& game, float seconds) {
     for (int frame = 0; frame < static_cast<int>(std::round(seconds * 10.0f)); ++frame) {
         game.update({.forward = 1.0f}, 0.1f);
     }
+}
+
+TEST(GameTest, PartyStartsWithFullManaAndNoSpells) {
+    const Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_EQ(game.magic(), PartyMagic{});
+    EXPECT_FLOAT_EQ(game.magic().mana, 100.0f);
+    EXPECT_FALSE(game.levitating());
+}
+
+TEST(GameTest, SpellsOfTheInputAreCastAfterTheMagicAdvances) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.casts = {Spell::kCandlelight, Spell::kLevitate}}, 0.5f);
+    // The mana was full, so it regained nothing before the casts.
+    EXPECT_FLOAT_EQ(game.magic().mana, 85.0f);
+    ASSERT_EQ(game.magic().spells.size(), 2U);
+    EXPECT_FLOAT_EQ(game.magic().spells[0].remaining, 60.0f);
+    EXPECT_TRUE(game.levitating());
+    game.update({}, 2.0f);
+    EXPECT_FLOAT_EQ(game.magic().mana, 87.0f);
+    EXPECT_FLOAT_EQ(game.magic().spells[1].remaining, 58.0f);
+    game.set_mana(3.0f);
+    EXPECT_FALSE(game.cast(Spell::kCandlelight));
+    game.set_mana(1000.0f);
+    EXPECT_FLOAT_EQ(game.magic().mana, 100.0f);
+}
+
+TEST(GameTest, LevitationFliesWithCollisionAndFallsWhenItEnds) {
+    const GameConfig config = make_config();
+    Game game(config, 1, LayoutKind::kDebug);
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    game.update({.rise = 1.0f}, 0.5f);
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-5f);
+    // No gravity: the player stays in the air, and makes no footsteps walking there.
+    game.update({}, 1.0f);
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-5f);
+    EXPECT_FALSE(game.player().on_ground());
+    game.update({.forward = 1.0f}, 1.0f);
+    EXPECT_EQ(game.take_footsteps(), 0);
+    // Unlike noclip, the level's walls stop the player, and so do its floor and ceiling.
+    game.update({.forward = 1.0f}, 15.0f);
+    EXPECT_NEAR(game.player().position().x, config.level.debug.x_max - game.player().radius(), 1e-4f);
+    game.update({.rise = -1.0f}, 1.0f);
+    EXPECT_NEAR(game.player().position().z, 0.0f, 1e-4f);
+    game.update({.rise = 1.0f}, 0.5f);
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-4f);
+    // When the spell ends, the player falls from rest.
+    const float left = game.magic().spells[0].remaining;
+    game.update({}, left - 0.01f);
+    EXPECT_TRUE(game.levitating());
+    EXPECT_NEAR(game.player().position().z, 1.0f, 1e-4f);
+    // The frame in which it ends has gravity already.
+    game.update({}, 0.02f);
+    EXPECT_FALSE(game.levitating());
+    EXPECT_NEAR(game.player().position().z, 1.0f - (game.level().gravity * 0.02f * 0.02f), 1e-4f);
+    for (int frame = 0; frame < 100; ++frame) {
+        game.update({}, 0.02f);
+    }
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+    EXPECT_TRUE(game.player().on_ground());
+}
+
+TEST(GameTest, LevitationStopsAtTheTopOfTheLevel) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    game.update({.rise = 1.0f}, 50.0f);
+    EXPECT_NEAR(game.player().position().z + game.player().height(), game.world().bounds().height, 1e-3f);
+}
+
+TEST(GameTest, MagicIsKeptBetweenLevelsAndSavedAtTheirStart) {
+    Game game(make_config(), 3, LayoutKind::kDebug);
+    game.cast(Spell::kCandlelight);
+    game.update({}, 1.0f);
+    game.next_level();
+    const PartyMagic start_magic = game.magic();
+    EXPECT_TRUE(start_magic.active(Spell::kCandlelight));
+    game.cast(Spell::kLevitate);
+    EXPECT_EQ(game.save_point().magic, start_magic);
+
+    Game loaded(make_config(), 11, LayoutKind::kDebug);
+    loaded.load(game.save_point());
+    EXPECT_EQ(loaded.magic(), start_magic);
+    loaded.new_game(5, LayoutKind::kDebug);
+    EXPECT_EQ(loaded.magic(), PartyMagic{});
 }
 
 TEST(GameTest, ClosedDoorBlocksUntilFullyOpen) {

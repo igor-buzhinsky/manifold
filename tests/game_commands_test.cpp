@@ -12,6 +12,7 @@
 #include "door_level.hpp"
 #include "game.hpp"
 #include "level/level.hpp"
+#include "party/spells.hpp"
 #include "render/camera.hpp"
 #include "world/door.hpp"
 
@@ -296,6 +297,26 @@ TEST(GameCommandsTest, PartyListsAndHpSetsTheHitPoints) {
         fixture.expect_error(command);
     }
     EXPECT_EQ(fixture.game.party()[0].hp, fixture.game.party()[0].max_hp);
+}
+
+TEST(GameCommandsTest, CastCostsManaAndManaSetsIt) {
+    Fixture fixture;
+    fixture.run("cast candlelight; cast levitate");
+    EXPECT_TRUE(fixture.game.magic().active(Spell::kCandlelight));
+    EXPECT_TRUE(fixture.game.levitating());
+    EXPECT_FLOAT_EQ(fixture.game.magic().mana, kStartMana - 15.0f);
+    EXPECT_NO_THROW(fixture.run("party"));
+    fixture.run("mana 9.5");
+    EXPECT_FLOAT_EQ(fixture.game.magic().mana, 9.5f);
+    // Levitate costs 10.
+    fixture.expect_error("cast levitate");
+    EXPECT_FLOAT_EQ(fixture.game.magic().mana, 9.5f);
+    for (const char* command :
+         {"cast", "cast fireball", "cast levitate now", "mana", "mana -1", "mana 101", "mana x"}) {
+        fixture.expect_error(command);
+    }
+    fixture.run("mana 0");
+    EXPECT_FLOAT_EQ(fixture.game.magic().mana, 0.0f);
 }
 
 TEST(GameCommandsTest, ActivateActsLikeTheKey) {
