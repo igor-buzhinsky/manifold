@@ -72,7 +72,7 @@ bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const
 }
 
 bool spell_box_visible(float remaining) {
-    if (remaining > kHudSpellBlinkTime) {
+    if (remaining >= kHudSpellBlinkTime) {
         return true;
     }
     return std::fmod(remaining, kHudSpellBlinkPeriod) >= kHudSpellBlinkPeriod / 2.0f;

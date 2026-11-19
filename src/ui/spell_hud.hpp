@@ -40,15 +40,16 @@ std::vector<Rect> layout_spell_hud(const PixelSize& picture, std::size_t count);
 /// edge, which puts its bottom at the height of that of the bars of hit points.
 Rect layout_mana_bar(const PixelSize& picture);
 
-/// Whether `point` is on the boxes of the spells in effect, or in the gaps between them, or on the bar of mana, see
-/// layout_spell_hud() and layout_mana_bar(). Clicks there don't reach the game behind.
+/// Whether `point` is on the boxes of the spells in effect, also those that spell_box_visible() hides, or in the gaps
+/// between them, or on the bar of mana, see layout_spell_hud() and layout_mana_bar(). Clicks there don't reach the game
+/// behind.
 ///
 /// \param picture Size of the picture.
 /// \param magic   The party's magic, whose spells in effect have boxes.
 /// \param point   In pixels from the top-left corner of the picture, y down.
 bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const glm::vec2& point);
 
-/// Whether the box of a spell with `remaining` seconds of game time left is drawn: always while more than
+/// Whether the box of a spell with `remaining` seconds of game time left is drawn: always while at least
 /// kHudSpellBlinkTime are left, then for the first half of each kHudSpellBlinkPeriod, counted from the end of the
 /// spell, so that the box is hidden in the last half period. The blinking follows the game time, so it stops while the
 /// game is paused.

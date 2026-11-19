@@ -112,6 +112,7 @@ TEST(SpellHudTest, EachSpellInEffectGetsAWhiteBoxWithItsName) {
 TEST(SpellHudTest, BoxBlinksInTheLastTenSeconds) {
     EXPECT_TRUE(spell_box_visible(60.0f));
     EXPECT_TRUE(spell_box_visible(10.5f));
+    EXPECT_TRUE(spell_box_visible(10.0f));
     EXPECT_TRUE(spell_box_visible(9.9f));
     EXPECT_TRUE(spell_box_visible(9.5f));
     EXPECT_FALSE(spell_box_visible(9.4f));
