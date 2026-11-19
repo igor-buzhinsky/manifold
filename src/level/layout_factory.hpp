@@ -45,10 +45,10 @@ std::uint64_t next_level_seed(std::uint64_t seed);
 
 /// Generates a level.
 ///
-/// \param config    Settings for all layouts.
-/// \param layout    The layout to use. If not given, a random one is chosen.
-/// \param clearance Radius around the player start that must stay free of obstacles, in metres.
-/// \param seed      Seed for all random choices. The same seed gives the same level.
+/// \param config      Settings for all layouts.
+/// \param layout      The layout to use. If not given, a random one is chosen.
+/// \param clearance   Radius around the player start that must stay free of obstacles, in metres.
+/// \param seed        Seed for all random choices. The same seed gives the same level.
 /// \param start_torch Whether to make sure that the room where the player starts has a torch: if it has none, one of
 ///                    Level::spare_start_torches is added, if there are any, chosen from its own random numbers. The
 ///                    rest of the level is the same either way.

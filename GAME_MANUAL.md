@@ -78,7 +78,8 @@ added. If the party has less mana than a spell costs, nothing happens.
 | Levitate | L | 10 | No gravity: Page Up and Page Down fly up and down, and the party floats where it is. Walls, floors, ceilings and closed doors still stop it, unlike noclip. It makes no footsteps. When the spell ends in the air, the party falls |
 
 A new game starts without Candlelight. So that the party can see where it is, the room where it starts in the first
-level always has a torch if the level has no ambient light, unless no wall of the room has room for one.
+level always has a torch if the level has no ambient light, unless no wall of the room has room for one. The debug
+layout (`--layout debug`) has no rooms, and gets no such torch.
 
 Mana and the spells in effect stay as they are in the next level. The `cast` and `mana` commands of the console cast
 spells and set the mana, see Console below.
