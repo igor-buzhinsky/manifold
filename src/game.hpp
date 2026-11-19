@@ -85,7 +85,8 @@ public:
     ///
     /// The first level of a game, here and in new_game() and load(), gets a torch in the room where the player starts
     /// if it has no ambient light (see level_has_ambient_light()) and that room got no torch, if a wall of it has room
-    /// for one (see generate_level()). The party has no light of its own until it casts Candlelight.
+    /// for one (see generate_level()). The debug layout has no rooms, so it gets none. The party has no light of its
+    /// own until it casts Candlelight.
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation and the party. The same seed gives the same level and party.

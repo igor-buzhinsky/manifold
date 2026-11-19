@@ -806,16 +806,34 @@ TEST(RoomLayoutTest, SpareStartTorchesHangInTheStartRoomIfItHasNoTorch) {
                 << "seed " << seed;
         }
     }
-    // With the usual chances, a start room with a torch has no spare ones.
+    // With the usual chances, a start room with a torch has no spare ones, and one without has some, all facing it.
+    int lit_rooms = 0;
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const Level level = generate(seed);
-        const bool start_lit = std::ranges::any_of(level.world.torches(), [&](const Torch& torch) {
-            return std::abs(torch.mount.z - level.player_start.z - make_config().torch_height) < 1e-3f;
-        });
-        if (!start_lit) {
-            EXPECT_FALSE(level.spare_start_torches.empty()) << "seed " << seed;
-        }
+        // The level is generated from the plan made first from the same seed.
+        LevelRng rng(seed);
+        const LayeredPlan plan = plan_layers(make_config(), rng);
+        const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(plan.start_layer));
+        const int start_room = layer.room_at(plan.start_x, plan.start_y);
+        const float tile = make_config().tile_size;
+        const glm::vec2 grid_min =
+            -glm::vec2(static_cast<float>(plan.layers[0].width), static_cast<float>(plan.layers[0].height)) * tile /
+            2.0f;
+        // Whether a torch hangs on the start layer, facing a tile of the start room.
+        const auto faces_start_room = [&](const Torch& torch) {
+            const glm::vec2 front = (glm::vec2(torch.mount + (torch.outward() * (tile / 2.0f))) - grid_min) / tile;
+            return std::abs(torch.mount.z - level.player_start.z - make_config().torch_height) < 1e-3f &&
+                   layer.room_at(static_cast<int>(std::floor(front.x)), static_cast<int>(std::floor(front.y))) ==
+                       start_room;
+        };
+        const bool start_lit = std::ranges::any_of(level.world.torches(), faces_start_room);
+        lit_rooms += start_lit ? 1 : 0;
+        EXPECT_EQ(level.spare_start_torches.empty(), start_lit) << "seed " << seed;
+        EXPECT_TRUE(std::ranges::all_of(level.spare_start_torches, faces_start_room)) << "seed " << seed;
     }
+    // Both cases happen.
+    EXPECT_GT(lit_rooms, 0);
+    EXPECT_LT(lit_rooms, kSeeds);
 }
 
 TEST(RoomLayoutTest, TorchChanceControlsTorchCount) {
