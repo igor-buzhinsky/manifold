@@ -230,12 +230,15 @@ and tools for inspecting the game. Done:
   holds the mana and the spells in effect at the start of the level, with the time left of each, so the save format
   version is 4. The `cast` command casts a spell as its key does, the `mana` cheat sets the mana, and `party` shows
   both.
-- **A torch at the start**: the first level of a game, if it has no ambient light (`level_has_ambient_light()`, which
-  depends only on the seed), gets a torch in the room where the player starts when that room got none, so the party
-  isn't in the dark before casting Candlelight. When the start room gets no torch, the room layout keeps the wall sides
-  of that room that could have taken one (`Level::spare_start_torches`), and `generate_level()` adds one of them,
-  chosen from its own random numbers. So the rest of the level, and all other levels, stay as they were. The debug
+- **A torch at the start**: the first level of a game gets an extra torch on the wall nearest to where the player
+  starts, also when the start room has torches or the level has ambient light, so the party isn't in the dark before
+  casting Candlelight. The room layout keeps the wall sides of the start room that got no torch
+  (`Level::free_start_torches`), and `generate_level()` adds the one nearest to the start, choosing among equally near
+  ones with its own random numbers. So the rest of the level, and all other levels, stay as they were. The debug
   layout has no rooms and gets no such torch. Loading a save of a first level gives the torch again.
+- **Torch range** of 9 m instead of 6 m, so rooms are less dark. The light changes little within 3 m, so the gain is in
+  the far parts of rooms. More torches now reach a door, whose shadow maps are drawn again in every frame while it
+  moves (see Fewer shadow maps per frame below), and more torches compete for the places of the lights drawn.
 - TODO
   - Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
   - The time left of each spell on the screen.

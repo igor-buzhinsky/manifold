@@ -404,7 +404,7 @@ constexpr GLuint kLightsBinding = 0;
 
 /// Width and height of each face of a shadow map, in texels.
 ///
-/// At 6 m, the range of a torch, a texel is about 5 cm wide. Lower resolution suits the retro look and
+/// At 9 m, the range of a torch, a texel is about 7 cm wide. Lower resolution suits the retro look and
 /// keeps the shadow maps of all slots in about 38 MB.
 constexpr GLsizei kShadowMapSize = 256;
 

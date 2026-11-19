@@ -1,17 +1,23 @@
 #include "level/layout_factory.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <string_view>
 #include <utility>
+#include <vector>
+
+#include <glm/geometric.hpp>
 
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
 #include "util/random.hpp"
+#include "world/torch.hpp"
 
 namespace manifold {
 
@@ -81,6 +87,32 @@ std::uint64_t next_level_seed(std::uint64_t seed) {
     return z ^ (z >> 31U);
 }
 
+namespace {
+
+/// Adds the torch of Level::free_start_torches nearest to the player start, see generate_level(), and takes it out of
+/// the list. Among torches equally near, within 1 mm, one is chosen from random numbers of `seed`.
+void add_nearest_start_torch(Level& level, std::uint64_t seed) {
+    std::vector<Torch>& free = level.free_start_torches;
+    if (free.empty()) {
+        return;
+    }
+    const auto distance = [&level](const Torch& torch) { return glm::distance(torch.mount, level.player_start); };
+    const float nearest = std::ranges::min(free | std::views::transform(distance));
+    std::vector<std::size_t> candidates;
+    for (std::size_t i = 0; i < free.size(); ++i) {
+        if (distance(free[i]) < nearest + 1e-3f) {
+            candidates.push_back(i);
+        }
+    }
+    constexpr std::uint64_t kStartTorchSeedSalt = 0x3c6ef372fe94f82bULL;
+    LevelRng rng(seed ^ kStartTorchSeedSalt);
+    const std::size_t chosen = candidates[random_index(rng, candidates.size())];
+    level.world.add_torch(free[chosen]);
+    free.erase(free.begin() + static_cast<std::ptrdiff_t>(chosen));
+}
+
+}  // namespace
+
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed,
                      bool start_torch) {
     LevelRng rng(seed);
@@ -94,11 +126,8 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
         const auto close = static_cast<std::uint32_t>(sound_rng());
         level.world.set_door_sounds(i, {.open = open, .close = close});
     }
-    if (start_torch && !level.spare_start_torches.empty()) {
-        constexpr std::uint64_t kStartTorchSeedSalt = 0x3c6ef372fe94f82bULL;
-        LevelRng torch_rng(seed ^ kStartTorchSeedSalt);
-        level.world.add_torch(level.spare_start_torches[random_index(torch_rng, level.spare_start_torches.size())]);
-        level.spare_start_torches.clear();
+    if (start_torch) {
+        add_nearest_start_torch(level, seed);
     }
     return level;
 }

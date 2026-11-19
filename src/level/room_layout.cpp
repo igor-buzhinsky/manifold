@@ -674,29 +674,24 @@ std::vector<TorchSpot> find_torch_spots(const LayeredPlan& plan, const GridPlace
 ///
 /// The torch chances must be valid, see RoomLayout::generate().
 ///
-/// \return The torches that could hang in the room where the player starts but didn't get one, if that room got no
-///         torch at all, see Level::spare_start_torches. Otherwise empty.
+/// \return The torches that could hang in the room where the player starts but didn't get one, see
+///         Level::free_start_torches.
 std::vector<Torch> add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid,
                                const RoomLayoutConfig& config, LevelRng& rng) {
     const int start_room =
         plan.layers.at(static_cast<std::size_t>(plan.start_layer)).room_at(plan.start_x, plan.start_y);
     const TorchFlame flame = choose_torch_flame(rng);
     const float torch_chance = random_float(rng, config.min_torch_chance, config.max_torch_chance);
-    std::vector<Torch> spare;
-    bool start_room_lit = false;
+    std::vector<Torch> free;
     for (const TorchSpot& spot : find_torch_spots(plan, grid, config, flame)) {
         const bool in_start_room = spot.layer == plan.start_layer && spot.room == start_room;
         if (random_chance(rng, torch_chance)) {
             world.add_torch(spot.torch);
-            start_room_lit = start_room_lit || in_start_room;
         } else if (in_start_room) {
-            spare.push_back(spot.torch);
+            free.push_back(spot.torch);
         }
     }
-    if (start_room_lit) {
-        spare.clear();
-    }
-    return spare;
+    return free;
 }
 
 /// Puts doors into openings and chooses what they are made of, see RoomLayout.
@@ -808,7 +803,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_walls(world, plan, grid, config_.height);
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
-    std::vector<Torch> spare_start_torches = add_torches(world, plan, grid, config_, rng);
+    std::vector<Torch> free_start_torches = add_torches(world, plan, grid, config_, rng);
     const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
     std::string info = describe(plan, grid, config_.height, doors, world.door_look());
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
@@ -821,7 +816,7 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
             .player_start = start,
             .player_yaw = static_cast<float>(plan.start_direction) * std::numbers::pi_v<float> / 2.0f,
             .info = std::move(info),
-            .spare_start_torches = std::move(spare_start_torches)};
+            .free_start_torches = std::move(free_start_torches)};
 }
 
 }  // namespace manifold

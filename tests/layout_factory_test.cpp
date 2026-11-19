@@ -8,6 +8,7 @@
 #include <set>
 #include <stdexcept>
 
+#include <glm/geometric.hpp>
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
@@ -96,30 +97,38 @@ TEST(LayoutFactoryTest, GenerateLevelUsesGivenLayoutOrRandomOne) {
     EXPECT_EQ(generate_level(config, std::nullopt, 0.3f, 5).info, generate_level(config, std::nullopt, 0.3f, 5).info);
 }
 
-TEST(LayoutFactoryTest, StartTorchIsAddedOnlyIfAskedAndTheStartRoomHasNone) {
-    LevelConfig config;
-    config.rooms.min_torch_chance = 0.0f;
-    config.rooms.max_torch_chance = 0.0f;
-    const Level dark = generate_level(config, LayoutKind::kRooms, 0.3f, 4);
-    EXPECT_TRUE(dark.world.torches().empty());
-    ASSERT_FALSE(dark.spare_start_torches.empty());
-    const Level lit = generate_level(config, LayoutKind::kRooms, 0.3f, 4, true);
-    ASSERT_EQ(lit.world.torches().size(), 1U);
-    EXPECT_TRUE(lit.spare_start_torches.empty());
-    EXPECT_TRUE(std::ranges::any_of(dark.spare_start_torches, [&](const Torch& torch) {
-        return torch.mount == lit.world.torches()[0].mount && torch.yaw == lit.world.torches()[0].yaw;
-    }));
-    // The rest of the level stays the same, and the choice depends only on the seed.
-    EXPECT_EQ(lit.info, dark.info);
-    EXPECT_EQ(lit.world.doors().size(), dark.world.doors().size());
-    EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, 4, true).world.torches()[0].mount,
-              lit.world.torches()[0].mount);
+TEST(LayoutFactoryTest, StartTorchIsAddedOnTheNearestFreeWallOnlyIfAsked) {
+    const LevelConfig config;
+    for (std::uint64_t seed = 1; seed <= 5; ++seed) {
+        const Level plain = generate_level(config, LayoutKind::kRooms, 0.3f, seed);
+        ASSERT_FALSE(plain.free_start_torches.empty()) << "seed " << seed;
+        const Level lit = generate_level(config, LayoutKind::kRooms, 0.3f, seed, true);
+        // One more torch, also if the start room has some, the last one.
+        ASSERT_EQ(lit.world.torches().size(), plain.world.torches().size() + 1) << "seed " << seed;
+        const Torch& added = lit.world.torches().back();
+        EXPECT_EQ(lit.free_start_torches.size(), plain.free_start_torches.size() - 1) << "seed " << seed;
+        // No free place is nearer to the start.
+        const float distance = glm::distance(added.mount, lit.player_start);
+        for (const Torch& torch : plain.free_start_torches) {
+            EXPECT_GE(glm::distance(torch.mount, plain.player_start), distance - 1e-3f) << "seed " << seed;
+        }
+        EXPECT_TRUE(std::ranges::any_of(
+            plain.free_start_torches,
+            [&](const Torch& torch) { return torch.mount == added.mount && torch.yaw == added.yaw; }))
+            << "seed " << seed;
+        // The rest of the level stays the same, and the choice depends only on the seed.
+        EXPECT_EQ(lit.info, plain.info);
+        EXPECT_EQ(lit.world.doors().size(), plain.world.doors().size());
+        EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, seed, true).world.torches().back().mount,
+                  added.mount);
+    }
 
-    // A start room that has a torch gets no other, and the debug layout has no rooms.
-    config.rooms.min_torch_chance = 1.0f;
-    config.rooms.max_torch_chance = 1.0f;
-    EXPECT_EQ(generate_level(config, LayoutKind::kRooms, 0.3f, 4, true).world.torches().size(),
-              generate_level(config, LayoutKind::kRooms, 0.3f, 4).world.torches().size());
+    // Without a free place, nothing is added, and the debug layout has no rooms.
+    LevelConfig all = config;
+    all.rooms.min_torch_chance = 1.0f;
+    all.rooms.max_torch_chance = 1.0f;
+    EXPECT_EQ(generate_level(all, LayoutKind::kRooms, 0.3f, 4, true).world.torches().size(),
+              generate_level(all, LayoutKind::kRooms, 0.3f, 4).world.torches().size());
     EXPECT_EQ(generate_level(config, LayoutKind::kDebug, 0.3f, 4, true).world.torches().size(),
               generate_level(config, LayoutKind::kDebug, 0.3f, 4).world.torches().size());
 }
