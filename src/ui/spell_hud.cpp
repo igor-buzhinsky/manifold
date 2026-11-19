@@ -71,10 +71,20 @@ bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const
     return area.contains(point);
 }
 
+bool spell_box_visible(float remaining) {
+    if (remaining > kHudSpellBlinkTime) {
+        return true;
+    }
+    return std::fmod(remaining, kHudSpellBlinkPeriod) >= kHudSpellBlinkPeriod / 2.0f;
+}
+
 void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic& magic) {
     const float scale = ui_scale(picture);
     const std::vector<Rect> boxes = layout_spell_hud(picture, magic.spells.size());
     for (std::size_t i = 0; i < boxes.size(); ++i) {
+        if (!spell_box_visible(magic.spells[i].remaining)) {
+            continue;
+        }
         const Rect& box = boxes[i];
         const char* title = spell_title(magic.spells[i].spell);
         mesh.add_rectangle(box.top_left, box.size, kSpellBoxColor);

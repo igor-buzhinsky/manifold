@@ -54,8 +54,8 @@ A thin white crosshair with a black outline marks the center of the view, which 
 shows what a click activates. The `crosshair` command hides or shows the crosshair.
 
 The spells in effect are listed in the top-right corner, each name in a white box, in the order they were first cast.
-The blue bar in the bottom-right corner shows the party's mana. Clicks on them, or between the boxes, don't activate
-what is behind.
+A box blinks in the last 10 seconds of its spell. The blue bar in the bottom-right corner shows the party's mana.
+Clicks on them, or between the boxes, don't activate what is behind.
 
 ## Party
 
