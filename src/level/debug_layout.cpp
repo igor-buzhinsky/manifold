@@ -27,7 +27,7 @@ namespace {
 /// Tries random positions and rotations for a footprint until it fits into the level and `fits` accepts it.
 ///
 /// \param half_size Half of the footprint's side lengths.
-/// \param max_yaw   Rotations are uniform in [0, max_yaw), or zero if max_yaw is zero.
+/// \param max_yaw   Rotations are uniform in [0, max_yaw], or zero if max_yaw is zero.
 /// \param fits      Called with a candidate footprint, returns whether it may be placed there.
 /// \return The footprint, or nothing if no attempt fitted.
 template <typename Fits>

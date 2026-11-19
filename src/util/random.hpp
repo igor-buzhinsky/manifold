@@ -17,6 +17,10 @@ namespace manifold {
 // and the MSVC library each turn the engine's numbers into results in their own way. A seed must give the same level,
 // texture, sounds and party everywhere, e.g. so that a save made on one platform loads the same level on another, so
 // the game makes all its random choices with the functions here, from the raw output of Rng. See CODING_STYLE.md.
+//
+// Arithmetic here must give the same bits everywhere: integers, and double operations that IEEE 754 rounds exactly
+// once. A multiplication and an addition in one expression may be fused into one FMA instruction on some platforms
+// and not on others, so such expressions use std::fma.
 
 /// The random number generator of the game. Its output for each seed is the same everywhere.
 using Rng = std::mt19937_64;
@@ -35,6 +39,9 @@ int random_int(Rng& rng, int min, int max);
 double random_unit(Rng& rng);
 
 /// A uniformly random number from `min` to `max`. Rounding to float can give `max`. Equal bounds give `min`.
+///
+/// The result is the same on every platform: the arithmetic is done in double with std::fma, so that it is rounded
+/// the same way whether or not the compiler fuses multiplications and additions.
 ///
 /// \throws std::invalid_argument if `min` > `max`, or either is not finite.
 float random_float(Rng& rng, float min, float max);
