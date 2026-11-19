@@ -34,7 +34,7 @@ struct SavedGame {
 ///
 /// Increase it when the meaning of the fields changes, e.g. when level generation from a seed changes, so older
 /// saves are refused instead of giving other levels.
-inline constexpr int kSaveFormatVersion = 2;
+inline constexpr int kSaveFormatVersion = 3;
 
 /// Writes a save as JSON: an object with `version` (kSaveFormatVersion), `seed`, `level_number`, `time`, `party` and,
 /// only if the layout was given, `layout` with its name, see layout_name().

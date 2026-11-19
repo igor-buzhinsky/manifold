@@ -131,6 +131,7 @@ add_library(manifold_core STATIC
     src/util/asset_files.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
+    src/util/random.cpp
     src/world/door.cpp
     src/world/geometry.cpp
     src/world/obstacle.cpp
@@ -211,6 +212,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/overlay_mesh_test.cpp
         tests/party_hud_test.cpp
         tests/party_test.cpp
+        tests/random_test.cpp
         tests/raycast_test.cpp
         tests/text_field_test.cpp
         tests/room_layout_test.cpp
@@ -233,6 +235,9 @@ if(MANIFOLD_BUILD_TESTS)
 
     include(GoogleTest)
     gtest_discover_tests(manifold_tests)
+    # Random choices must be the same on every platform, see cmake/check_random.cmake.
+    add_test(NAME PortableRandomChoices COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
+             -P ${CMAKE_SOURCE_DIR}/cmake/check_random.cmake)
 endif()
 
 # Code style: `format` fixes formatting in place, `lint` checks formatting and runs clang-tidy.

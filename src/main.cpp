@@ -65,6 +65,7 @@
 #include "util/asset_files.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/torch.hpp"
 
@@ -256,7 +257,7 @@ public:
 private:
     std::array<manifold::SoundSet, manifold::kTextureKinds.size()> sets_;
     std::uint32_t previous_ = 0;  ///< The number of the footstep played last, see manifold::SoundSet::get().
-    std::mt19937_64 random_;      ///< Picks the footsteps. Unlike the level, it doesn't depend on the seed.
+    manifold::Rng random_;        ///< Picks the footsteps. Unlike the level, it doesn't depend on the seed.
 };
 
 /// Picks the sound that the level exit portal makes when the player enters it, at random among the OGG files

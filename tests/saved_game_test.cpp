@@ -39,7 +39,7 @@ TEST(SavedGameTest, JsonRoundTripKeepsAllFields) {
 TEST(SavedGameTest, JsonHasTheLayoutOnlyIfItWasGiven) {
     const std::string json =
         save_to_json({.seed = 5, .level_number = 1, .layout = std::nullopt, .time = 2.5, .party = make_party()});
-    EXPECT_NE(json.find("\"version\": 2"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"version\": 3"), std::string::npos) << json;
     EXPECT_NE(json.find("\"seed\": 5"), std::string::npos) << json;
     EXPECT_NE(json.find("\"portrait\": \"female/met/a.png\""), std::string::npos) << json;
     EXPECT_NE(json.find("\"gender\": \"male\""), std::string::npos) << json;
@@ -60,7 +60,7 @@ std::string with_party(const std::string& fields) { return "{" + fields + ", " +
 
 TEST(SavedGameTest, ParsingIgnoresUnknownFields) {
     const SavedGame save =
-        parse_saved_game(with_party(R"("version": 2, "seed": 9, "level_number": 2, "time": 1, "note": "hello")"));
+        parse_saved_game(with_party(R"("version": 3, "seed": 9, "level_number": 2, "time": 1, "note": "hello")"));
     EXPECT_EQ(save, (SavedGame{.seed = 9,
                                .level_number = 2,
                                .layout = std::nullopt,
@@ -77,20 +77,21 @@ TEST(SavedGameTest, ParsingRejectsInvalidSaves) {
     const std::array invalid_fields = {
         R"("seed": 1, "level_number": 0, "time": 0)",
         R"("version": 1, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 3, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 2.5, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 2, "level_number": 0, "time": 0)",
-        R"("version": 2, "seed": -1, "level_number": 0, "time": 0)",
-        R"("version": 2, "seed": 1.5, "level_number": 0, "time": 0)",
-        R"("version": 2, "seed": "1", "level_number": 0, "time": 0)",
-        R"("version": 2, "seed": 1, "level_number": -1, "time": 0)",
-        R"("version": 2, "seed": 1, "level_number": 3000000000, "time": 0)",
-        R"("version": 2, "seed": 1, "time": 0)",
-        R"("version": 2, "seed": 1, "level_number": 0)",
-        R"("version": 2, "seed": 1, "level_number": 0, "time": -1)",
-        R"("version": 2, "seed": 1, "level_number": 0, "time": "0")",
-        R"("version": 2, "seed": 1, "level_number": 0, "time": 0, "layout": "maze")",
-        R"("version": 2, "seed": 1, "level_number": 0, "time": 0, "layout": 1)",
+        R"("version": 2, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 4, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 3.5, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 3, "level_number": 0, "time": 0)",
+        R"("version": 3, "seed": -1, "level_number": 0, "time": 0)",
+        R"("version": 3, "seed": 1.5, "level_number": 0, "time": 0)",
+        R"("version": 3, "seed": "1", "level_number": 0, "time": 0)",
+        R"("version": 3, "seed": 1, "level_number": -1, "time": 0)",
+        R"("version": 3, "seed": 1, "level_number": 3000000000, "time": 0)",
+        R"("version": 3, "seed": 1, "time": 0)",
+        R"("version": 3, "seed": 1, "level_number": 0)",
+        R"("version": 3, "seed": 1, "level_number": 0, "time": -1)",
+        R"("version": 3, "seed": 1, "level_number": 0, "time": "0")",
+        R"("version": 3, "seed": 1, "level_number": 0, "time": 0, "layout": "maze")",
+        R"("version": 3, "seed": 1, "level_number": 0, "time": 0, "layout": 1)",
     };
     for (const char* fields : invalid_fields) {
         EXPECT_THROW(parse_saved_game(with_party(fields)), std::runtime_error) << fields;
@@ -98,7 +99,7 @@ TEST(SavedGameTest, ParsingRejectsInvalidSaves) {
 }
 
 TEST(SavedGameTest, ParsingRejectsInvalidParties) {
-    const std::string fields = R"({"version": 2, "seed": 1, "level_number": 0, "time": 0)";
+    const std::string fields = R"({"version": 3, "seed": 1, "level_number": 0, "time": 0)";
     EXPECT_THROW(parse_saved_game(fields + "}"), std::runtime_error);
     const std::array invalid_parties = {
         R"([])",
@@ -158,7 +159,7 @@ TEST_F(SaveFileTest, WritingReplacesTheSaveWithoutLeavingATemporaryFile) {
 TEST_F(SaveFileTest, ReadingFailsForMissingOrBrokenFiles) {
     EXPECT_THROW(read_save_file(dir() / "missing.json"), std::runtime_error);
     const std::filesystem::path broken = dir() / "broken.json";
-    std::ofstream(broken) << R"({"version": 2, "seed": 1)";
+    std::ofstream(broken) << R"({"version": 3, "seed": 1)";
     EXPECT_THROW(read_save_file(broken), std::runtime_error);
 }
 

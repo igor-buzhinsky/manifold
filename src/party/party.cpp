@@ -6,7 +6,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <random>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -14,13 +13,14 @@
 
 #include "util/asset_files.hpp"
 #include "util/log.hpp"
+#include "util/random.hpp"
 
 namespace manifold {
 
 namespace {
 
-/// A random gender. The raw output of the engine is the same everywhere, unlike std::bernoulli_distribution.
-Gender random_gender(std::mt19937_64& random) { return random() % 2 == 0 ? Gender::kMale : Gender::kFemale; }
+/// A random gender, each with a chance of 50%.
+Gender random_gender(Rng& random) { return random_chance(random, 0.5) ? Gender::kFemale : Gender::kMale; }
 
 }  // namespace
 
@@ -69,13 +69,9 @@ std::vector<PortraitFile> find_portraits(const std::filesystem::path& root) {
 std::vector<Character> make_party(std::span<const PortraitFile> portraits, const PartyConfig& config,
                                   std::uint64_t seed) {
     const std::size_t size = config.size;
-    std::mt19937_64 random(seed);
-    // A Fisher-Yates shuffle with the raw output of the engine, which is the same everywhere, unlike std::shuffle. The
-    // slight bias of the modulo doesn't matter for a handful of portraits.
+    Rng random(seed);
     std::vector<PortraitFile> shuffled(portraits.begin(), portraits.end());
-    for (std::size_t i = shuffled.size(); i > 1; --i) {
-        std::swap(shuffled[i - 1], shuffled[random() % i]);
-    }
+    random_shuffle(random, shuffled);
     if (shuffled.size() < size) {
         log_warning("There are {} portraits for a party of {}, so {} character(s) get none", shuffled.size(), size,
                     size - shuffled.size());

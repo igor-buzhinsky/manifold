@@ -8,7 +8,6 @@
 #include <map>
 #include <numbers>
 #include <optional>
-#include <random>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -19,6 +18,7 @@
 
 #include "level/level.hpp"
 #include "util/log.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
@@ -104,9 +104,6 @@ void place_room(RoomPlan& plan, const GridRoom& room) {
     for_each_wall_tile(room, [&](int x, int y) { plan.tiles[tile_index(plan, x, y)] = Tile::kWall; });
 }
 
-/// Returns a uniformly distributed integer in [min, max].
-int random_int(LevelRng& rng, int min, int max) { return std::uniform_int_distribution<int>(min, max)(rng); }
-
 /// Turns one random wall tile between every two neighboring rooms into an opening.
 ///
 /// A wall tile can become an opening if the tiles on its two opposite sides are inside two different rooms.
@@ -128,8 +125,7 @@ void add_openings(RoomPlan& plan, LevelRng& rng) {
         }
     }
     for (const auto& [rooms, tiles] : candidates) {
-        const TilePosition chosen =
-            tiles[static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(tiles.size()) - 1))];
+        const TilePosition chosen = tiles[random_index(rng, tiles.size())];
         plan.tiles[tile_index(plan, chosen.x, chosen.y)] = Tile::kOpening;
     }
 }
@@ -230,7 +226,7 @@ bool add_holes(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, Roo
             }
         }
     }
-    std::shuffle(candidates.begin(), candidates.end(), rng);
+    random_shuffle(rng, candidates);
 
     const int wanted = random_int(rng, config.min_holes, config.max_holes);
     int added = 0;
@@ -349,12 +345,12 @@ bool add_ramps(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, Lev
     if (static_cast<int>(candidates.size()) < config.min_ramps) {
         return false;
     }
-    std::shuffle(candidates.begin(), candidates.end(), rng);
+    random_shuffle(rng, candidates);
     const int wanted =
         std::min(random_int(rng, config.min_ramps, config.max_ramps), static_cast<int>(candidates.size()));
     for (int i = 0; i < wanted; ++i) {
         auto& [hole, possible] = candidates[static_cast<std::size_t>(i)];
-        hole->ramp = possible[static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(possible.size()) - 1))];
+        hole->ramp = possible[random_index(rng, possible.size())];
     }
     return true;
 }
@@ -381,8 +377,7 @@ bool choose_exit(LayeredPlan& plan, const std::vector<std::pair<int, TilePositio
     if (exits.empty()) {
         return false;
     }
-    const auto& [exit_layer, exit] =
-        exits.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(exits.size()) - 1)));
+    const auto& [exit_layer, exit] = exits.at(random_index(rng, exits.size()));
     plan.exit_layer = exit_layer;
     plan.exit_x = exit.x;
     plan.exit_y = exit.y;
@@ -427,8 +422,7 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     if (starts.empty()) {
         return std::nullopt;
     }
-    const auto& [start_layer, start] =
-        starts.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(starts.size()) - 1)));
+    const auto& [start_layer, start] = starts.at(random_index(rng, starts.size()));
     plan.start_layer = start_layer;
     plan.start_x = start.x;
     plan.start_y = start.y;
@@ -448,8 +442,7 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     if (directions.empty()) {
         directions = {0, 1, 2, 3};
     }
-    plan.start_direction =
-        directions.at(static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(directions.size()) - 1)));
+    plan.start_direction = directions.at(random_index(rng, directions.size()));
     if (!choose_exit(plan, starts, rng)) {
         return std::nullopt;
     }
@@ -489,8 +482,7 @@ RoomPlan plan_rooms(const RoomLayoutConfig& config, LevelRng& rng) {
 
     // Every further room is tried next to a random existing room, so that the rooms stay connected.
     for (int attempt = 0; attempt < config.placement_attempts; ++attempt) {
-        const GridRoom& anchor =
-            plan.rooms[static_cast<std::size_t>(random_int(rng, 0, static_cast<int>(plan.rooms.size()) - 1))];
+        const GridRoom& anchor = plan.rooms[random_index(rng, plan.rooms.size())];
         GridRoom room{.width = random_size(), .height = random_size()};
         room.x = random_int(rng, anchor.x - room.width - 1, anchor.x + anchor.width + 1);
         room.y = random_int(rng, anchor.y - room.height - 1, anchor.y + anchor.height + 1);
@@ -636,19 +628,13 @@ bool valid_chances(float min, float max) {
     return !std::isnan(min) && !std::isnan(max) && min >= 0.0f && max <= 1.0f && min <= max;
 }
 
-/// A chance chosen uniformly from [min, max], which must be valid, see valid_chances().
-float random_chance(float min, float max, LevelRng& rng) {
-    // uniform_real_distribution needs min < max, so equal chances are taken as they are.
-    return min == max ? min : std::uniform_real_distribution<float>(min, max)(rng);
-}
-
 /// Hangs torches on the sides of wall tiles that face the floor of a room, see RoomLayout.
 ///
 /// The torch chances must be valid, see RoomLayout::generate().
 void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid, const RoomLayoutConfig& config,
                  LevelRng& rng) {
     const TorchFlame flame = choose_torch_flame(rng);
-    std::bernoulli_distribution has_torch(random_chance(config.min_torch_chance, config.max_torch_chance, rng));
+    const float torch_chance = random_float(rng, config.min_torch_chance, config.max_torch_chance);
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
         const RoomPlan& layer = plan.layers[index];
         for (int y = 0; y < layer.height; ++y) {
@@ -661,7 +647,7 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
                     const int front_y = y + direction.y;
                     const std::optional<Hole> hole = plan.hole_at(static_cast<int>(index), front_x, front_y);
                     const bool ramp_in_front = hole && hole->ramp != RampRise::kNone;
-                    if (layer.room_at(front_x, front_y) < 0 || ramp_in_front || !has_torch(rng)) {
+                    if (layer.room_at(front_x, front_y) < 0 || ramp_in_front || !random_chance(rng, torch_chance)) {
                         continue;
                     }
                     const glm::vec3 outward{static_cast<float>(direction.x), static_cast<float>(direction.y), 0.0f};
@@ -683,7 +669,7 @@ void add_torches(World& world, const LayeredPlan& plan, const GridPlacement& gri
 /// \return The number of doors and the number of openings.
 std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridPlacement& grid,
                               const RoomLayoutConfig& config, LevelRng& rng) {
-    std::bernoulli_distribution has_door(random_chance(config.min_door_chance, config.max_door_chance, rng));
+    const float door_chance = random_float(rng, config.min_door_chance, config.max_door_chance);
     int doors = 0;
     int openings = 0;
     for (std::size_t index = 0; index < plan.layers.size(); ++index) {
@@ -694,7 +680,7 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
                     continue;
                 }
                 ++openings;
-                if (!has_door(rng)) {
+                if (!random_chance(rng, door_chance)) {
                     continue;
                 }
                 // An opening connects the rooms on two opposite sides. The wall, along which the halves slide,
@@ -709,7 +695,7 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
             }
         }
     }
-    world.set_door_look(std::bernoulli_distribution(0.5)(rng) ? DoorLook::kMetal : DoorLook::kWood);
+    world.set_door_look(random_chance(rng, 0.5) ? DoorLook::kMetal : DoorLook::kWood);
     return {doors, openings};
 }
 

@@ -36,6 +36,24 @@ ctest --test-dir build --output-on-failure
   They take `std::format` arguments and go to stderr with a `[info]`, `[warning]` or `[error]` prefix.
 - Use a warning for something unusual that still works, such as a level that needed many generation attempts.
 
+## Random numbers
+
+- Make every random choice with the helpers of `src/util/random.hpp` on an `Rng` (`std::mt19937_64`):
+  `random_index`, `random_int`, `random_float`, `random_unit`, `random_chance`, `random_weighted_index` and
+  `random_shuffle`. Raw numbers of the engine (`rng()`) are fine where any 64-bit number will do, e.g. as an id that
+  is mapped to a sound later.
+- Don't use the standard distributions (`std::uniform_int_distribution`, `std::bernoulli_distribution`, ...),
+  `std::shuffle`, `std::sample`, other engines or `std::rand`, also not in tests. The standard fixes the engines'
+  output but not the distributions' algorithms, so the same seed would give other levels with another standard
+  library, e.g. on Windows or macOS. The test `PortableRandomChoices` (`cmake/check_random.cmake`) fails if a source
+  uses them. `std::random_device` is allowed only in `main.cpp`, for seeds that are meant to differ.
+- If a new kind of choice is needed, add a helper to `src/util/random.hpp` with tests, rather than writing it inline.
+- Derive a separate generator for each independent choice from the seed with its own salt (`Rng rng(seed ^ kSalt)`),
+  so that adding random numbers to one part doesn't change the others.
+- Changing a helper, or the order of the choices of level generation, changes the levels of all seeds: increase the
+  save format version (`kSaveFormatVersion`), and update the pinned results in `tests/random_test.cpp` only on
+  purpose.
+
 ## Documentation comments
 
 Doc comments use Doxygen syntax in the `///` style. They are shown by editors through clangd, and

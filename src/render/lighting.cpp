@@ -6,13 +6,13 @@
 #include <cstdint>
 #include <numbers>
 #include <optional>
-#include <random>
 #include <span>
 #include <vector>
 
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 
+#include "util/random.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -99,9 +99,8 @@ float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.212
 glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color) {
     // Mixing the seed keeps the choice independent of the other random choices made from it.
     constexpr std::uint64_t kAmbientSeedSalt = 0xd1b54a32d192ed03ULL;
-    std::mt19937_64 random(level_seed ^ kAmbientSeedSalt);
-    // The engine's output is the same with every standard library, unlike that of the distributions.
-    const bool lit = (random() >> 63U) != 0;
+    Rng random(level_seed ^ kAmbientSeedSalt);
+    const bool lit = random_chance(random, 0.5);
     if (!lit) {
         return glm::vec3(0.0f);
     }
