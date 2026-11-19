@@ -142,7 +142,11 @@ PartyMagic parse_magic(const nlohmann::json& object) {
         const nlohmann::json& name = field(active, "spell");
         const std::optional<Spell> spell = name.is_string() ? parse_spell_name(name.get<std::string>()) : std::nullopt;
         if (!spell) {
-            throw_invalid("spell", name, "candlelight or levitate");
+            std::string names;
+            for (const Spell known : kAllSpells) {
+                names += std::string(names.empty() ? "" : " or ") + spell_name(known);
+            }
+            throw_invalid("spell", name, names.c_str());
         }
         if (magic.active(*spell)) {
             throw_invalid("spell", name, "each spell at most once");

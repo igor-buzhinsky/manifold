@@ -662,6 +662,22 @@ TEST(GameTest, LevitationFliesWithCollisionAndFallsWhenItEnds) {
     EXPECT_TRUE(game.player().on_ground());
 }
 
+TEST(GameTest, LevitationMakesNoFootstepsOnTheFloor) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    walk(game, 3.0f);
+    EXPECT_GT(game.player().position().x, 5.0f);
+    EXPECT_FLOAT_EQ(game.player().position().z, 0.0f);
+    EXPECT_EQ(game.take_footsteps(), 0);
+}
+
+TEST(GameTest, ClosedDoorStopsALevitatingPlayer) {
+    Game game(make_config(), make_door_level());
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    walk(game, 3.0f);
+    EXPECT_NEAR(game.player().position().y, -(Door::kThickness / 2.0f) - game.player().radius(), 1e-4f);
+}
+
 TEST(GameTest, LevitationStopsAtTheTopOfTheLevel) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     ASSERT_TRUE(game.cast(Spell::kLevitate));
