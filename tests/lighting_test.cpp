@@ -291,15 +291,34 @@ TEST(LightingTest, SceneLightingPutsThePlayersLightFirst) {
     EXPECT_EQ(lighting.lights[2].shadow_id, 1U);
 }
 
+TEST(LightingTest, SceneLightingWithoutThePlayersLightHasOnlyTheOthers) {
+    std::vector<Torch> torches;
+    torches.reserve(40);
+    for (int i = 0; i < 40; ++i) {
+        torches.push_back({.mount = {static_cast<float>(i), 0.0f, 1.6f}, .yaw = 0.0f});
+    }
+    const LightSettings settings;
+    const Lighting lighting = scene_lighting(settings, std::nullopt, torches, std::nullopt, 1.0f, {});
+    // The torches get the place of the player's light too.
+    ASSERT_EQ(lighting.lights.size(), kMaxLights);
+    EXPECT_EQ(lighting.lights[0].shadow_id, 0U);
+    EXPECT_EQ(lighting.lights[1].shadow_id, 1U);
+    EXPECT_TRUE(scene_lighting(settings, std::nullopt, {}, std::nullopt, 1.0f, {}).lights.empty());
+}
+
 TEST(LightingTest, SceneLightingKeepsMaxLightsInRange) {
     const std::vector<Torch> torches(5, Torch{.mount = {1.0f, 0.0f, 1.6f}, .yaw = 0.0f});
     LightSettings settings;
     settings.max_lights = 3;
-    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 3U);
-    settings.max_lights = 0;  // Counts as 1: only the player's light.
-    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 1U);
+    const glm::vec3 eyes{0.0f};
+    EXPECT_EQ(scene_lighting(settings, eyes, torches, std::nullopt, 0.0f, {}).lights.size(), 3U);
+    EXPECT_EQ(scene_lighting(settings, std::nullopt, torches, std::nullopt, 0.0f, {}).lights.size(), 3U);
+    settings.max_lights = 0;  // Counts as 1: only the player's light, or one torch without it.
+    EXPECT_EQ(scene_lighting(settings, eyes, torches, std::nullopt, 0.0f, {}).lights.size(), 1U);
+    EXPECT_EQ(scene_lighting(settings, std::nullopt, torches, std::nullopt, 0.0f, {}).lights.size(), 1U);
     settings.max_lights = kMaxLights + 10;
-    EXPECT_EQ(scene_lighting(settings, {}, torches, std::nullopt, 0.0f, {}).lights.size(), 6U);
+    EXPECT_EQ(scene_lighting(settings, eyes, torches, std::nullopt, 0.0f, {}).lights.size(), 6U);
+    EXPECT_EQ(scene_lighting(settings, std::nullopt, torches, std::nullopt, 0.0f, {}).lights.size(), 5U);
 }
 
 TEST(LightingTest, ExitPulsesSlowlyBetweenPeakAndLow) {
@@ -330,11 +349,11 @@ TEST(LightingTest, SceneLightingChoosesExitLightAmongTorches) {
     LightSettings settings;
     settings.max_lights = 2;
     // The exit is nearest to the viewer, so it is the only light chosen next to the player's.
-    const Lighting lighting = scene_lighting(settings, {}, torches, exit, 0.0f, {});
+    const Lighting lighting = scene_lighting(settings, glm::vec3(0.0f), torches, exit, 0.0f, {});
     ASSERT_EQ(lighting.lights.size(), 2U);
     EXPECT_EQ(lighting.lights[1].shadow_id, kExitShadowId);
     settings.max_lights = kMaxLights;
-    EXPECT_EQ(scene_lighting(settings, {}, torches, exit, 0.0f, {}).lights.size(), 5U);
+    EXPECT_EQ(scene_lighting(settings, glm::vec3(0.0f), torches, exit, 0.0f, {}).lights.size(), 5U);
 }
 
 }  // namespace

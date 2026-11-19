@@ -8,11 +8,13 @@
 | A / D | Step left / right |
 | Left / Right arrow | Turn left / right |
 | Up / Down arrow | Look up / down (at most 30° each way) |
-| Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or levitation (not implemented yet): fly up |
-| Page Down | With noclip or levitation (not implemented yet): fly down |
+| Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or Levitate: fly up |
+| Page Down | With noclip or Levitate: fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
 | Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 30° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |
-| L | Load the saved game: start the saved level again from its start, see Saving below |
+| C | Cast Candlelight, see Spells below |
+| L | Cast Levitate, see Spells below |
+| F9 | Load the saved game: start the saved level again from its start, see Saving below |
 | `/~ (left of 1) | Open or close the console |
 | F3 | Show or hide the debug overlay, see below |
 | Escape | Close the console if it is open, otherwise open the game menu, or close it to resume, see Menus below |
@@ -26,7 +28,7 @@ portal stand still. It has these items:
 - **Resume**: close the menu and go on playing, as Escape does.
 - **New game**: start a new game with a random level, which replaces the save. A layout given with `--layout` is used
   for its first level.
-- **Load game**: load the save, as L does. It is greyed out if there is no save.
+- **Load game**: load the save, as F9 does. It is greyed out if there is no save.
 - **Exit game**: quit the game.
 
 When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game, start
@@ -51,6 +53,10 @@ start menu.
 A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
 shows what a click activates. The `crosshair` command hides or shows the crosshair.
 
+The spells in effect are listed in the top-right corner, each name in a white box, in the order they were first cast.
+The blue bar in the bottom-right corner shows the party's mana. Clicks on them, or between the boxes, don't activate
+what is behind.
+
 ## Party
 
 The player leads a party of three characters, who move together. Their portraits are in the bottom-left corner of the
@@ -58,6 +64,21 @@ screen, with a thin red bar below each that shows how many of the character's hi
 chooses the portraits at random, all different, and each character's gender goes with the portrait. Nothing lowers the
 hit points yet, except the `hp` cheat in the console. Clicking a portrait, or between them, does nothing yet, and doesn't activate what is behind it. If the game has fewer
 portraits than characters, the last characters have an empty dark place instead.
+
+## Spells
+
+The party shares its mana: 100 at the start of a game, which is also the most it can have. It regains 1 mana per second,
+also while spells are in effect, but not while the game is paused. Each spell costs mana when it is cast and lasts 60
+seconds of game time. Casting a spell that is in effect starts its 60 seconds again; the time that was left is not
+added. If the party has less mana than a spell costs, nothing happens.
+
+| Spell | Key | Cost | Effect |
+|---|---|---|---|
+| Candlelight | C | 5 | A warm light at the party's eyes. Without it the party has no light of its own, and sees only by the torches, the portal and the level's ambient light, if any |
+| Levitate | L | 10 | No gravity: Page Up and Page Down fly up and down, and the party floats where it is. Walls, floors, ceilings and closed doors still stop it, unlike noclip. It makes no footsteps. When the spell ends in the air, the party falls |
+
+Mana and the spells in effect stay as they are in the next level. The `cast` and `mana` commands of the console cast
+spells and set the mana, see Console below.
 
 ## Levels
 
@@ -81,14 +102,15 @@ has its own two sounds, picked when the level is generated.
 ## Saving
 
 The game saves itself when it starts and when the player reaches a new level. There is only one save, of the
-level the player is in, so a level that is left can't be returned to, and there are no saves made by hand. L loads
+level the player is in, so a level that is left can't be returned to, and there are no saves made by hand. F9 loads
 the save: the saved level starts again from its start. When the game starts and there is a save, it asks
 whether to continue it or to start a new game, which replaces the save, see Menus above. New game in the game menu
 also replaces it.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
 `~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
-party as it was then (each character's portrait, gender and hit points), and the layout if it was given with
+party as it was then (each character's portrait, gender and hit points, the party's mana and the spells in effect
+with the time left of each), and the layout if it was given with
 `--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
 
@@ -115,7 +137,7 @@ In `--exec`, a command that fails, or a screenshot that can't be saved, stops th
 typed into the console window or the terminal, it only shows the error. Commands are read from the terminal
 only while the game runs in the foreground of the shell. Words are separated by spaces and can't contain
 any, so neither can file names. Angles are in degrees. Screenshots don't show the console window, but show
-the crosshair, the portraits of the party and an open menu.
+the crosshair, the portraits of the party, the spells in effect, the bar of mana and an open menu.
 
 Keys of the console window:
 
@@ -144,9 +166,11 @@ it types can't be typed.
 | `activate [X Y]` | Activate what the center of the player's view points at, like E, or what a click at (X, Y) would: fractions of the view's width and height from its top-left corner, from 0 to 1. Uses the player's eyes also while `camera` shows another view |
 | `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
-| `load` | Load the saved game, as L does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |
-| `party` | List the characters of the party, from the left: their gender, hit points and portrait |
+| `load` | Load the saved game, as F9 does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |
+| `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait |
 | `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
+| `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells above). Fails if the party has less mana than it costs |
+| `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |
@@ -170,8 +194,8 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
 
 - **Frame**: frames per second, a graph of the last frame times, and how many lights were drawn, how many
   of them with shadows, and how many shadow maps were drawn in this frame.
-- **Player**: position, yaw and pitch, vertical speed, whether the player stands on something, and a
-  checkbox for noclip.
+- **Player**: position, yaw and pitch, vertical speed, whether the player stands on something, the party's
+  mana, whether Levitate is in effect, and a checkbox for noclip.
 - **View**: checkboxes for the arrow, the crosshair, lighting and shadows, as the commands of the same names
   set them.
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and

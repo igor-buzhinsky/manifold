@@ -14,6 +14,7 @@
 
 #include "level/level.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 
 namespace manifold {
 namespace {
@@ -24,48 +25,67 @@ std::vector<Character> make_party() {
             {.portrait = "", .gender = Gender::kMale, .hp = 100, .max_hp = 100}};
 }
 
+/// Magic with some mana spent, and both spells in effect, Levitate cast first.
+PartyMagic make_magic() {
+    return {.mana = 42.5f,
+            .max_mana = 120.0f,
+            .spells = {{.spell = Spell::kLevitate, .remaining = 3.25f},
+                       {.spell = Spell::kCandlelight, .remaining = 60.0f}}};
+}
+
 TEST(SavedGameTest, JsonRoundTripKeepsAllFields) {
     const SavedGame save{.seed = std::numeric_limits<std::uint64_t>::max(),
                          .level_number = 3,
                          .layout = LayoutKind::kDebug,
                          .time = 12.25,
-                         .party = make_party()};
+                         .party = make_party(),
+                         .magic = make_magic()};
     EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
     const SavedGame without_layout{
-        .seed = 7, .level_number = 0, .layout = std::nullopt, .time = 0.0, .party = make_party()};
+        .seed = 7, .level_number = 0, .layout = std::nullopt, .time = 0.0, .party = make_party(), .magic = {}};
     EXPECT_EQ(parse_saved_game(save_to_json(without_layout)), without_layout);
 }
 
 TEST(SavedGameTest, JsonHasTheLayoutOnlyIfItWasGiven) {
-    const std::string json =
-        save_to_json({.seed = 5, .level_number = 1, .layout = std::nullopt, .time = 2.5, .party = make_party()});
-    EXPECT_NE(json.find("\"version\": 3"), std::string::npos) << json;
+    const std::string json = save_to_json(
+        {.seed = 5, .level_number = 1, .layout = std::nullopt, .time = 2.5, .party = make_party(), .magic = {}});
+    EXPECT_NE(json.find("\"version\": 4"), std::string::npos) << json;
     EXPECT_NE(json.find("\"seed\": 5"), std::string::npos) << json;
     EXPECT_NE(json.find("\"portrait\": \"female/met/a.png\""), std::string::npos) << json;
     EXPECT_NE(json.find("\"gender\": \"male\""), std::string::npos) << json;
     EXPECT_NE(json.find("\"hp\": 30"), std::string::npos) << json;
     EXPECT_NE(json.find("\"max_hp\": 100"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"mana\": 100"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"max_mana\": 100"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"spells\": []"), std::string::npos) << json;
     EXPECT_EQ(json.find("layout"), std::string::npos) << json;
-    EXPECT_NE(
-        save_to_json({.seed = 5, .level_number = 0, .layout = LayoutKind::kRooms, .time = 0.0, .party = make_party()})
-            .find("\"layout\": \"rooms\""),
-        std::string::npos);
+    EXPECT_NE(save_to_json({.seed = 5,
+                            .level_number = 0,
+                            .layout = LayoutKind::kRooms,
+                            .time = 0.0,
+                            .party = make_party(),
+                            .magic = {}})
+                  .find("\"layout\": \"rooms\""),
+              std::string::npos);
 }
 
-/// The party of a valid save, as JSON, to add to the fields of saves in tests.
-constexpr const char* kPartyJson = R"("party": [{"portrait": "", "gender": "male", "hp": 1, "max_hp": 2}])";
+/// The party and its magic of a valid save, as JSON, to add to the fields of saves in tests.
+constexpr const char* kPartyJson =
+    R"("party": [{"portrait": "", "gender": "male", "hp": 1, "max_hp": 2}], "mana": 100, "max_mana": 100, )"
+    R"("spells": [])";
 
 /// A save as JSON with `fields` and kPartyJson.
 std::string with_party(const std::string& fields) { return "{" + fields + ", " + kPartyJson + "}"; }
 
 TEST(SavedGameTest, ParsingIgnoresUnknownFields) {
     const SavedGame save =
-        parse_saved_game(with_party(R"("version": 3, "seed": 9, "level_number": 2, "time": 1, "note": "hello")"));
+        parse_saved_game(with_party(R"("version": 4, "seed": 9, "level_number": 2, "time": 1, "note": "hello")"));
     EXPECT_EQ(save, (SavedGame{.seed = 9,
                                .level_number = 2,
                                .layout = std::nullopt,
                                .time = 1.0,
-                               .party = {{.portrait = "", .gender = Gender::kMale, .hp = 1, .max_hp = 2}}}));
+                               .party = {{.portrait = "", .gender = Gender::kMale, .hp = 1, .max_hp = 2}},
+                               .magic = {}}));
 }
 
 TEST(SavedGameTest, ParsingRejectsInvalidSaves) {
@@ -78,20 +98,21 @@ TEST(SavedGameTest, ParsingRejectsInvalidSaves) {
         R"("seed": 1, "level_number": 0, "time": 0)",
         R"("version": 1, "seed": 1, "level_number": 0, "time": 0)",
         R"("version": 2, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 4, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 3.5, "seed": 1, "level_number": 0, "time": 0)",
-        R"("version": 3, "level_number": 0, "time": 0)",
-        R"("version": 3, "seed": -1, "level_number": 0, "time": 0)",
-        R"("version": 3, "seed": 1.5, "level_number": 0, "time": 0)",
-        R"("version": 3, "seed": "1", "level_number": 0, "time": 0)",
-        R"("version": 3, "seed": 1, "level_number": -1, "time": 0)",
-        R"("version": 3, "seed": 1, "level_number": 3000000000, "time": 0)",
-        R"("version": 3, "seed": 1, "time": 0)",
-        R"("version": 3, "seed": 1, "level_number": 0)",
-        R"("version": 3, "seed": 1, "level_number": 0, "time": -1)",
-        R"("version": 3, "seed": 1, "level_number": 0, "time": "0")",
-        R"("version": 3, "seed": 1, "level_number": 0, "time": 0, "layout": "maze")",
-        R"("version": 3, "seed": 1, "level_number": 0, "time": 0, "layout": 1)",
+        R"("version": 3, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 5, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 4.5, "seed": 1, "level_number": 0, "time": 0)",
+        R"("version": 4, "level_number": 0, "time": 0)",
+        R"("version": 4, "seed": -1, "level_number": 0, "time": 0)",
+        R"("version": 4, "seed": 1.5, "level_number": 0, "time": 0)",
+        R"("version": 4, "seed": "1", "level_number": 0, "time": 0)",
+        R"("version": 4, "seed": 1, "level_number": -1, "time": 0)",
+        R"("version": 4, "seed": 1, "level_number": 3000000000, "time": 0)",
+        R"("version": 4, "seed": 1, "time": 0)",
+        R"("version": 4, "seed": 1, "level_number": 0)",
+        R"("version": 4, "seed": 1, "level_number": 0, "time": -1)",
+        R"("version": 4, "seed": 1, "level_number": 0, "time": "0")",
+        R"("version": 4, "seed": 1, "level_number": 0, "time": 0, "layout": "maze")",
+        R"("version": 4, "seed": 1, "level_number": 0, "time": 0, "layout": 1)",
     };
     for (const char* fields : invalid_fields) {
         EXPECT_THROW(parse_saved_game(with_party(fields)), std::runtime_error) << fields;
@@ -99,7 +120,8 @@ TEST(SavedGameTest, ParsingRejectsInvalidSaves) {
 }
 
 TEST(SavedGameTest, ParsingRejectsInvalidParties) {
-    const std::string fields = R"({"version": 3, "seed": 1, "level_number": 0, "time": 0)";
+    const std::string fields =
+        R"({"version": 4, "seed": 1, "level_number": 0, "time": 0, "mana": 1, "max_mana": 1, "spells": [])";
     EXPECT_THROW(parse_saved_game(fields + "}"), std::runtime_error);
     const std::array invalid_parties = {
         R"([])",
@@ -125,6 +147,52 @@ TEST(SavedGameTest, ParsingRejectsInvalidParties) {
     }
 }
 
+TEST(SavedGameTest, JsonHasTheSpellsInEffectByName) {
+    const std::string json = save_to_json({.seed = 5,
+                                           .level_number = 1,
+                                           .layout = std::nullopt,
+                                           .time = 2.5,
+                                           .party = make_party(),
+                                           .magic = make_magic()});
+    EXPECT_NE(json.find("\"spell\": \"levitate\""), std::string::npos) << json;
+    EXPECT_NE(json.find("\"remaining\": 3.25"), std::string::npos) << json;
+    EXPECT_NE(json.find("\"spell\": \"candlelight\""), std::string::npos) << json;
+    EXPECT_NE(json.find("\"mana\": 42.5"), std::string::npos) << json;
+}
+
+TEST(SavedGameTest, ParsingRejectsInvalidMagic) {
+    const std::string fields = R"({"version": 4, "seed": 1, "level_number": 0, "time": 0, )"
+                               R"("party": [{"portrait": "", "gender": "male", "hp": 1, "max_hp": 2}])";
+    const SavedGame valid = parse_saved_game(
+        fields + R"(, "mana": 0, "max_mana": 10, "spells": [{"spell": "candlelight", "remaining": 60}]})");
+    EXPECT_EQ(
+        valid.magic,
+        (PartyMagic{.mana = 0.0f, .max_mana = 10.0f, .spells = {{.spell = Spell::kCandlelight, .remaining = 60.0f}}}));
+    const std::array invalid_magic = {
+        R"("max_mana": 10, "spells": [])",
+        R"("mana": 1, "spells": [])",
+        R"("mana": 1, "max_mana": 10)",
+        R"("mana": 11, "max_mana": 10, "spells": [])",
+        R"("mana": -1, "max_mana": 10, "spells": [])",
+        R"("mana": "1", "max_mana": 10, "spells": [])",
+        R"("mana": 0, "max_mana": 0, "spells": [])",
+        R"("mana": 0, "max_mana": 1e300, "spells": [])",
+        R"("mana": 1, "max_mana": 10, "spells": {})",
+        R"("mana": 1, "max_mana": 10, "spells": [1])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"remaining": 1}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "fireball", "remaining": 1}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate"}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 0}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 61}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": "1"}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 1}, )"
+        R"({"spell": "levitate", "remaining": 2}])",
+    };
+    for (const char* magic : invalid_magic) {
+        EXPECT_THROW(parse_saved_game(fields + ", " + magic + "}"), std::runtime_error) << magic;
+    }
+}
+
 /// Creates an empty directory for one test and removes it afterwards.
 class SaveFileTest : public testing::Test {
 protected:
@@ -147,8 +215,9 @@ private:
 TEST_F(SaveFileTest, WritingReplacesTheSaveWithoutLeavingATemporaryFile) {
     const std::filesystem::path path = dir() / "save.json";
     const SavedGame first{
-        .seed = 1, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = make_party()};
-    const SavedGame second{.seed = 2, .level_number = 1, .layout = std::nullopt, .time = 30.5, .party = make_party()};
+        .seed = 1, .level_number = 0, .layout = LayoutKind::kDebug, .time = 0.0, .party = make_party(), .magic = {}};
+    const SavedGame second{
+        .seed = 2, .level_number = 1, .layout = std::nullopt, .time = 30.5, .party = make_party(), .magic = {}};
     write_save_file(path, first);
     EXPECT_EQ(read_save_file(path), first);
     write_save_file(path, second);
@@ -159,12 +228,12 @@ TEST_F(SaveFileTest, WritingReplacesTheSaveWithoutLeavingATemporaryFile) {
 TEST_F(SaveFileTest, ReadingFailsForMissingOrBrokenFiles) {
     EXPECT_THROW(read_save_file(dir() / "missing.json"), std::runtime_error);
     const std::filesystem::path broken = dir() / "broken.json";
-    std::ofstream(broken) << R"({"version": 3, "seed": 1)";
+    std::ofstream(broken) << R"({"version": 4, "seed": 1)";
     EXPECT_THROW(read_save_file(broken), std::runtime_error);
 }
 
 TEST_F(SaveFileTest, WritingFailsIfTheDirectoryIsMissing) {
-    const SavedGame save{.seed = 1, .level_number = 0, .layout = std::nullopt, .time = 0.0, .party = {}};
+    const SavedGame save{.seed = 1, .level_number = 0, .layout = std::nullopt, .time = 0.0, .party = {}, .magic = {}};
     EXPECT_THROW(write_save_file(dir() / "missing" / "save.json", save), std::runtime_error);
 }
 

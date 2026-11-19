@@ -518,3 +518,44 @@ Drawbacks:
   `std::cos`, whose last bits can differ between C libraries, see "The same levels on every platform" in
   [ROADMAP.md](ROADMAP.md).
 - The check for banned functions is textual, so it fails on a comment that names them as code would use them.
+
+## 2026-11-19: Spells as timed effects that cost shared mana, starting with Candlelight and Levitate
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: the party has one pool of mana (100 of 100 at the start), which regains 1 per second of game time. A spell is
+an effect that lasts 60 seconds of game time after it is cast and costs mana when it is cast. Casting a spell that is in
+effect starts its duration again instead of adding to what was left. A cast without enough mana does nothing, without a
+message for now. The first spells are **Candlelight** (cost 5), the party's light at the eyes, which was always on
+before, and **Levitate** (cost 10), which turns off gravity and lets the party fly up and down with collision, unlike
+noclip. Each spell has its own key for now (C and L), and loading moved from L to F9. Durations and mana are floats in
+seconds and mana units. The mana and the spells in effect, with the time left of each, are kept in the save, as they
+were at the start of the level.
+
+Gains:
+
+- Light becomes a resource: levels are darker by default, so torches and the portal matter more, which fits the goal of
+  believable lighting in dark levels.
+- Levitation reuses the movement and collision code: it is the noclip path with move_and_slide() instead of a free
+  move, without gravity, footsteps or sticking to ramps.
+- Starting the duration again keeps a spell's effect easy to predict, and spamming a key can't stack up hours of it.
+- Floats in seconds follow the convention of the game time and the frame duration, and make mana regain smoothly
+  rather than in steps of whole points.
+- Shared mana is simpler than mana per character while the characters can't be told apart.
+
+Rejected alternatives:
+
+- **Adding the duration of a new cast to what is left**: lets players stock up on effects, and makes mana worth less.
+- **Toggled spells that drain mana while on**: closer to a switch than a spell, and harder to show and balance.
+- **Mana per character**: needs choosing who casts, before there is anything that tells the characters apart.
+- **Durations in whole frames or milliseconds**: exact, but the game advances by float seconds anyway.
+- **Keeping L for loading and casting Levitate with another key**: L is easier to remember for Levitate, and loading is
+  rare and also in the game menu.
+
+Drawbacks:
+
+- Saves of format version 3 are refused, so a player loses a saved game when updating.
+- A key for each spell doesn't scale to many spells; a spell book or a quick bar will be needed.
+- A failed cast gives no feedback, and the screen doesn't show how long a spell has left.
+- Without Candlelight, levels without ambient light are nearly black away from torches, which can be confusing at the
+  start of a game.

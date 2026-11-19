@@ -39,6 +39,7 @@
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 #include "platform/audio.hpp"
 #include "platform/terminal_input.hpp"
 #include "platform/window.hpp"
@@ -60,6 +61,7 @@
 #include "ui/party_hud.hpp"
 #include "ui/screen.hpp"
 #include "ui/screen_stack.hpp"
+#include "ui/spell_hud.hpp"
 #include "ui/text_field.hpp"
 #include "ui/ui_event.hpp"
 #include "util/asset_files.hpp"
@@ -570,8 +572,23 @@ private:
 constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
 /// The key that shows and hides the debug overlay.
 constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
-/// The key that loads the saved game. Like the movement keys, it is the key at the place of L on US keyboards.
-constexpr SDL_Scancode kLoadKey = SDL_SCANCODE_L;
+/// The key that loads the saved game.
+constexpr SDL_Keycode kLoadKey = SDLK_F9;
+/// The keys that cast spells. Like the movement keys, they are the keys at the places of C and L on US keyboards.
+constexpr SDL_Scancode kCandlelightKey = SDL_SCANCODE_C;
+constexpr SDL_Scancode kLevitateKey = SDL_SCANCODE_L;
+
+/// The spell that `key` casts, if any.
+std::optional<manifold::Spell> spell_key(SDL_Scancode key) {
+    switch (key) {
+        case kCandlelightKey:
+            return manifold::Spell::kCandlelight;
+        case kLevitateKey:
+            return manifold::Spell::kLevitate;
+        default:
+            return std::nullopt;
+    }
+}
 /// With Ctrl, the key that quits the game at once. It is the key labelled Q, wherever it is, as is usual for shortcuts.
 constexpr SDL_Keycode kQuitKey = SDLK_Q;
 
@@ -590,6 +607,8 @@ struct Ui {
     /// picture's width and height from its top-left corner, see Camera::ray_direction(). Presses on the black bars
     /// are left out.
     std::optional<glm::vec2> game_click;
+    /// The spells whose keys were pressed in this frame while no screen was open, in order.
+    std::vector<manifold::Spell> casts;
 
     /// Passes an event to the screen on top, unless the screens already asked for something in this frame.
     void handle(const manifold::UiEvent& event) {
@@ -674,7 +693,8 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
 
 /// Handles a key press: the console key; Escape, which closes the console, leaves the screen on top, or asks `state`
 /// for the game menu; the keys of the console window while it is open; those of the screen on top while one is open;
-/// and otherwise the load key, which asks `state` to load the game.
+/// and otherwise the load key, which asks `state` to load the game, and the keys of spells, which are kept in
+/// `ui.casts`.
 void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
                      manifold::CommandQueue& commands, manifold::ConsoleState& state, Ui& ui) {
     if (key.scancode == kConsoleKey) {
@@ -700,9 +720,13 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
         if (nav && (!key.repeat || *nav != manifold::NavKey::kConfirm)) {
             ui.handle(*nav);
         }
-    } else if (key.scancode == kLoadKey && !key.repeat) {
+    } else if (key.repeat) {
+        return;
+    } else if (key.key == kLoadKey) {
         state.load = true;
         state.load_stops_on_error = false;
+    } else if (const std::optional<manifold::Spell> spell = spell_key(key.scancode)) {
+        ui.casts.push_back(*spell);
     }
 }
 
@@ -719,17 +743,18 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
 
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
 /// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
-/// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, see
-/// manifold::party_hud_contains().
+/// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, the spells in effect or the
+/// bar of mana, see manifold::party_hud_contains() and manifold::spell_hud_contains().
 ///
-/// \param party_size How many characters the party has.
-void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, std::size_t party_size) {
+/// \param game The game, whose party and magic are shown over it.
+void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, const manifold::Game& game) {
     if (ui.screens.empty()) {
         if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
             const glm::vec2 point = picture_point({event.button.x, event.button.y}, window, ui);
             const glm::vec2 size{static_cast<float>(ui.picture.width), static_cast<float>(ui.picture.height)};
             if (point.x >= 0.0f && point.y >= 0.0f && point.x < size.x && point.y < size.y &&
-                !manifold::party_hud_contains(ui.picture, party_size, point)) {
+                !manifold::party_hud_contains(ui.picture, game.party().size(), point) &&
+                !manifold::spell_hud_contains(ui.picture, game.magic(), point)) {
                 ui.game_click = point / size;
             }
         }
@@ -773,7 +798,7 @@ bool handle_console_text(const SDL_Event& event, manifold::ConsoleWindow& consol
 }
 
 /// Handles pending window, key and mouse events: quitting, the console window, the debug overlay, the screens of the
-/// interface and loading.
+/// interface, loading and casting spells.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
@@ -785,11 +810,11 @@ bool handle_console_text(const SDL_Event& event, manifold::ConsoleWindow& consol
 ///                           Escape asks for the game menu.
 /// \param ui                 The screens, which get keys and the mouse while one is open and the console isn't.
 /// \param console_key_held   Whether the console key is held down. Kept between calls.
-/// \param party_size         How many characters the party has, whose portraits clicks don't reach the game through.
+/// \param game               The game, whose portraits, spells and mana clicks don't reach the game through.
 /// \return False when the game should quit.
 bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_window, manifold::CommandQueue& commands,
                    manifold::DebugOverlay& overlay, manifold::ConsoleState& state, Ui& ui, bool& console_key_held,
-                   std::size_t party_size) {
+                   const manifold::Game& game) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         // Like closing the window, the quit shortcut works even while ImGui or the console has the keyboard.
@@ -812,7 +837,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
         if (event.type == SDL_EVENT_KEY_DOWN) {
             handle_key_down(event.key, window, console_window, commands, state, ui);
         } else if (!console_window.is_open()) {
-            handle_mouse_event(event, window, ui, party_size);
+            handle_mouse_event(event, window, ui, game);
         }
     }
     return true;
@@ -821,12 +846,13 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
 /// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
 constexpr float kMaxFrameTime = 0.1f;
 
-/// Reads the keys that are held down, and the click of this frame over the game.
+/// Reads the keys that are held down, and the click and the spells cast in this frame over the game.
 ///
 /// These are the key bindings, with those of handle_events(). Keep GAME_MANUAL.md up to date when changing
 /// them.
 ///
-/// \param ui     Where the left button was pressed over the game, see Ui::game_click.
+/// \param ui     Where the left button was pressed over the game, see Ui::game_click, and the spells cast, see
+///               Ui::casts.
 /// \param view   How the game is shown. While a camera put in place shows the picture, clicks are ignored, since they
 ///               activate what the player's eyes see at that point of the picture.
 /// \param player The player whose eyes the click activates from.
@@ -847,11 +873,12 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
         .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
         .activate = keys[SDL_SCANCODE_E],
         .click = click,
+        .casts = ui.casts,
     };
 }
 
-/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it, and the
-/// portraits of the party.
+/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it, the
+/// portraits of the party, the spells in effect and the bar of mana.
 ///
 /// \param renderer         Draws the world.
 /// \param overlay_renderer Draws the crosshair.
@@ -862,12 +889,13 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
 void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
                const PartyPortraits& portraits, const manifold::Game& game, const manifold::ViewSettings& view,
                const manifold::PixelSize& framebuffer) {
-    // The light spell at the player's eyes, the level's ambient light if any, and the lights of the torches and the
-    // exit nearest to the camera.
+    // Candlelight at the player's eyes while it is in effect, the level's ambient light if any, and the lights of the
+    // torches and the exit nearest to the camera.
     const manifold::Camera camera = manifold::view_camera(view, game.player());
-    manifold::Lighting lighting =
-        manifold::scene_lighting(view.lights, game.player().eye_position(), game.world().torches(), game.world().exit(),
-                                 game.animation_time(), camera.position);
+    const std::optional<glm::vec3> party_light =
+        game.magic().active(manifold::Spell::kCandlelight) ? std::optional(game.player().eye_position()) : std::nullopt;
+    manifold::Lighting lighting = manifold::scene_lighting(view.lights, party_light, game.world().torches(),
+                                                           game.world().exit(), game.animation_time(), camera.position);
     if (!view.shadows) {
         for (manifold::PointLight& light : lighting.lights) {
             light.shadow_id.reset();
@@ -887,6 +915,9 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
         overlay_renderer.draw(crosshair, viewport);
     }
     portraits.draw(game.party(), overlay_renderer, viewport);
+    manifold::OverlayMesh magic;
+    manifold::add_spell_hud(magic, {.width = viewport.width, .height = viewport.height}, game.magic());
+    overlay_renderer.draw(magic, viewport);
 }
 
 /// Draws the game into the bound framebuffer, as draw_game() does, with the open screens of the interface over it, or
@@ -1083,6 +1114,7 @@ void run(const Options& options) {
             game.update(input, std::min(frame_time, kMaxFrameTime));
         }
         ui.game_click.reset();
+        ui.casts.clear();
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
         play_door_sounds(game, door_sounds, audio);
@@ -1113,8 +1145,7 @@ void run(const Options& options) {
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
         // overlay gets no events then.
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());
-    } while (
-        handle_events(window, console_window, commands, overlay, state, ui, console_key_held, game.party().size()));
+    } while (handle_events(window, console_window, commands, overlay, state, ui, console_key_held, game));
 }
 
 }  // namespace

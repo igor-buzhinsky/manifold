@@ -21,6 +21,7 @@
 
 #include "level/layout_factory.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 
 namespace manifold {
 
@@ -104,6 +105,57 @@ Character parse_character(const nlohmann::json& object) {
     return character;
 }
 
+/// Whether `value` is a finite number from `min` to `max`.
+bool is_number_in(const nlohmann::json& value, double min, double max) {
+    if (!value.is_number()) {
+        return false;
+    }
+    const auto number = value.get<double>();
+    return std::isfinite(number) && number >= min && number <= max;
+}
+
+/// Reads the party's mana and the spells in effect from a save.
+///
+/// \throws std::runtime_error if a field is missing or wrong.
+PartyMagic parse_magic(const nlohmann::json& object) {
+    PartyMagic magic;
+    const nlohmann::json& max_mana = field(object, "max_mana");
+    if (!is_number_in(max_mana, 0.0, std::numeric_limits<float>::max()) || max_mana.get<double>() <= 0.0) {
+        throw_invalid("max_mana", max_mana, "a positive number");
+    }
+    magic.max_mana = max_mana.get<float>();
+
+    const nlohmann::json& mana = field(object, "mana");
+    if (!is_number_in(mana, 0.0, magic.max_mana)) {
+        throw_invalid("mana", mana, "a number from 0 to max_mana");
+    }
+    magic.mana = mana.get<float>();
+
+    const nlohmann::json& spells = field(object, "spells");
+    if (!spells.is_array()) {
+        throw_invalid("spells", spells, "an array");
+    }
+    for (const nlohmann::json& active : spells) {
+        if (!active.is_object()) {
+            throw_invalid("spell in effect", active, "an object");
+        }
+        const nlohmann::json& name = field(active, "spell");
+        const std::optional<Spell> spell = name.is_string() ? parse_spell_name(name.get<std::string>()) : std::nullopt;
+        if (!spell) {
+            throw_invalid("spell", name, "candlelight or levitate");
+        }
+        if (magic.active(*spell)) {
+            throw_invalid("spell", name, "each spell at most once");
+        }
+        const nlohmann::json& remaining = field(active, "remaining");
+        if (!is_number_in(remaining, 0.0, spell_duration(*spell)) || remaining.get<double>() <= 0.0) {
+            throw_invalid("remaining", remaining, "a positive number of seconds, at most the spell's duration");
+        }
+        magic.spells.push_back({.spell = *spell, .remaining = remaining.get<float>()});
+    }
+    return magic;
+}
+
 }  // namespace
 
 std::string save_to_json(const SavedGame& save) {
@@ -123,6 +175,13 @@ std::string save_to_json(const SavedGame& save) {
         });
     }
     json["party"] = std::move(party);
+    json["mana"] = save.magic.mana;
+    json["max_mana"] = save.magic.max_mana;
+    nlohmann::ordered_json spells = nlohmann::ordered_json::array();
+    for (const ActiveSpell& active : save.magic.spells) {
+        spells.push_back({{"spell", spell_name(active.spell)}, {"remaining", active.remaining}});
+    }
+    json["spells"] = std::move(spells);
     if (save.layout) {
         json["layout"] = std::string(layout_name(*save.layout));
     }
@@ -173,6 +232,7 @@ SavedGame parse_saved_game(std::string_view json) {
     for (const nlohmann::json& character : party) {
         save.party.push_back(parse_character(character));
     }
+    save.magic = parse_magic(object);
 
     if (const auto layout = object.find("layout"); layout != object.end()) {
         if (layout->is_string()) {

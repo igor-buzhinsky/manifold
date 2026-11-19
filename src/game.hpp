@@ -14,6 +14,7 @@
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
 #include "party/party.hpp"
+#include "party/spells.hpp"
 #include "save/saved_game.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
@@ -47,14 +48,17 @@ struct PlayerInput {
     float look = 0.0f;     ///< Positive looks up.
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     float strafe = 0.0f;   ///< Positive steps right, negative left.
-    /// Positive jumps, or flies up with noclip. Negative flies down with noclip. A jump needs a new press:
-    /// rise must have been <= 0 in the previous frame.
+    /// Positive jumps, or flies up with noclip or levitation. Negative flies down with noclip or levitation. A jump
+    /// needs a new press: rise must have been <= 0 in the previous frame.
     float rise = 0.0f;
     /// Whether the activation key is held. A new press activates what the player looks at, see Game::activate().
     bool activate = false;
     /// If set, the player clicked on the view in this frame, to activate what is in this direction from the eyes, see
     /// Game::activate(). A unit vector. Unlike `activate`, each click activates, since it is a single event.
     std::optional<glm::vec3> click = std::nullopt;
+    /// The spells the player cast in this frame, in order, see Game::cast(). Like a click, each is a single event.
+    // Without the initializer, GCC warns about inputs that leave it out, such as `{.forward = 1.0f}`.
+    std::vector<Spell> casts = {};  // NOLINT(readability-redundant-member-init)
 };
 
 /// What Game::activate() did.
@@ -101,7 +105,13 @@ public:
     /// level's gravity and is stopped by obstacles and level walls. Walking into a ramp goes up it, and a
     /// player who walks down a ramp sticks to it instead of falling in small hops. When `input.rise` becomes
     /// positive, a player who stands on something jumps. Holding it doesn't jump again. With noclip, the player flies:
-    /// moves up and down by `input.rise`, doesn't fall, and goes through everything.
+    /// moves up and down by `input.rise`, doesn't fall, and goes through everything. While Levitate is in effect, the
+    /// player flies the same way but is stopped by obstacles, walls and doors, makes no footsteps and doesn't stick to
+    /// ramps; when it ends in the air, the player falls from rest.
+    ///
+    /// First of all, the party's magic advances, see PartyMagic::advance(), and then the spells of `input.casts` are
+    /// cast, see cast(). So a spell cast in this frame lasts its whole duration from the end of the frame, and a
+    /// Levitate cast in it already lets the player fly.
     ///
     /// Doors move first. Doors that are not passable, see DoorState::passable(), block the player like obstacles.
     /// When `input.activate` becomes true, the player activates what they look at, and then, if `input.click` is set,
@@ -119,7 +129,8 @@ public:
     ///
     /// The layout is chosen at random, see LevelConfig, even if the first level was given one.
     ///
-    /// The player stands still and looks straight ahead. Noclip, the game time and the party stay as they are.
+    /// The player stands still and looks straight ahead. Noclip, the game time, the party and its magic (mana and the
+    /// spells in effect) stay as they are.
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void next_level();
@@ -129,6 +140,7 @@ public:
     ///
     /// The level number and the game time start again from 0. Noclip stays as it is. A new party is made with
     /// make_party(), from GameConfig::portraits and a seed derived from `seed`, so the same seed gives the same party.
+    /// It has full mana and no spells in effect.
     ///
     /// \param seed   Seed for level generation and the party.
     /// \param layout The layout of the first level, or nothing to choose it at random.
@@ -138,13 +150,13 @@ public:
     /// Starts the saved level again from its start, as next_level() starts a level.
     ///
     /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
-    /// the game time and the party become the saved ones. Noclip stays as it is.
+    /// the game time, the party and its magic become the saved ones. Noclip stays as it is.
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void load(const SavedGame& save);
 
-    /// What a save of this level holds, to start it again with load(): the level and the party as they were at its
-    /// start.
+    /// What a save of this level holds, to start it again with load(): the level, the party and its magic as they
+    /// were at its start.
     ///
     /// A level that was not generated, but given to the constructor, is saved with its seed, so loading it gives the
     /// level generated from that seed instead.
@@ -175,6 +187,14 @@ public:
     /// \param hp    The new hit points.
     /// \throws std::out_of_range if there is no such character.
     void set_hp(std::size_t index, int hp);
+
+    /// Casts a spell for the party, if it has enough mana, see PartyMagic::cast().
+    ///
+    /// \return False, with nothing changed, if the party has less mana than the spell costs.
+    bool cast(Spell spell) { return magic_.cast(spell); }
+
+    /// Sets the party's mana, e.g. as a cheat. It is clamped to [0, PartyMagic::max_mana].
+    void set_mana(float mana) { magic_.set_mana(mana); }
 
     /// Sets what the surfaces of the level are made of, see Level::texture_kind. The next level is stone until this
     /// is called again.
@@ -209,6 +229,10 @@ public:
     const Player& player() const { return player_; }
     /// The characters of the party, in the order of their portraits from the left.
     std::span<const Character> party() const { return party_; }
+    /// The party's shared mana, and the spells in effect.
+    const PartyMagic& magic() const { return magic_; }
+    /// Whether Levitate is in effect, so that the player flies, see update().
+    bool levitating() const { return magic_.active(Spell::kLevitate); }
     /// The state of each door of World::doors(), in the same order.
     std::span<const DoorState> doors() const { return doors_; }
     /// The seed the level was generated from.
@@ -288,6 +312,8 @@ private:
     Player player_;
     std::vector<Character> party_;
     std::vector<Character> level_start_party_;  ///< The party when the level started, see save_point().
+    PartyMagic magic_;                          ///< See magic().
+    PartyMagic level_start_magic_;              ///< The party's magic when the level started, see save_point().
     std::vector<DoorState> doors_;              ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;          ///< See take_door_moves().
     int footsteps_ = 0;                         ///< See take_footsteps().

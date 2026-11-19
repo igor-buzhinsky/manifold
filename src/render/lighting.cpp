@@ -113,21 +113,23 @@ glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color
     return texture_color * (kLevelAmbientLuminance / texture_luminance);
 }
 
-Lighting scene_lighting(const LightSettings& settings, const glm::vec3& eyes, std::span<const Torch> torches,
-                        const std::optional<LevelExit>& exit, float time, const glm::vec3& viewer) {
-    Lighting lighting{
-        .ambient = settings.ambient,
-        .lights = {{.position = eyes,
-                    .color = settings.player_color,
-                    .intensity = settings.player_intensity,
-                    .range = settings.player_range}},
-    };
-    const std::size_t max_lights = std::clamp<std::size_t>(settings.max_lights, 1, kMaxLights);
+Lighting scene_lighting(const LightSettings& settings, const std::optional<glm::vec3>& eyes,
+                        std::span<const Torch> torches, const std::optional<LevelExit>& exit, float time,
+                        const glm::vec3& viewer) {
+    Lighting lighting{.ambient = settings.ambient, .lights = {}};
+    std::size_t max_lights = std::clamp<std::size_t>(settings.max_lights, 1, kMaxLights);
+    if (eyes) {
+        lighting.lights.push_back({.position = *eyes,
+                                   .color = settings.player_color,
+                                   .intensity = settings.player_intensity,
+                                   .range = settings.player_range});
+        --max_lights;
+    }
     std::vector<PointLight> candidates = torch_lights(torches, time, settings.torch);
     if (exit) {
         candidates.push_back(exit_light(*exit, time, settings.exit));
     }
-    const std::vector<PointLight> chosen = select_lights(candidates, viewer, max_lights - 1, settings.fade_distance);
+    const std::vector<PointLight> chosen = select_lights(candidates, viewer, max_lights, settings.fade_distance);
     lighting.lights.insert(lighting.lights.end(), chosen.begin(), chosen.end());
     return lighting;
 }
