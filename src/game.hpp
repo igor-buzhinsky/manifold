@@ -83,9 +83,9 @@ class Game {
 public:
     /// Generates the level, places the player at its start, and makes a new party, see new_game().
     ///
-    /// The first level of a game, here and in new_game() and load(), gets an extra torch on the wall nearest to the
-    /// start, if a wall of the start room has room for one (see generate_level()). The debug layout has no rooms, so it
-    /// gets none. The party has no light of its own until it casts Candlelight.
+    /// The first level of a game, here and in new_game() and load(), gets an extra torch on the wall side of the start
+    /// room nearest to the start that has none, if there is one (see generate_level()). The debug layout has no rooms,
+    /// so it gets none. The party has no light of its own until it casts Candlelight.
     ///
     /// \param config Game settings.
     /// \param seed   Seed for level generation and the party. The same seed gives the same level and party.
