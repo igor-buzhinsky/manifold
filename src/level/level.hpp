@@ -46,6 +46,7 @@ struct Level {
     TextureKind texture_kind = TextureKind::kStone;
     /// Torches that could hang on the walls of the room where the player starts, on the wall sides that got none.
     /// Empty for layouts without rooms. generate_level() may add the one nearest to the start, which takes it out.
+    // Without the initializer, GCC warns about levels that leave it out, such as those built by hand in tests.
     std::vector<Torch> free_start_torches = {};  // NOLINT(readability-redundant-member-init)
 };
 

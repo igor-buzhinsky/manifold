@@ -146,7 +146,8 @@ and tools for inspecting the game. Done:
   the world mesh (untextured, with a per-vertex color) and a flame sprite: an upright quad facing the camera,
   painted by a shader as a pixelated, flickering teardrop. Each frame, the player's light and the 31 torch lights
   nearest to the player (by distance minus range) go to the shader in a uniform buffer; the light of the level exit
-  competes with the torches for these places. Torch lights flicker and fade out smoothly at 6 m. The player's light
+  competes with the torches for these places. Torch lights flicker and fade out smoothly at 6 m (9 m since v0.3, see
+  Torch range below). The player's light
   also has a range (15 m), and every light treats surfaces closer than 0.3 m as 0.3 m away, so the wall behind a
   flame doesn't turn white. Lights don't pop when they enter or leave the nearest 31: when lights are left out, the
   gap (distance minus range) of the first one left out is the cut, and chosen lights fade out over the last 2 m

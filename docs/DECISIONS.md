@@ -305,7 +305,8 @@ closes them with E, which acts on what the center of the view points at.
 - **Shadows**: at first, the halves cast no shadows, like the exit. Now they are drawn into the shadow maps too.
   When a door moves, the maps of the lights whose range reaches anywhere its halves can slide are drawn again in
   that frame, also maps that are kept for lights not drawn now. A torch's map is 256 pixels square and its range
-  6 m, so the few maps near a door are redrawn every frame for the one second the door moves.
+  6 m (9 m since v0.3, see the entry on the torch range), so the few maps near a door are redrawn every frame for the
+  one second the door moves.
 - `Obstacle` gets a rectangular footprint and a choice of surface (textured or dark), which the frames and the
   door boxes need.
 
@@ -559,3 +560,35 @@ Drawbacks:
 - A failed cast gives no feedback, and the screen doesn't show how long a spell has left.
 - Without Candlelight, levels without ambient light are nearly black away from torches, which can be confusing at the
   start of a game.
+
+## 2026-11-19: Torch range of 9 m and a torch next to the start of the first level
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: torch lights reach 9 m instead of 6 m. The first level of a game also gets an extra torch on the wall side of
+the start room nearest to the player start that has no torch, whether or not the room has torches or the level has
+ambient light. This replaces the torch on a random wall of the start room that only dark first levels without a torch
+in that room got. Among equally near sides, one is chosen from the level seed with its own salt, so the rest of the
+level stays the same.
+
+Gains:
+
+- A new game starts without Candlelight, and the first room is now always lit near the party, which shows where it is.
+- With the longer range, rooms are lit further from their torches, so levels are less confusingly dark.
+- Levels of all seeds are otherwise unchanged, and saves stay valid.
+
+Rejected alternatives:
+
+- **12 m**: more light, but each torch reaches about 4 times the area of 6 m, so many more torches reach a moving door,
+  whose lights' shadow maps are drawn again in every frame (see the entry on doors), and more of them compete for the
+  31 places of the lights drawn.
+- **Keeping 6 m and making torches brighter**: brightens the rooms near the torches, but leaves their far parts dark.
+- **The extra torch only for dark first levels, or on a random wall**: as before; the first room could still be dark
+  where the party starts.
+
+Drawbacks:
+
+- More shadow maps are drawn while a door moves, which may cause stutter near many torches; limiting them is planned
+  (see Fewer shadow maps per frame in ROADMAP.md).
+- Lights fade out at the cut of the lights drawn more often.
+- The extra torch can hang 1 m beside the start, which is bright up close.
