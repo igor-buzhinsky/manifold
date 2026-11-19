@@ -49,9 +49,10 @@ std::uint64_t next_level_seed(std::uint64_t seed);
 /// \param layout      The layout to use. If not given, a random one is chosen.
 /// \param clearance   Radius around the player start that must stay free of obstacles, in metres.
 /// \param seed        Seed for all random choices. The same seed gives the same level.
-/// \param start_torch Whether to make sure that the room where the player starts has a torch: if it has none, one of
-///                    Level::spare_start_torches is added, if there are any, chosen from its own random numbers. The
-///                    rest of the level is the same either way.
+/// \param start_torch Whether to add a torch on the wall nearest to the player start: the one of
+///                    Level::free_start_torches whose mount is nearest to the start, also if the room has torches
+///                    already. Among equally near ones, it is chosen from its own random numbers. Nothing is added if
+///                    there are none, e.g. for the debug layout. The rest of the level is the same either way.
 ///
 /// The sounds of the doors are chosen last, from their own random numbers, so the rest of the level doesn't depend on
 /// them.

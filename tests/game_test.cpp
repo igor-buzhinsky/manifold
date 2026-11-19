@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <cstdint>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
@@ -604,37 +603,22 @@ void walk(Game& game, float seconds) {
     }
 }
 
-/// A seed whose level has ambient light, or none, see level_has_ambient_light().
-std::uint64_t seed_with_ambient(bool ambient) {
-    std::uint64_t seed = 1;
-    while (level_has_ambient_light(seed) != ambient) {
-        ++seed;
-    }
-    return seed;
-}
-
-TEST(GameTest, FirstLevelWithoutAmbientLightGetsATorchInTheStartRoom) {
+TEST(GameTest, FirstLevelGetsATorchOnTheNearestWall) {
     GameConfig config;
     config.level.rooms.min_torch_chance = 0.0f;
     config.level.rooms.max_torch_chance = 0.0f;
-    const std::uint64_t dark = seed_with_ambient(false);
-    Game game(config, dark);
+    Game game(config, 3);
     ASSERT_EQ(game.level().layout, LayoutKind::kRooms);
     EXPECT_EQ(game.world().torches().size(), 1U);
     const SavedGame first = game.save_point();
-    // The levels after the first get none, even without ambient light.
-    do {
-        game.next_level();
-    } while (level_has_ambient_light(game.seed()));
-    const std::uint64_t seed = game.seed();
+    // The levels after the first get none.
+    game.next_level();
     EXPECT_TRUE(game.world().torches().empty());
     // Loading the first level, or a new game, gives it again.
     game.load(first);
     EXPECT_EQ(game.world().torches().size(), 1U);
-    game.new_game(seed, std::nullopt);
+    game.new_game(8, std::nullopt);
     EXPECT_EQ(game.world().torches().size(), 1U);
-    // A first level with ambient light gets none.
-    EXPECT_TRUE(Game(config, seed_with_ambient(true)).world().torches().empty());
 }
 
 TEST(GameTest, PartyStartsWithFullManaAndNoSpells) {

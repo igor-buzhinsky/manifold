@@ -36,14 +36,14 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
     return params;
 }
 
-/// Generates the level of a game, see generate_level(). The first level of a game, if it has no ambient light, gets a
-/// torch in the room where the player starts, if it has none and there is room for one, since the party has no light
-/// of its own until it casts Candlelight.
+/// Generates the level of a game, see generate_level(). The first level of a game gets a torch on the wall nearest to
+/// where the player starts, if there is room for one, since the party has no light of its own until it casts
+/// Candlelight.
 ///
 /// \param level_number How many levels came before it: 0 for the first level.
 Level generate_game_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance,
                           std::uint64_t seed, int level_number) {
-    return generate_level(config, layout, clearance, seed, level_number == 0 && !level_has_ambient_light(seed));
+    return generate_level(config, layout, clearance, seed, level_number == 0);
 }
 
 /// Mixed into the seed of a game's first level for its party, which keeps the party independent of the random numbers

@@ -46,7 +46,7 @@ glm::vec3 torch_light_color(TorchFlame flame);
 /// Brightness of a torch at 1 m, before flicker.
 inline constexpr float kTorchIntensity = 3.5f;
 /// Range of a torch's light, in metres.
-inline constexpr float kTorchRange = 6.0f;
+inline constexpr float kTorchRange = 9.0f;
 
 /// How bright and how far the lights of torches shine.
 struct TorchLightParams {
