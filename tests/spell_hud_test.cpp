@@ -109,5 +109,37 @@ TEST(SpellHudTest, EachSpellInEffectGetsAWhiteBoxWithItsName) {
     EXPECT_EQ(mesh.vertices()[6].color, glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 }
 
+TEST(SpellHudTest, BoxBlinksInTheLastTenSeconds) {
+    EXPECT_TRUE(spell_box_visible(60.0f));
+    EXPECT_TRUE(spell_box_visible(10.5f));
+    EXPECT_TRUE(spell_box_visible(9.9f));
+    EXPECT_TRUE(spell_box_visible(9.5f));
+    EXPECT_FALSE(spell_box_visible(9.4f));
+    EXPECT_FALSE(spell_box_visible(9.0f));
+    EXPECT_TRUE(spell_box_visible(8.75f));
+    EXPECT_TRUE(spell_box_visible(0.5f));
+    EXPECT_FALSE(spell_box_visible(0.25f));
+}
+
+TEST(SpellHudTest, HiddenBoxKeepsItsPlace) {
+    PartyMagic magic;
+    magic.cast(Spell::kCandlelight);
+    magic.cast(Spell::kLevitate);
+    magic.spells[0].remaining = 0.25f;
+    OverlayMesh mesh;
+    add_spell_hud(mesh, kPicture, magic);
+    // Only the second box is drawn, at its own place below the hidden first one.
+    const std::vector<Rect> boxes = layout_spell_hud(kPicture, 2);
+    ASSERT_GT(mesh.vertices().size(), 6U);
+    EXPECT_EQ(mesh.vertices()[0].color, glm::vec4(1.0f));
+    float top = mesh.vertices()[0].position.y;
+    for (std::size_t i = 0; i < 6; ++i) {
+        top = std::min(top, mesh.vertices()[i].position.y);
+    }
+    EXPECT_EQ(top, boxes[1].top_left.y);
+    EXPECT_EQ(count_rectangles(mesh, boxes[1].size.x), 1U);
+    EXPECT_TRUE(spell_hud_contains(kPicture, magic, boxes[0].top_left));
+}
+
 }  // namespace
 }  // namespace manifold

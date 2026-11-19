@@ -240,9 +240,9 @@ and tools for inspecting the game. Done:
 - **Torch range** of 9 m instead of 6 m, so rooms are less dark. The light changes little within 3 m, so the gain is in
   the far parts of rooms. More torches now reach a door, whose shadow maps are drawn again in every frame while it
   moves (see Fewer shadow maps per frame below), and more torches compete for the places of the lights drawn.
-- TODO
-  - Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
-  - The time left of each spell on the screen.
+- **Spells that end soon**: the box of a spell blinks in its last 10 seconds, shown for half a second and hidden for
+  half a second, by the spell's time left in game time, so it stops while the game is paused (`spell_box_visible()`).
+  A hidden box keeps its place, so the boxes below it don't move.
 
 ## v0.4 - Water, rudimentary monsters and inventory
 
@@ -270,6 +270,7 @@ and tools for inspecting the game. Done:
   once don't cause a stutter. While a door moves, only the cube faces that can see it could be drawn again.
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
 - Full-screen mode, and mouse look.
+- Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
 - Attack spells, spell effects, projectiles that emit light (?).
 - Audio: ambient sound, spell sounds.
 - Visibility culling (rooms and portals) if levels get large.
