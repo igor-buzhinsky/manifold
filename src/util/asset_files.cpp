@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <random>
 #include <span>
 #include <string>
 #include <string_view>
@@ -13,6 +12,7 @@
 #include <vector>
 
 #include "util/log.hpp"
+#include "util/random.hpp"
 
 namespace manifold {
 
@@ -67,10 +67,8 @@ std::optional<std::filesystem::path> pick_asset_file(std::span<const std::filesy
     if (candidates.empty()) {
         return std::nullopt;
     }
-    // The raw output of the engine is the same everywhere, unlike std::uniform_int_distribution. The slight bias of
-    // the modulo doesn't matter for a handful of files.
-    std::mt19937_64 random(seed);
-    return candidates[random() % candidates.size()];
+    Rng random(seed);
+    return candidates[random_index(random, candidates.size())];
 }
 
 }  // namespace manifold

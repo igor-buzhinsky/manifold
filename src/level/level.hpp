@@ -1,22 +1,20 @@
 #pragma once
 
 #include <cstdint>
-#include <random>
 #include <string>
 
 #include <glm/vec3.hpp>
 
 #include "level/texture_kind.hpp"
+#include "util/random.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
 
-/// Random number generator for level generation.
-///
-/// Standard library distributions differ between implementations, so the same seed gives the same level
-/// only with the same standard library.
-using LevelRng = std::mt19937_64;
+/// Random number generator for level generation. Choices are made with the functions of `util/random.hpp`, so the same
+/// seed gives the same level everywhere.
+using LevelRng = Rng;
 
 /// Gravity on Earth, in metres per second squared.
 constexpr float kEarthGravity = 9.81f;

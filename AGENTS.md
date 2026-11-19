@@ -7,8 +7,13 @@ building and running, [docs/ROADMAP.md](docs/ROADMAP.md) for plans and technical
 
 ## Conventions
 
-Follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md): formatting, naming, units and coordinates, and how
-code is documented with `///` comments.
+Follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md): formatting, naming, units and coordinates, random numbers, and
+how code is documented with `///` comments.
+
+- Make every random choice with the helpers of `src/util/random.hpp` (`random_index`, `random_int`, `random_float`,
+  `random_chance`, `random_weighted_index`, `random_shuffle`, ...), never with the standard distributions,
+  `std::shuffle` or `std::sample`, whose results differ between standard libraries, so a seed would give other levels
+  on another platform. A test fails otherwise. See the Random numbers section of CODING_STYLE.md.
 
 ## Before finishing a change
 

@@ -481,3 +481,36 @@ Drawbacks:
 - Old saves (format version 1) are refused, so a player loses a saved game when updating.
 - With few portraits, some characters have none, and with many, players see only a few of them per game.
 - The characters can't be told apart in the world, since they move as one body.
+
+## 2026-11-19: Make random choices with own helpers on the raw output of the engine
+
+Status: **ACCEPTED**. Done in v0.3.
+
+Decision: every random choice that a seed decides (level generation, the level's texture, sounds and ambient light,
+the party) is made with small helpers in `src/util/random.hpp` (`random_index`, `random_int`, `random_float`,
+`random_chance`, `random_weighted_index`, `random_shuffle`), which use only the raw output of `std::mt19937_64`. The
+standard distributions, `std::shuffle` and `std::sample` are not used, and a test (`PortableRandomChoices`) checks the
+sources for them.
+
+Gains:
+
+- The C++ standard fixes the output of `std::mt19937_64` for each seed, but not the algorithms of the distributions
+  and of `std::shuffle`, which differ between libstdc++, libc++ and MSVC's library. With the helpers, a seed gives the
+  same level on Linux, macOS and Windows, so saves, which store only the seed, can move between platforms, and seeds
+  in bug reports and PRs show the same level everywhere.
+- The helpers are unbiased (`random_index` draws again instead of taking a biased modulo), and their results for a seed
+  are pinned by a test, so a change that would change all levels can't happen unnoticed.
+- One place explains why, instead of a comment at each use.
+
+Rejected alternatives:
+
+- **The standard distributions everywhere**, accepting that a seed gives other levels on other platforms: the least
+  code, but saves and seeds wouldn't be portable once Windows and macOS are supported.
+- **Own helpers only where convenient** (the state before): the texture, sounds and party were portable, but the level
+  itself wasn't, so the portable parts gained nothing.
+- **A third-party library** of portable distributions (such as Boost.Random): more than the few helpers needed.
+
+Drawbacks:
+
+- Changing to the helpers changed the levels of all seeds, so saves of the earlier format are refused.
+- Each new kind of random choice needs a helper of its own, with tests.

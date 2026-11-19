@@ -6,7 +6,6 @@
 #include <format>
 #include <numbers>
 #include <optional>
-#include <random>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -15,6 +14,7 @@
 #include <glm/vec3.hpp>
 
 #include "level/level.hpp"
+#include "util/random.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/torch.hpp"
@@ -33,18 +33,15 @@ namespace {
 template <typename Fits>
 std::optional<RotatedRectangle> place_randomly(const DebugLayoutConfig& config, const glm::vec2& half_size,
                                                float max_yaw, LevelRng& rng, Fits fits) {
-    std::uniform_real_distribution<float> yaw_distribution(0.0f, max_yaw);
     for (int attempt = 0; attempt < config.max_attempts_per_block; ++attempt) {
-        // uniform_real_distribution needs min < max to be called.
-        RotatedRectangle footprint{.half_size = half_size, .yaw = max_yaw > 0.0f ? yaw_distribution(rng) : 0.0f};
+        RotatedRectangle footprint{.half_size = half_size, .yaw = random_float(rng, 0.0f, max_yaw)};
         // Keep the box around the rotated footprint inside the level.
         const glm::vec2 extent = bounding_half_size(footprint);
         if (config.x_max - config.x_min < 2.0f * extent.x || config.y_max - config.y_min < 2.0f * extent.y) {
             continue;
         }
-        std::uniform_real_distribution<float> x_distribution(config.x_min + extent.x, config.x_max - extent.x);
-        std::uniform_real_distribution<float> y_distribution(config.y_min + extent.y, config.y_max - extent.y);
-        footprint.center = {x_distribution(rng), y_distribution(rng)};
+        footprint.center = {random_float(rng, config.x_min + extent.x, config.x_max - extent.x),
+                            random_float(rng, config.y_min + extent.y, config.y_max - extent.y)};
         if (fits(footprint)) {
             return footprint;
         }

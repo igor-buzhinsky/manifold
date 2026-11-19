@@ -672,10 +672,17 @@ TEST(RoomLayoutTest, PlayerStartsInCenterOfStartTileWithoutCollisions) {
 
 TEST(RoomLayoutTest, PlayerFallsThroughHoleToLayerBelow) {
     const RoomLayoutConfig config = make_config();
-    const Level level = generate(2);
-    const LayeredPlan plan = make_layered_plan(2);
-    ASSERT_FALSE(plan.holes.empty());
-    const Hole& hole = plan.holes.back();
+    // The first seed whose plan has a hole without a ramp under it, which the player falls through.
+    const auto without_ramp = [](const Hole& candidate) { return candidate.ramp == RampRise::kNone; };
+    std::uint64_t seed = 1;
+    while (seed < 20 && std::ranges::none_of(make_layered_plan(seed).holes, without_ramp)) {
+        ++seed;
+    }
+    const Level level = generate(seed);
+    const LayeredPlan plan = make_layered_plan(seed);
+    const auto found = std::ranges::find_if(plan.holes, without_ramp);
+    ASSERT_NE(found, plan.holes.end());
+    const Hole& hole = *found;
     const WorldBounds& bounds = level.world.bounds();
     const float layer_step = config.height + config.slab_thickness;
     VerticalCylinder body{

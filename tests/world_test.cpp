@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstddef>
 #include <numbers>
-#include <random>
 #include <vector>
 
 #include <glm/vec2.hpp>
@@ -12,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include "physics/collision.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
@@ -74,27 +74,27 @@ TEST(WorldTest, AddingADoorAddsItsFramesAsObstacles) {
 TEST(WorldTest, FindsAllObstaclesAndRampsThatABodyTouches) {
     // Random rotated blocks and ramps, partly outside the bounds, and random bodies, partly outside too.
     World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 10.0f, .height = 5.0f});
-    std::mt19937 random(7);
-    std::uniform_real_distribution<float> position(-13.0f, 13.0f);
-    std::uniform_real_distribution<float> size(0.05f, 3.0f);
-    std::uniform_real_distribution<float> angle(0.0f, 2.0f * std::numbers::pi_v<float>);
+    Rng random(7);
+    const auto position = [&random] { return random_float(random, -13.0f, 13.0f); };
+    const auto size = [&random] { return random_float(random, 0.05f, 3.0f); };
+    const auto angle = [&random] { return random_float(random, 0.0f, 2.0f * std::numbers::pi_v<float>); };
     for (int i = 0; i < 200; ++i) {
-        world.add_obstacle({.base_center = {position(random), position(random), 0.0f},
-                            .half_size = {size(random), size(random)},
+        world.add_obstacle({.base_center = {position(), position(), 0.0f},
+                            .half_size = {size(), size()},
                             .height = 2.0f,
-                            .yaw = angle(random)});
-        world.add_ramp({.base_center = {position(random), position(random), 0.0f},
-                        .half_length = size(random),
-                        .half_width = size(random),
+                            .yaw = angle()});
+        world.add_ramp({.base_center = {position(), position(), 0.0f},
+                        .half_length = size(),
+                        .half_width = size(),
                         .rise = 1.0f,
-                        .yaw = angle(random)});
+                        .yaw = angle()});
     }
 
     std::vector<std::size_t> obstacles;
     std::vector<std::size_t> ramps;
     int touching = 0;
     for (int i = 0; i < 5000; ++i) {
-        const VerticalCylinder body{.base = {position(random), position(random), 0.0f}, .radius = 0.3f, .height = 1.8f};
+        const VerticalCylinder body{.base = {position(), position(), 0.0f}, .radius = 0.3f, .height = 1.8f};
         const Box2 box{.min = glm::vec2(body.base) - body.radius, .max = glm::vec2(body.base) + body.radius};
         world.find_obstacles_near(box, obstacles);
         world.find_ramps_near(box, ramps);

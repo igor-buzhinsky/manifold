@@ -8,7 +8,6 @@
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
-#include <random>
 #include <span>
 #include <utility>
 #include <vector>
@@ -19,6 +18,7 @@
 #include "level/texture_kind.hpp"
 #include "util/asset_files.hpp"
 #include "util/log.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -67,8 +67,8 @@ std::vector<TextureFile> find_level_textures(const std::filesystem::path& root) 
 
 std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed) {
     std::vector<std::filesystem::path> order(candidates.begin(), candidates.end());
-    std::mt19937_64 random(seed);
-    std::ranges::shuffle(order, random);
+    Rng random(seed);
+    random_shuffle(random, order);
     for (const std::filesystem::path& path : order) {
         // Reading only the header first avoids decoding a large image just to skip it. Files whose header
         // can't be read are left to load_image(), which logs why.

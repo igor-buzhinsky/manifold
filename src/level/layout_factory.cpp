@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <random>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -13,6 +12,7 @@
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
+#include "util/random.hpp"
 
 namespace manifold {
 
@@ -60,8 +60,11 @@ LayoutKind choose_layout(const LevelConfig& config, LevelRng& rng) {
     if (total <= 0.0f) {
         throw std::invalid_argument("at least one layout probability must be positive");
     }
-    std::discrete_distribution<std::size_t> distribution(probabilities.begin(), probabilities.end());
-    return kLayoutNames.at(distribution(rng)).first;
+    std::array<double, kLayoutNames.size()> weights{};
+    for (std::size_t i = 0; i < weights.size(); ++i) {
+        weights.at(i) = probabilities.at(i);
+    }
+    return kLayoutNames.at(random_weighted_index(rng, weights)).first;
 }
 
 std::string_view layout_name(LayoutKind kind) {
@@ -94,7 +97,7 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
     LevelRng rng(seed);
     const LayoutKind kind = layout ? *layout : choose_layout(config, rng);
     Level level = make_layout(kind, config)->generate(clearance, rng);
-    // The raw numbers of the engine are the same everywhere, unlike those of the standard distributions.
+    // Raw numbers of the engine, which SoundSet::get() maps to sounds.
     constexpr std::uint64_t kDoorSoundSeedSalt = 0x8cb92ba72f3d8dd7ULL;
     LevelRng sound_rng(seed ^ kDoorSoundSeedSalt);
     for (std::size_t i = 0; i < level.world.doors().size(); ++i) {

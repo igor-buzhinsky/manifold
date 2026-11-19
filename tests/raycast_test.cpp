@@ -6,7 +6,6 @@
 #include <limits>
 #include <numbers>
 #include <optional>
-#include <random>
 #include <span>
 #include <vector>
 
@@ -17,6 +16,7 @@
 
 #include "door_level.hpp"
 #include "level/level.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/world.hpp"
@@ -142,16 +142,15 @@ std::optional<RayHit> cast_ray_testing_all(const World& world, std::span<const D
 }
 
 /// A random unit direction. Some are exactly along x, y or z, some horizontal, the others anywhere.
-glm::vec3 random_direction(std::mt19937& random) {
+glm::vec3 random_direction(Rng& random) {
     static constexpr std::array<glm::vec3, 6> kAxes{glm::vec3(1, 0, 0),  glm::vec3(-1, 0, 0), glm::vec3(0, 1, 0),
                                                     glm::vec3(0, -1, 0), glm::vec3(0, 0, 1),  glm::vec3(0, 0, -1)};
-    std::uniform_int_distribution<int> kind(0, 9);
-    std::uniform_real_distribution<float> coordinate(-1.0f, 1.0f);
-    const int chosen = kind(random);
+    const auto coordinate = [&random] { return random_float(random, -1.0f, 1.0f); };
+    const int chosen = random_int(random, 0, 9);
     if (chosen < 3) {
-        return kAxes.at(static_cast<std::size_t>(std::uniform_int_distribution<int>(0, 5)(random)));
+        return kAxes.at(random_index(random, kAxes.size()));
     }
-    const glm::vec3 direction{coordinate(random), coordinate(random), chosen < 5 ? 0.0f : coordinate(random) / 2.0f};
+    const glm::vec3 direction{coordinate(), coordinate(), chosen < 5 ? 0.0f : coordinate() / 2.0f};
     return glm::normalize(direction);
 }
 
@@ -159,21 +158,21 @@ TEST(RaycastTest, FindsTheSameHitsAsTestingEverything) {
     // Random rotated blocks and doors, partly outside the bounds, some doors open, and random rays, some exactly along
     // an axis, some unlimited.
     World world({.x_min = -20.0f, .x_max = 20.0f, .y_min = -20.0f, .y_max = 20.0f, .height = 3.0f});
-    std::mt19937 random(11);
-    std::uniform_real_distribution<float> position(-24.0f, 24.0f);
-    std::uniform_real_distribution<float> size(0.05f, 1.0f);
-    std::uniform_real_distribution<float> angle(0.0f, 2.0f * std::numbers::pi_v<float>);
-    std::uniform_real_distribution<float> height(0.0f, 3.0f);
+    Rng random(11);
+    const auto position = [&random] { return random_float(random, -24.0f, 24.0f); };
+    const auto size = [&random] { return random_float(random, 0.05f, 1.0f); };
+    const auto angle = [&random] { return random_float(random, 0.0f, 2.0f * std::numbers::pi_v<float>); };
+    const auto height = [&random] { return random_float(random, 0.0f, 3.0f); };
     std::vector<DoorState> doors;
     for (int i = 0; i < 150; ++i) {
-        world.add_obstacle({.base_center = {position(random), position(random), 0.0f},
-                            .half_size = {size(random), size(random)},
-                            .height = height(random),
-                            .yaw = angle(random)});
-        world.add_door({.base_center = {position(random), position(random), 0.0f},
-                        .width = 2.0f * size(random),
+        world.add_obstacle({.base_center = {position(), position(), 0.0f},
+                            .half_size = {size(), size()},
+                            .height = height(),
+                            .yaw = angle()});
+        world.add_door({.base_center = {position(), position(), 0.0f},
+                        .width = 2.0f * size(),
                         .height = 2.5f,
-                        .yaw = angle(random),
+                        .yaw = angle(),
                         .sounds = {}});
         // The last doors have no state, so they count as closed.
         if (i < 140) {
@@ -185,9 +184,8 @@ TEST(RaycastTest, FindsTheSameHitsAsTestingEverything) {
     int hits = 0;
     int door_hits = 0;
     for (int i = 0; i < 3000; ++i) {
-        const Ray ray{.origin = {position(random), position(random), height(random)},
-                      .direction = random_direction(random)};
-        const float max_distance = (i % 7 == 0) ? kInfinity : 2.0f * height(random);
+        const Ray ray{.origin = {position(), position(), height()}, .direction = random_direction(random)};
+        const float max_distance = (i % 7 == 0) ? kInfinity : 2.0f * height();
         const std::optional<RayHit> hit = cast_ray(world, doors, ray, max_distance);
         const std::optional<RayHit> expected = cast_ray_testing_all(world, doors, ray, max_distance);
         ASSERT_EQ(hit.has_value(), expected.has_value()) << "ray " << i;
