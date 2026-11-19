@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include <glm/vec3.hpp>
 
@@ -22,6 +23,10 @@ constexpr float kEarthGravity = 9.81f;
 /// Chooses the flame of all torches of a level: orange with a chance of 50%, blue and green with 25% each.
 TorchFlame choose_torch_flame(LevelRng& rng);
 
+/// Whether the level generated from `level_seed` has ambient light, which it has for half of the seeds, see
+/// level_ambient(). The choice depends only on the seed, and is independent of the other random choices made from it.
+bool level_has_ambient_light(std::uint64_t level_seed);
+
 /// The kinds of level layouts.
 enum class LayoutKind : std::uint8_t {
     kDebug,  ///< Randomly placed and rotated blocks in one open area, see DebugLayout.
@@ -39,6 +44,10 @@ struct Level {
     /// What its surfaces are made of: the kind of its texture, which the game sets when it picks the texture, see
     /// Game::set_texture_kind(). Stone until then, and when no texture can be used.
     TextureKind texture_kind = TextureKind::kStone;
+    /// Torches that could hang in the room where the player starts, on wall sides that got none, if that room got no
+    /// torch at all. Empty if it has a torch, and for layouts without rooms. generate_level() may add one of them.
+    // Without the initializer, GCC warns about levels that leave it out, such as those built by hand in tests.
+    std::vector<Torch> spare_start_torches = {};  // NOLINT(readability-redundant-member-init)
 };
 
 /// A way of generating levels.

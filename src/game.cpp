@@ -36,6 +36,16 @@ PlayerParams at_start(PlayerParams params, const Level& level) {
     return params;
 }
 
+/// Generates the level of a game, see generate_level(). The first level of a game, if it has no ambient light, gets a
+/// torch in the room where the player starts, if it has none and there is room for one, since the party has no light
+/// of its own until it casts Candlelight.
+///
+/// \param level_number How many levels came before it: 0 for the first level.
+Level generate_game_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance,
+                          std::uint64_t seed, int level_number) {
+    return generate_level(config, layout, clearance, seed, level_number == 0 && !level_has_ambient_light(seed));
+}
+
 /// Mixed into the seed of a game's first level for its party, which keeps the party independent of the random numbers
 /// used by level generation.
 constexpr std::uint64_t kPartySeedSalt = 0x8bb84b93962eacc9ULL;
@@ -43,7 +53,7 @@ constexpr std::uint64_t kPartySeedSalt = 0x8bb84b93962eacc9ULL;
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
-    : Game(config, generate_level(config.level, layout, config.player.radius, seed), seed) {
+    : Game(config, generate_game_level(config.level, layout, config.player.radius, seed, 0), seed) {
     given_layout_ = layout;
 }
 
@@ -86,12 +96,12 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
 
 void Game::next_level() {
     const std::uint64_t seed = next_level_seed(seed_);
-    start_level(generate_level(level_config_, std::nullopt, player_params_.radius, seed), seed, level_number_ + 1,
-                std::nullopt);
+    start_level(generate_game_level(level_config_, std::nullopt, player_params_.radius, seed, level_number_ + 1), seed,
+                level_number_ + 1, std::nullopt);
 }
 
 void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
-    Level level = generate_level(level_config_, layout, player_params_.radius, seed);
+    Level level = generate_game_level(level_config_, layout, player_params_.radius, seed, 0);
     time_ = 0.0;
     party_ = make_new_party(seed);
     magic_ = PartyMagic{};
@@ -99,7 +109,7 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
 }
 
 void Game::load(const SavedGame& save) {
-    Level level = generate_level(level_config_, save.layout, player_params_.radius, save.seed);
+    Level level = generate_game_level(level_config_, save.layout, player_params_.radius, save.seed, save.level_number);
     time_ = save.time;
     party_ = save.party;
     magic_ = save.magic;

@@ -12,6 +12,7 @@
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "level/level.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -32,6 +33,7 @@ TEST(LightingTest, LevelAmbientIsNoneOrTextureHueForAboutHalfOfSeeds) {
     for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
         const glm::vec3 ambient = level_ambient(seed, color);
         EXPECT_EQ(level_ambient(seed, color), ambient) << "seed " << seed;
+        EXPECT_EQ(level_has_ambient_light(seed), ambient != glm::vec3(0.0f)) << "seed " << seed;
         if (ambient == glm::vec3(0.0f)) {
             continue;
         }

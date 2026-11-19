@@ -81,7 +81,8 @@ std::uint64_t next_level_seed(std::uint64_t seed) {
     return z ^ (z >> 31U);
 }
 
-Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed) {
+Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed,
+                     bool start_torch) {
     LevelRng rng(seed);
     const LayoutKind kind = layout ? *layout : choose_layout(config, rng);
     Level level = make_layout(kind, config)->generate(clearance, rng);
@@ -92,6 +93,12 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
         const auto open = static_cast<std::uint32_t>(sound_rng());
         const auto close = static_cast<std::uint32_t>(sound_rng());
         level.world.set_door_sounds(i, {.open = open, .close = close});
+    }
+    if (start_torch && !level.spare_start_torches.empty()) {
+        constexpr std::uint64_t kStartTorchSeedSalt = 0x3c6ef372fe94f82bULL;
+        LevelRng torch_rng(seed ^ kStartTorchSeedSalt);
+        level.world.add_torch(level.spare_start_torches[random_index(torch_rng, level.spare_start_torches.size())]);
+        level.spare_start_torches.clear();
     }
     return level;
 }

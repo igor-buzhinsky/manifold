@@ -12,7 +12,7 @@
 #include <glm/geometric.hpp>
 #include <glm/vec3.hpp>
 
-#include "util/random.hpp"
+#include "level/level.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -97,11 +97,7 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
 float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f)); }
 
 glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color) {
-    // Mixing the seed keeps the choice independent of the other random choices made from it.
-    constexpr std::uint64_t kAmbientSeedSalt = 0xd1b54a32d192ed03ULL;
-    Rng random(level_seed ^ kAmbientSeedSalt);
-    const bool lit = random_chance(random, 0.5);
-    if (!lit) {
+    if (!level_has_ambient_light(level_seed)) {
         return glm::vec3(0.0f);
     }
     // Below this (about sRGB 9 / 255), the hue is too uncertain to keep.
