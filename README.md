@@ -3,7 +3,73 @@
 [![CI](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml)
 [![License](https://img.shields.io/github/license/igor-buzhinsky/manifold)](LICENSE)
 
-A hobby first-person fantasy game about playing as a mage. See [docs/ROADMAP.md](docs/ROADMAP.md).
+A hobby first-person fantasy game about a party of mages, in the spirit of *Daggerfall*: a retro, low-fi look,
+dark dungeons lit by torches and spells, and a linear series of procedurally generated, rogue-like 3D levels. It is
+written in C++20 from scratch, almost entirely by an AI coding agent, and is an early work in progress: there are no
+monsters, items or story yet.
+
+![Screenshots of three generated levels](docs/images/screenshots.gif)
+
+## Features
+
+Done (v0.1 to v0.3):
+
+- **Procedural levels** from a seed: rooms on a grid in three layers, connected by openings, holes and ramps, with
+  sliding wooden or metal doors. A spinning portal cube leads to the next level. The same seed gives the same level
+  on every platform.
+- **Lighting**: linear-space lighting with tonemapping, flickering torches in three flame colors, up to 32 point
+  lights at once, and cubemap shadows, cached for static lights, for up to 31 of them. Some levels are lit only by
+  torches and the player's spells.
+- **Movement and collision** in full 3D: walking, jumping, ramps, and doors that block movement and light.
+- **A party** of three characters with portraits taken from public-domain paintings, hit points and shared mana.
+- **Spells**: Candlelight (a light around the party) and Levitate, as timed effects.
+- **Sound**: footsteps that depend on the floor, doors and portals.
+- **Tools**: an in-game console with commands for inspecting levels, taking screenshots and cheats, which can also
+  be scripted from the command line, and a Dear ImGui debug overlay.
+
+Planned (see [docs/ROADMAP.md](docs/ROADMAP.md)):
+
+- Monsters with navigation meshes, items and an inventory, damage from falling.
+- Water with swimming and diving.
+- Static 3D props (furniture, statues) loaded from glTF.
+- Attack spells and spell effects, a spell book, more level layouts, secrets.
+- Mouse look and full-screen mode, Windows and macOS support.
+- Story and lore, eventually.
+
+## Technologies
+
+- **C++20** with **CMake** (Ninja); dependencies are fetched by CMake with FetchContent.
+- **SDL3** for the window, input and audio; **OpenGL 4.1 core** for rendering, loaded with **glad**; **GLM** for
+  math.
+- **stb_image**, **stb_image_write** and **stb_vorbis** for textures, screenshots and sounds; **nlohmann/json** for
+  saves; **Dear ImGui** for the debug overlay. Collision, level generation and the game's interface are own code.
+- **GoogleTest** for unit tests of the game logic, which is kept in a library without any window or OpenGL code.
+- **clang-format** and **clang-tidy** for style and lint; **GitHub Actions** builds with GCC and Clang, with warnings
+  as errors, and runs the tests and the lint.
+
+The reasons for the main choices, and the alternatives that were rejected, are in
+[docs/DECISIONS.md](docs/DECISIONS.md).
+
+## Agentic development
+
+Nearly all code and documentation is written by [Claude Code](https://claude.com/claude-code), an AI coding agent,
+under the direction of the author, who sets goals, makes design decisions and reviews the results. The workflow is
+written down in [AGENTS.md](AGENTS.md), which the agent reads at the start of each session:
+
+1. **Plan**: the agent asks about decisions that aren't obvious from the request; larger ones are recorded in
+   [docs/DECISIONS.md](docs/DECISIONS.md) with their gains, drawbacks and rejected alternatives, and the
+   [roadmap](docs/ROADMAP.md) is kept up to date.
+2. **Implement** on a branch, following [docs/CODING_STYLE.md](docs/CODING_STYLE.md), with unit tests for new logic.
+3. **Check**: format, build without warnings, run the tests and lint the changed files. Rendering and levels are
+   checked by running the game with scripted console commands and looking at the screenshots it saves.
+4. **Review**: after each nontrivial change, a separate subagent reviews the commit with fresh context and reports
+   concrete findings. The agent fixes the clear ones in a follow-up commit and asks the author about the rest. For a
+   pull request, the findings are posted as a GitHub review and answered one by one.
+5. **Merge**: the author merges the pull request once CI is green.
+
+Where possible, rules are enforced by tools rather than by instructions alone: clang-tidy checks naming, and a
+test fails if a source makes random choices with the standard library's distributions, whose results differ
+between platforms.
 
 ## Building (Linux)
 
@@ -88,9 +154,6 @@ package is run with `poetry run python NAME.py` from `scripts/`; see the
 [Python scripts](docs/CODING_STYLE.md#python-scripts) section of the coding style.
 
 See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including doc comments.
-
-Naming: types `PascalCase`; functions, variables and namespaces `snake_case`; private and
-protected members `snake_case_`; constants and enum values `kPascalCase`; macros `UPPER_CASE`.
 
 ## Credits
 
