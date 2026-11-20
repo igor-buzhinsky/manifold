@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.25)
 
 # C is only needed for the generated glad loader.
-project(Manifold VERSION 0.0.1 LANGUAGES C CXX)
+project(Manifold VERSION 0.3.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -164,14 +164,14 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 # `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
-# with the licenses of the game and of the libraries built into it. The layout isn't the usual one of /usr/local,
+# with the game manual and the licenses of the game and of the libraries built into it. Releases are such copies. The layout isn't the usual one of /usr/local,
 # so without --prefix the copy goes into the build directory.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
 endif()
 install(TARGETS manifold RUNTIME DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
-install(FILES LICENSE DESTINATION .)
+install(FILES LICENSE GAME_MANUAL.md DESTINATION .)
 install(FILES ${sdl3_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME SDL3.txt)
 install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
 install(FILES ${stb_SOURCE_DIR}/LICENSE DESTINATION licenses RENAME stb.txt)
