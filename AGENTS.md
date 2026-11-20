@@ -58,20 +58,23 @@ asked or when unsure what a change affects.
 
 ## Review after nontrivial changes
 
-After a nontrivial change to code or docs (not typo fixes or small edits of comments), and after the checks
-above pass, commit the change and then start one subagent to review it. A change to docs only needs no checks,
-and its review looks for claims that don't match the code, other docs or git history, and for unclear text:
+After a nontrivial change to code or docs (not typo fixes or small edits of comments or docs), and after the
+checks above pass (a change to docs only needs none), commit the change and then start one subagent to review
+it. The review of a change to docs looks for claims that don't match the code, other docs or git history, and
+for unclear text:
 
 - Give the subagent the commit (or diff) to review and the goal of the change.
 - Tell it not to use any review skill (such as `/code-review`) and not to start subagents of its own.
-- Tell it that formatting, build, tests and lint already passed, so it shouldn't run them again. It may
-  build or run other small checks if a specific finding needs them.
+- For a change to code, tell it that formatting, build, tests and lint already passed, so it shouldn't run
+  them again; for a change to docs only, that there is nothing to build or run. It may build or run other
+  small checks if a specific finding needs them.
 - Ask it to report concrete findings (bugs, missed cases, docs that no longer match the code, departures
   from the conventions), each with a file and line, most severe first.
 
 Then address the findings:
 
-- Fix the clear ones, normally in a separate commit after the reviewed one, and run the checks again.
+- Fix the clear ones, normally in a separate commit after the reviewed one, and run the checks again if
+  code changed.
 - If a finding needs a decision that isn't obvious (a design trade-off, a change of scope, a disagreement
   with the reviewer), ask the user before acting on it.
 - Tell the user which findings were fixed, which were rejected and why.

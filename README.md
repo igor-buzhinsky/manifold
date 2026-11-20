@@ -12,18 +12,19 @@ monsters, items or story yet.
 
 ## Features
 
-Done (v0.1 to v0.3):
+Done so far (v0.1, v0.2 and most of v0.3):
 
 - **Procedural levels** from a seed: rooms on a grid in three layers, connected by openings, holes and ramps, with
-  sliding wooden or metal doors. A spinning portal cube leads to the next level. The same seed gives the same level
-  on every platform.
+  sliding wooden or metal doors. A spinning portal cube leads to the next level. The same seed gives the same level,
+  and its random choices don't depend on the standard library.
 - **Lighting**: linear-space lighting with tonemapping, flickering torches in three flame colors, up to 32 point
   lights at once, and cubemap shadows, cached for static lights, for up to 31 of them. Some levels are lit only by
   torches and the player's spells.
 - **Movement and collision** in full 3D: walking, jumping, ramps, and doors that block movement and light.
-- **A party** of three characters with portraits taken from public-domain paintings, hit points and shared mana.
+- **A party** of three characters with hit points, shared mana and portraits from public-domain artworks in
+  museum collections.
 - **Spells**: Candlelight (a light around the party) and Levitate, as timed effects.
-- **Sound**: footsteps that depend on the floor, doors and portals.
+- **Sound**: footsteps that depend on the level's texture (grass, wood, metal or stone), doors and portals.
 - **Tools**: an in-game console with commands for inspecting levels, taking screenshots and cheats, which can also
   be scripted from the command line, and a Dear ImGui debug overlay.
 
@@ -38,14 +39,15 @@ Planned (see [docs/ROADMAP.md](docs/ROADMAP.md)):
 
 ## Technologies
 
-- **C++20** with **CMake** (Ninja); dependencies are fetched by CMake with FetchContent.
+- **C++20** with **CMake** (Ninja); the libraries are fetched by CMake with FetchContent, except
+  the OpenGL loader, which is generated code.
 - **SDL3** for the window, input and audio; **OpenGL 4.1 core** for rendering, loaded with **glad**; **GLM** for
   math.
 - **stb_image**, **stb_image_write** and **stb_vorbis** for textures, screenshots and sounds; **nlohmann/json** for
   saves; **Dear ImGui** for the debug overlay. Collision, level generation and the game's interface are own code.
 - **GoogleTest** for unit tests of the game logic, which is kept in a library without any window or OpenGL code.
 - **clang-format** and **clang-tidy** for style and lint; **GitHub Actions** builds with GCC and Clang, with warnings
-  as errors, and runs the tests and the lint.
+  as errors, and runs the tests, the lint and the Python checks.
 
 The reasons for the main choices, and the alternatives that were rejected, are in
 [docs/DECISIONS.md](docs/DECISIONS.md).
@@ -56,15 +58,17 @@ Nearly all code and documentation is written by [Claude Code](https://claude.com
 under the direction of the author, who sets goals, makes design decisions and reviews the results. The workflow is
 written down in [AGENTS.md](AGENTS.md), which the agent reads at the start of each session:
 
-1. **Plan**: the agent asks about decisions that aren't obvious from the request; larger ones are recorded in
-   [docs/DECISIONS.md](docs/DECISIONS.md) with their gains, drawbacks and rejected alternatives, and the
-   [roadmap](docs/ROADMAP.md) is kept up to date.
-2. **Implement** on a branch, following [docs/CODING_STYLE.md](docs/CODING_STYLE.md), with unit tests for new logic.
+1. **Plan**: for a pull request, the agent first asks about decisions that aren't obvious from the request.
+   Substantial ones that affect gameplay are recorded in [docs/DECISIONS.md](docs/DECISIONS.md) with their gains,
+   drawbacks and rejected alternatives.
+2. **Implement**, on a branch for a pull request, following [docs/CODING_STYLE.md](docs/CODING_STYLE.md), with
+   unit tests for new logic.
 3. **Check**: format, build without warnings, run the tests and lint the changed files. Rendering and levels are
    checked by running the game with scripted console commands and looking at the screenshots it saves.
 4. **Review**: after each nontrivial change, a separate subagent reviews the commit with fresh context and reports
-   concrete findings. The agent fixes the clear ones in a follow-up commit and asks the author about the rest. For a
-   pull request, the findings are posted as a GitHub review and answered one by one.
+   concrete findings. The agent fixes the clear ones in a follow-up commit, asks the author about those that need a
+   decision, and reports which were fixed or rejected and why. For a pull request, the findings are posted as a
+   GitHub review and answered one by one.
 5. **Merge**: the author merges the pull request once CI is green.
 
 Where possible, rules are enforced by tools rather than by instructions alone: clang-tidy checks naming, and a
@@ -88,8 +92,8 @@ The first line is the toolchain (pkg-config is used by SDL3's build). The rest a
 that SDL3 needs to talk to X11/Wayland, the GPU, audio, the desktop (D-Bus) and input devices (udev).
 The full list of SDL's optional dependencies is in its
 [README-linux](https://wiki.libsdl.org/SDL3/README-linux#build-dependencies). SDL3 itself and the other libraries
-(GLM, stb including stb_vorbis, Dear ImGui, GoogleTest) are downloaded and built by CMake. The OpenGL loader (glad) is generated code in
-`external/glad/`.
+(GLM, stb including stb_vorbis, Dear ImGui, nlohmann/json, GoogleTest) are downloaded and built by CMake. The OpenGL
+loader (glad) is generated code in `external/glad/`.
 
 Build and run:
 
