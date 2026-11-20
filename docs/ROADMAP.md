@@ -1,6 +1,6 @@
 # Manifold — Roadmap
 
-*Manifold* is a working title. It is a hobby first-person fantasy game where the player is a mage.
+*Manifold* is a working title. It is a hobby first-person fantasy game played by a party of mages.
 It looks and feels like *Daggerfall*, but is structured as a linear series of
 rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 
@@ -11,8 +11,7 @@ rogue-like, procedurally generated 3D levels. There is no story or lore yet.
 - Textures and models come from free sources or are AI-generated.
 - Believable lighting is a core feature: dark levels lit by the player's light spell
   and by multiple other light sources.
-- Open and non-commercial, if it is ever released at all; it may stay a personal experiment.
-- Personal goal: get more experience with modern C++.
+- Open and non-commercial.
 
 ## Technical decisions
 
