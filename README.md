@@ -47,7 +47,7 @@ Planned (see [docs/ROADMAP.md](docs/ROADMAP.md)):
   saves; **Dear ImGui** for the debug overlay. Collision, level generation and the game's interface are own code.
 - **GoogleTest** for unit tests of the game logic, which is kept in a library without any window or OpenGL code.
 - **clang-format** and **clang-tidy** for style and lint; **GitHub Actions** builds with GCC and Clang, with warnings
-  as errors, and runs the tests, the lint and the Python checks.
+  as errors, runs the tests, the lint and the Python checks, and makes the releases.
 
 The reasons for the main choices, and the alternatives that were rejected, are in
 [docs/DECISIONS.md](docs/DECISIONS.md).
@@ -74,6 +74,11 @@ written down in [AGENTS.md](AGENTS.md), which the agent reads at the start of ea
 Where possible, rules are enforced by tools rather than by instructions alone: clang-tidy checks naming, and a
 test fails if a source makes random choices with the standard library's distributions, whose results differ
 between platforms.
+
+## Download
+
+[Releases](https://github.com/igor-buzhinsky/manifold/releases) have a build for Linux x86_64, made on Ubuntu 24.04
+(it needs glibc 2.39 or newer and a GPU with OpenGL 4.1). Unpack the archive and run `manifold` in its directory.
 
 ## Building (Linux)
 
@@ -138,6 +143,17 @@ Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building 
 [CI](.github/workflows/ci.yml) builds with GCC and with Clang, with warnings as errors, runs the tests, and runs the
 `lint` target and the Python checks on each push to `main` and on each pull request that changes more than Markdown
 files.
+
+To make a release, raise the version in `project()` in [CMakeLists.txt](CMakeLists.txt), merge that into `main`,
+and push a tag of the same version, such as `v0.3.0`, on that commit:
+
+```sh
+git tag v0.3.0 origin/main && git push origin v0.3.0
+```
+
+CI then runs its checks on the tag and, if they pass, makes a draft release with an archive of a Release build of
+the game, as `cmake --install` makes it. It fails if the tag doesn't match the version. Check the draft on GitHub and
+publish it.
 
 ## Code style
 

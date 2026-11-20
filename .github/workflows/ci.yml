@@ -2,12 +2,14 @@
 # and checks the Python scripts of scripts/. The runner is the Ubuntu release that README.md documents, so the
 # compilers and the clang-format and clang-tidy versions match a local setup. CMake is the runner's own, which is
 # newer than Ubuntu's. A pull request that changes only Markdown files doesn't run it, since nothing it checks can
-# change; pushes to main always run it.
+# change; pushes to main always run it. Pushing a tag vX.Y.Z also runs it, and once all checks pass, the release job
+# makes a draft GitHub release of that version with a Linux build of the game.
 name: CI
 
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
     paths-ignore: ['**.md']
   workflow_dispatch:
@@ -111,3 +113,60 @@ jobs:
         run: poetry run ruff check .
       - name: pyrefly
         run: poetry run pyrefly check
+
+  release:
+    name: Release (Linux x86_64)
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build-and-test, lint, python]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write  # To create the release.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false  # No step pushes: the release is created through the API.
+      - name: Install packages
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends $APT_PACKAGES
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DMANIFOLD_BUILD_TESTS=OFF
+      # The tag must name the version of project() in CMakeLists.txt, so that a release can't be made of a commit
+      # whose version wasn't raised.
+      - name: Check version
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          version=$(sed -n 's/^CMAKE_PROJECT_VERSION:STATIC=//p' build/CMakeCache.txt)
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::Tag $TAG doesn't match the version $version in CMakeLists.txt"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: cmake --build build
+      # The archive holds a directory of the game made by `cmake --install`: the executable, assets/, the manual and
+      # the licenses. SDL3 is linked into the executable, so only the system's C and C++ libraries, OpenGL and the
+      # libraries that SDL3 loads for the display and sound are needed.
+      - name: Package
+        id: package
+        env:
+          NAME: manifold-${{ steps.version.outputs.version }}-linux-x86_64
+        run: |
+          cmake --install build --prefix "$NAME"
+          tar -czf "$NAME.tar.gz" "$NAME"
+          echo "archive=$NAME.tar.gz" >> "$GITHUB_OUTPUT"
+      # A draft, so that the notes can be edited and the archive tried before the release is published by hand. The
+      # notes start with how to run the game, followed by the pull requests merged since the previous release.
+      - name: Create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+          NOTES: >-
+            A build for Linux x86_64, made on Ubuntu 24.04: it needs glibc 2.39 or newer and a GPU with OpenGL 4.1.
+            Unpack it and run `manifold` in its directory. The controls are in GAME_MANUAL.md.
+        run: |
+          gh release create "$TAG" "$ARCHIVE" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
+            --title "Manifold $VERSION" --notes "$NOTES" --generate-notes
