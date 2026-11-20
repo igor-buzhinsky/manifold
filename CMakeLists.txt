@@ -164,8 +164,8 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 # `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
-# with the game manual and the licenses of the game and of the libraries built into it. Releases are such copies. The layout isn't the usual one of /usr/local,
-# so without --prefix the copy goes into the build directory.
+# with the game manual and the licenses of the game and of the libraries built into it. Releases are such copies.
+# The layout isn't the usual one of /usr/local, so without --prefix the copy goes into the build directory.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
 endif()

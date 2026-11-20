@@ -148,12 +148,13 @@ To make a release, raise the version in `project()` in [CMakeLists.txt](CMakeLis
 and push a tag of the same version, such as `v0.3.0`, on that commit:
 
 ```sh
-git tag v0.3.0 origin/main && git push origin v0.3.0
+git fetch origin && git tag v0.3.0 origin/main && git push origin v0.3.0
 ```
 
 CI then runs its checks on the tag and, if they pass, makes a draft release with an archive of a Release build of
 the game, as `cmake --install` makes it. It fails if the tag doesn't match the version. Check the draft on GitHub and
-publish it.
+publish it. To run the release job again for the same tag, delete its draft first, since the job fails if a release of
+that tag exists.
 
 ## Code style
 
