@@ -58,8 +58,9 @@ asked or when unsure what a change affects.
 
 ## Review after nontrivial changes
 
-After a nontrivial code change (not typos, comments or docs only), and after the checks above pass, commit
-the change and then start one subagent to review it:
+After a nontrivial change to code or docs (not typo fixes or small edits of comments), and after the checks
+above pass, commit the change and then start one subagent to review it. A change to docs only needs no checks,
+and its review looks for claims that don't match the code, other docs or git history, and for unclear text:
 
 - Give the subagent the commit (or diff) to review and the goal of the change.
 - Tell it not to use any review skill (such as `/code-review`) and not to start subagents of its own.
@@ -109,10 +110,10 @@ When the user asks for a PR:
    - **TODO**, only if a screenshot would show the change (rendering, levels, UI): a request to the user to
      add one, with the console command that takes it and the screenshot's path, if one was taken. `gh`
      can't upload images, so the user adds it.
-4. Review any change to code, however small (only changes to docs and comments are left out), as in "Review
-   after nontrivial changes", giving the subagent the PR's number and diff. Post the findings as one GitHub
-   review with the event `COMMENT` (the author of a PR can't approve it or request changes), each finding as
-   a comment on its line of the diff: `gh api repos/OWNER/REPO/pulls/NUMBER/reviews` with `comments` of
+4. Review every PR, however small, also one that changes only docs, as in "Review after nontrivial
+   changes", giving the subagent the PR's number and diff. Post the findings as one GitHub review with the
+   event `COMMENT` (the author of a PR can't approve it or request changes), each finding as a comment on
+   its line of the diff: `gh api repos/OWNER/REPO/pulls/NUMBER/reviews` with `comments` of
    `path`, `line` and `side` (`RIGHT` for added and unchanged lines, `LEFT` for removed ones). Findings about
    lines outside the diff go into the review's body. If there are no findings, the review says so.
 5. Address the findings as for other changes, with new commits on the branch, then push them and reply to
