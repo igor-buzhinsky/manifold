@@ -172,7 +172,9 @@ and tools for inspecting the game. Done:
   `LightSettings` in `ViewSettings`, so screenshots use them too. A shadow map is drawn again when the range of its
   light changes.
 
-## v0.3 — Game menu, party and rudimentary spellcasting
+## v0.3 — Game menu, party and rudimentary spellcasting (finished: 2026-11-20, commit 650f5e2)
+
+Scope: menus, saving and loading, sound, a party of characters with mana and the first spells. Done:
 
 - **Ambient light**: half of the levels (chosen from the level seed) have no ambient light, the others have
   ambient light of the hue of the level's texture (its mean linear color scaled to a set luminance, so that
@@ -244,18 +246,21 @@ and tools for inspecting the game. Done:
   half a second, by the spell's time left in game time, so it stops while the game is paused (`spell_box_visible()`).
   A hidden box keeps its place, so the boxes below it don't move.
 
-## v0.4 - Water, rudimentary monsters and inventory
+## v0.4 — Water, rudimentary monsters and inventory
 
-- Monsters as billboard sprites, with Recast/Detour navigation.
-- **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint,
-- **Swimming and diving** (including breath), buoyancy for floating objects.
-- **Static 3D props** loaded from glTF, with simple collision shapes (boxes, cylinders, hulls): furniture and
-  decoration such as tables, crates, pillars and statues, and models for braziers, crystals and items, made in
-  Blender or taken from free packs. Props don't move, so they can join the level mesh and cast shadows like walls.
-  This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
-  and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
-- Items and inventory. Items lying on the level are implemented either as 3D objects (preferred) or billboard sprites.
-- **Damage from falling**: a fall from high enough hurts the characters of the party.
+- TODO
+  - Monsters as billboard sprites, with Recast/Detour navigation.
+  - **Water**: water volumes in levels, transparent water surfaces, underwater fog and tint.
+  - **Swimming and diving** (including breath), buoyancy for floating objects.
+  - **Static 3D props** loaded from glTF, with simple collision shapes (boxes, cylinders, hulls): furniture and
+    decoration such as tables, crates, pillars and statues, and models for braziers, crystals and items, made in
+    Blender or taken from free packs. Props don't move, so they can join the level mesh and cast shadows like walls.
+    This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
+    and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
+  - Items and inventory. Items lying on the level are implemented either as 3D objects (preferred) or billboard
+    sprites.
+  - **Damage from falling**: a fall from high enough hurts the characters of the party.
+  - **A single casting sound for spells**: one sound that plays whenever a spell is cast.
 
 ## Later (unordered)
 
