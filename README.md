@@ -12,7 +12,7 @@ monsters, items or story yet.
 
 ## Features
 
-Done so far (v0.1, v0.2 and most of v0.3):
+Done so far (v0.1 to v0.3):
 
 - **Procedural levels** from a seed: rooms on a grid in three layers, connected by openings, holes and ramps, with
   sliding wooden or metal doors. A spinning portal cube leads to the next level. The same seed gives the same level,
