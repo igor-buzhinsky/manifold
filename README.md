@@ -1,6 +1,7 @@
 # Manifold
 
 [![CI](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/igor-buzhinsky/manifold/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/igor-buzhinsky/manifold)](https://github.com/igor-buzhinsky/manifold/releases/latest)
 [![License](https://img.shields.io/github/license/igor-buzhinsky/manifold)](LICENSE)
 
 A hobby first-person fantasy game about a party of mages, in the spirit of *Daggerfall*: a retro, low-fi look,
