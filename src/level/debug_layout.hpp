@@ -21,6 +21,8 @@ struct DebugLayoutConfig {
     int max_attempts_per_block = 1000;  ///< How often to try placing an obstacle or a ramp before giving up.
     float torch_spacing = 8.0f;         ///< Distance between torches along the level walls, in metres.
     float torch_height = 1.6f;          ///< Height of a torch's mount above the floor, in metres.
+    /// Every this many torches, starting with the first one, one gets a small chest below it. 0 for no chests.
+    int torches_per_chest = 3;
 
     /// The box that encloses the level. It is 5 obstacle heights plus 4 ceiling thicknesses high, like 5
     /// layers of a room level, although only the lowest one is used.
@@ -41,8 +43,11 @@ struct DebugLayoutConfig {
 /// - The exit floats at a random place, see LevelExit. It doesn't overlap obstacles that reach its height, or
 ///   ramps.
 ///
+/// - Small chests stand on the floor below every `torches_per_chest`-th torch, at the wall, see Chest::at_wall(),
+///   except where an obstacle, a ramp or the exit is in the way. Each is golden or wooden, see choose_chest_look().
+///
 /// Everything lies fully inside the bounds, and the start in the center of the level stays free. The level
-/// info lists all obstacles, ceiling blocks, ramps and the exit.
+/// info lists all obstacles, ceiling blocks, ramps, the exit and the chests.
 class DebugLayout final : public LevelLayout {
 public:
     explicit DebugLayout(const DebugLayoutConfig& config) : config_(config) {}

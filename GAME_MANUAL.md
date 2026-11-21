@@ -103,6 +103,10 @@ in it.
 A door makes a sound when it starts to open and when it starts to close, also with the `door` command. Each door
 has its own two sounds, picked when the level is generated.
 
+Small chests stand at walls. In room levels, each room at least 2 tiles wide and deep, except the one where the player
+starts, has a chest with a chance of 10%. In the debug layout, chests stand below every third torch. A chest is wooden,
+or golden with a chance of 20%. Chests don't block the way, and activating one does nothing yet.
+
 ## Saving
 
 The game saves itself when it starts and when the player reaches a new level. There is only one save, of the
@@ -160,7 +164,7 @@ it types can't be typed.
 | Command | Action |
 |---|---|
 | `help` | List all commands |
-| `level_info` | Describe the level, depending on its layout, its ambient light, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps and the exit |
+| `level_info` | Describe the level, depending on its layout, its ambient light, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, the chests with their tiles, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps, the exit and the chests |
 | `camera` | Show where the camera is |
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
 | `camera player` | Put the camera back at the player's eyes |

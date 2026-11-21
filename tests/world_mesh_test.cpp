@@ -13,6 +13,7 @@
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
 
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/torch.hpp"
@@ -172,6 +173,32 @@ TEST(WorldMeshTest, TorchesHaveUntexturedHandleAndHead) {
         const bool handle = (i / kPrismVertices) % 2 == 0;
         EXPECT_EQ(mesh[i].color, handle ? kTorchHandleColor : kTorchHeadColor);
         EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
+    }
+}
+
+TEST(WorldMeshTest, ChestsAreTwoUntexturedBoxesFacingOutwards) {
+    const std::vector<Chest> chests{Chest::at_wall({1.0f, 2.0f, 0.0f}, 0.4f, ChestLook::kWood),
+                                    Chest::at_wall({-3.0f, 0.0f, 3.3f}, -1.0f, ChestLook::kGold)};
+    const std::vector<Vertex> mesh = build_chest_mesh(chests);
+    constexpr std::size_t kBoxVertices = 6 * kVerticesPerQuad;
+    ASSERT_EQ(mesh.size(), 4 * kBoxVertices);
+    const std::array<glm::vec3, 4> colors{kWoodenChestBodyColor, kWoodenChestLidColor, kGoldenChestBodyColor,
+                                          kGoldenChestLidColor};
+    for (std::size_t i = 0; i < mesh.size(); ++i) {
+        EXPECT_EQ(mesh[i].color, colors.at(i / kBoxVertices));
+        EXPECT_FLOAT_EQ(mesh[i].texture_weight, 0.0f);
+    }
+    for (std::size_t i = 0; i < mesh.size(); i += 3) {
+        const Chest& chest = chests.at(i / (2 * kBoxVertices));
+        const Obstacle box = (i / kBoxVertices) % 2 == 0 ? chest.body() : chest.lid();
+        const glm::vec3 box_center = box.base_center + glm::vec3(0.0f, 0.0f, box.height / 2.0f);
+        const glm::vec3 center = (mesh[i].position + mesh[i + 1].position + mesh[i + 2].position) / 3.0f;
+        const glm::vec3 cross =
+            glm::cross(mesh[i + 1].position - mesh[i].position, mesh[i + 2].position - mesh[i].position);
+        EXPECT_GT(glm::dot(cross, mesh[i].normal), 0.0f);
+        EXPECT_GT(glm::dot(center - box_center, mesh[i].normal), 0.0f);
+        EXPECT_GE(mesh[i].position.z, chest.base_center.z - 1e-5f);
+        EXPECT_LE(mesh[i].position.z, chest.base_center.z + Chest::kHeight + 1e-5f);
     }
 }
 

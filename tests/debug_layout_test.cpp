@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <numbers>
 #include <set>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -16,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
+#include "world/chest.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/torch.hpp"
@@ -213,6 +215,55 @@ TEST(DebugLayoutTest, TorchesHangOnLevelWallsFacingInwards) {
     }
 }
 
+TEST(DebugLayoutTest, ChestsStandBelowEveryThirdTorchUnlessSomethingIsInTheWay) {
+    // With nothing in the way, torches 0, 3, ..., 15 of the 16 get a chest.
+    DebugLayoutConfig empty = make_config();
+    empty.obstacle_count = 0;
+    empty.ramp_count = 0;
+    const Level bare = generate(empty, 1);
+    const auto below = [](const Torch& torch) {
+        return Chest::at_wall({torch.mount.x, torch.mount.y, 0.0f}, torch.yaw, ChestLook::kWood);
+    };
+    std::size_t blocked_by_exit = 0;
+    for (std::size_t i = 0; i < bare.world.torches().size(); i += 3) {
+        const RotatedRectangle footprint = below(bare.world.torches()[i]).footprint();
+        blocked_by_exit += intersects(footprint, bare.world.exit()->footprint()) ? 1 : 0;
+    }
+    EXPECT_EQ(bare.world.chests().size(), 6U - blocked_by_exit);
+
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const Level level = generate(make_config(), seed);
+        const std::span<const Torch> torches = level.world.torches();
+        std::size_t next = 0;  // The next chest of the level to find.
+        for (std::size_t i = 0; i < torches.size(); i += 3) {
+            const Chest expected = below(torches[i]);
+            if (next < level.world.chests().size() && level.world.chests()[next].base_center == expected.base_center) {
+                EXPECT_EQ(level.world.chests()[next].yaw, expected.yaw);
+                ++next;
+                continue;
+            }
+            // A torch without a chest has something in its way.
+            const RotatedRectangle footprint = expected.footprint();
+            const bool obstacle = std::ranges::any_of(level.world.obstacles(), [&](const Obstacle& obstacle) {
+                return obstacle.base_center.z == 0.0f && intersects(footprint, obstacle.footprint());
+            });
+            const bool ramp = std::ranges::any_of(
+                level.world.ramps(), [&](const Ramp& ramp) { return intersects(footprint, ramp.footprint()); });
+            EXPECT_TRUE(obstacle || ramp || intersects(footprint, level.world.exit()->footprint())) << "seed " << seed;
+        }
+        EXPECT_EQ(next, level.world.chests().size()) << "seed " << seed;
+        for (const Chest& chest : level.world.chests()) {
+            EXPECT_FLOAT_EQ(chest.base_center.z, 0.0f);
+        }
+    }
+}
+
+TEST(DebugLayoutTest, NoChestsWithoutTorchesPerChest) {
+    DebugLayoutConfig config = make_config();
+    config.torches_per_chest = 0;
+    EXPECT_TRUE(generate(config, 1).world.chests().empty());
+}
+
 TEST(DebugLayoutTest, SameSeedGivesSameLevel) {
     const Level first = generate(make_config(), 42);
     const Level second = generate(make_config(), 42);
@@ -236,7 +287,9 @@ TEST(DebugLayoutTest, PlanListsObstaclesCeilingBlocksRampsAndExit) {
     for (const char c : level.info) {
         lines += c == '\n' ? 1 : 0;
     }
-    EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size() + 1);
+    EXPECT_EQ(lines, level.world.obstacles().size() + level.world.ramps().size() + 1 + level.world.chests().size());
+    ASSERT_FALSE(level.world.chests().empty());
+    EXPECT_NE(level.info.find("Chest"), std::string::npos);
     EXPECT_NE(level.info.find("Ceiling block"), std::string::npos);
     EXPECT_NE(level.info.find("Ramp"), std::string::npos);
     EXPECT_NE(level.info.find("Exit"), std::string::npos);

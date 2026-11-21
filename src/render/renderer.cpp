@@ -540,9 +540,11 @@ Renderer::Renderer(const World& world, const Image& texture)
     glBindVertexArray(vertex_array_);
     glGenBuffers(1, &vertex_buffer_);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer_);
-    // One buffer holds the world, then the torch handles, then the faces only shadow maps need. The main
-    // pass draws the first two, the shadow pass the first and the last.
+    // One buffer holds the world and the chests, then the torch handles, then the faces only shadow maps need. The
+    // main pass draws the first two, the shadow pass the first and the last.
     std::vector<Vertex> vertices = build_world_mesh(world);
+    const std::vector<Vertex> chest_mesh = build_chest_mesh(world.chests());
+    vertices.insert(vertices.end(), chest_mesh.begin(), chest_mesh.end());
     world_vertex_count_ = static_cast<GLsizei>(vertices.size());
     const std::vector<Vertex> torch_mesh = build_torch_mesh(world.torches());
     vertices.insert(vertices.end(), torch_mesh.begin(), torch_mesh.end());
@@ -691,8 +693,8 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     glViewport(0, 0, kShadowMapSize, kShadowMapSize);
     glUseProgram(shadow_program_);
     // Torch handles cast no shadows: a real flame is much larger than our point light, so the handle under
-    // it would cast a long, hard shadow down the wall that a real torch doesn't. Only the world, the faces
-    // from build_shadow_faces() and the door halves are drawn.
+    // it would cast a long, hard shadow down the wall that a real torch doesn't. Only the world with the chests, the
+    // faces from build_shadow_faces() and the door halves are drawn.
     // Only back faces, as seen from the light, go into the shadow map. A lit surface is then never compared
     // with itself, which would shadow parts of it at random (shadow acne). Surfaces that face away from the
     // light are compared with themselves, but they get no light anyway.

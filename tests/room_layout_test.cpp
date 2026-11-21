@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <gtest/gtest.h>
@@ -25,6 +26,7 @@
 #include "game.hpp"
 #include "level/level.hpp"
 #include "physics/collision.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
@@ -976,6 +978,151 @@ TEST(RoomLayoutTest, ThrowsOnInvalidDoorChances) {
     EXPECT_THROW(generate(1, config), std::invalid_argument);
     config.min_door_chance = std::numeric_limits<float>::quiet_NaN();
     config.max_door_chance = 1.0f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+}
+
+/// Where a chest of a room level stands on its plan.
+struct ChestTile {
+    int layer = 0;
+    int x = 0;
+    int y = 0;
+};
+
+/// Finds the layer and the tile of a chest, for a level generated with make_config().
+ChestTile chest_tile(const LayeredPlan& plan, const Chest& chest) {
+    const RoomLayoutConfig config = make_config();
+    const float tile = config.tile_size;
+    const glm::vec2 grid_min =
+        -glm::vec2(static_cast<float>(plan.layers[0].width), static_cast<float>(plan.layers[0].height)) * tile / 2.0f;
+    const glm::vec2 position = (glm::vec2(chest.base_center) - grid_min) / tile;
+    return {.layer = static_cast<int>(std::round(chest.base_center.z / (config.height + config.slab_thickness))),
+            .x = static_cast<int>(std::floor(position.x)),
+            .y = static_cast<int>(std::floor(position.y))};
+}
+
+/// Checks whether a room of the plan can get a chest: it is no corridor and not the room where the player starts.
+bool can_have_chest(const LayeredPlan& plan, int layer, int room) {
+    const RoomPlan& rooms = plan.layers.at(static_cast<std::size_t>(layer));
+    const GridRoom& grid_room = rooms.rooms.at(static_cast<std::size_t>(room));
+    const bool start = layer == plan.start_layer && room == rooms.room_at(plan.start_x, plan.start_y);
+    return grid_room.width >= 2 && grid_room.height >= 2 && !start;
+}
+
+TEST(RoomLayoutTest, ChestsStandAtWallsOfRoomsAwayFromHolesOpeningsAndTheExit) {
+    RoomLayoutConfig config = make_config();
+    config.chest_chance = 1.0f;
+    const float layer_step = config.height + config.slab_thickness;
+    std::size_t chests = 0;
+    std::size_t rooms = 0;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        const LayeredPlan plan = make_layered_plan(seed);
+        const Level level = generate(seed, config);
+        std::set<std::pair<int, int>> rooms_with_chests;
+        for (const Chest& chest : level.world.chests()) {
+            const auto [layer_number, x, y] = chest_tile(plan, chest);
+            const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(layer_number));
+            EXPECT_NEAR(chest.base_center.z, static_cast<float>(layer_number) * layer_step, 1e-4f);
+            ASSERT_EQ(layer.tile(x, y), Tile::kFloor) << "seed " << seed;
+            const int room = layer.room_at(x, y);
+            EXPECT_TRUE(can_have_chest(plan, layer_number, room)) << "seed " << seed;
+            EXPECT_TRUE(rooms_with_chests.emplace(layer_number, room).second) << "seed " << seed;
+            EXPECT_FALSE(plan.is_hole(layer_number, x, y) || plan.is_hole(layer_number - 1, x, y)) << "seed " << seed;
+            EXPECT_FALSE(layer_number == plan.exit_layer && x == plan.exit_x && y == plan.exit_y) << "seed " << seed;
+            for (const auto& [dx, dy] : {std::pair{1, 0}, std::pair{-1, 0}, std::pair{0, 1}, std::pair{0, -1}}) {
+                EXPECT_NE(layer.tile(x + dx, y + dy), Tile::kOpening) << "seed " << seed;
+            }
+            // A wall is right behind the chest, the chest itself is in the open, in the middle of the wall side.
+            const glm::vec3 front{std::cos(chest.yaw), std::sin(chest.yaw), 0.0f};
+            const glm::vec3 middle = chest.base_center + glm::vec3(0.0f, 0.0f, Chest::kHeight / 2.0f);
+            const float to_back = (Chest::kDepth / 2.0f) + Chest::kLidOverhang;
+            EXPECT_TRUE(inside_obstacle(level.world, middle - ((to_back + Chest::kWallGap + 0.02f) * front)));
+            EXPECT_FALSE(inside_obstacle(level.world, middle - ((to_back + Chest::kWallGap - 0.02f) * front)));
+            EXPECT_FALSE(inside_obstacle(level.world, middle + (to_back * front)));
+            const glm::vec2 from_tile_center =
+                glm::vec2(chest.base_center) - glm::vec2(level.world.bounds().x_min, level.world.bounds().y_min) -
+                ((glm::vec2(static_cast<float>(x), static_cast<float>(y)) + 0.5f) * config.tile_size);
+            EXPECT_NEAR(std::abs(glm::dot(from_tile_center, glm::vec2(-front.y, front.x))), 0.0f, 1e-4f);
+        }
+        for (std::size_t layer = 0; layer < plan.layers.size(); ++layer) {
+            for (std::size_t room = 0; room < plan.layers[layer].rooms.size(); ++room) {
+                rooms += can_have_chest(plan, static_cast<int>(layer), static_cast<int>(room)) ? 1 : 0;
+            }
+        }
+        chests += level.world.chests().size();
+    }
+    // With a chance of 1, almost every room that can have a chest has a place for it.
+    EXPECT_GT(chests, 50U);
+    EXPECT_GT(static_cast<float>(chests), 0.9f * static_cast<float>(rooms));
+}
+
+TEST(RoomLayoutTest, ChestChanceControlsChestCountAndAFifthAreGolden) {
+    RoomLayoutConfig every_room = make_config();
+    every_room.chest_chance = 1.0f;
+    RoomLayoutConfig none = make_config();
+    none.chest_chance = 0.0f;
+    std::size_t all = 0;
+    std::size_t some = 0;
+    std::size_t golden = 0;
+    for (std::uint64_t seed = 0; seed < kSeeds; ++seed) {
+        EXPECT_TRUE(generate(seed, none).world.chests().empty());
+        const Level level = generate(seed, every_room);
+        all += level.world.chests().size();
+        golden += static_cast<std::size_t>(std::ranges::count_if(
+            level.world.chests(), [](const Chest& chest) { return chest.look == ChestLook::kGold; }));
+        some += generate(seed).world.chests().size();  // The default chance: 10%.
+    }
+    EXPECT_GT(some, all / 20);
+    EXPECT_LT(some, all / 5);
+    EXPECT_GT(golden, all / 10);
+    EXPECT_LT(golden, all * 3 / 10);
+}
+
+TEST(RoomLayoutTest, ChestsChangeNothingElseInTheLevel) {
+    RoomLayoutConfig none = make_config();
+    none.chest_chance = 0.0f;
+    RoomLayoutConfig every_room = make_config();
+    every_room.chest_chance = 1.0f;
+    for (std::uint64_t seed = 0; seed < 5; ++seed) {
+        const Level bare = generate(seed, none);
+        const Level full = generate(seed, every_room);
+        EXPECT_EQ(bare.world.obstacles().size(), full.world.obstacles().size());
+        ASSERT_EQ(bare.world.torches().size(), full.world.torches().size());
+        for (std::size_t i = 0; i < bare.world.torches().size(); ++i) {
+            EXPECT_EQ(bare.world.torches()[i].mount, full.world.torches()[i].mount);
+        }
+        ASSERT_EQ(bare.world.doors().size(), full.world.doors().size());
+        for (std::size_t i = 0; i < bare.world.doors().size(); ++i) {
+            EXPECT_EQ(bare.world.doors()[i].base_center, full.world.doors()[i].base_center);
+        }
+        EXPECT_EQ(bare.world.door_look(), full.world.door_look());
+        EXPECT_EQ(bare.player_start, full.player_start);
+        EXPECT_EQ(bare.world.exit()->floor_point, full.world.exit()->floor_point);
+    }
+}
+
+TEST(RoomLayoutTest, InfoListsChests) {
+    RoomLayoutConfig config = make_config();
+    config.chest_chance = 1.0f;
+    const LayeredPlan plan = make_layered_plan(1);
+    const Level level = generate(1, config);
+    ASSERT_FALSE(level.world.chests().empty());
+    EXPECT_NE(level.info.find(std::format("Chests: {}\n", level.world.chests().size())), std::string::npos)
+        << level.info;
+    const Chest& chest = level.world.chests()[0];
+    const auto [layer, x, y] = chest_tile(plan, chest);
+    EXPECT_NE(level.info.find(std::format("{} on layer {}, tile ({}, {}), wall towards ", chest_look_name(chest.look),
+                                          layer, x, y)),
+              std::string::npos)
+        << level.info;
+}
+
+TEST(RoomLayoutTest, ThrowsOnInvalidChestChance) {
+    RoomLayoutConfig config = make_config();
+    config.chest_chance = 1.5f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.chest_chance = -0.1f;
+    EXPECT_THROW(generate(1, config), std::invalid_argument);
+    config.chest_chance = std::numeric_limits<float>::quiet_NaN();
     EXPECT_THROW(generate(1, config), std::invalid_argument);
 }
 

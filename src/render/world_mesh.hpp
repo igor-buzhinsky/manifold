@@ -7,6 +7,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
@@ -34,6 +35,15 @@ inline constexpr glm::vec3 kTorchHandleColor{0.2f, 0.1f, 0.04f};
 /// Color of the charred, burning end of a torch, linear RGB.
 inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 
+/// Color of the body of a wooden chest, linear RGB.
+inline constexpr glm::vec3 kWoodenChestBodyColor{0.16f, 0.075f, 0.03f};
+/// Color of the lid of a wooden chest, linear RGB: darker than the body.
+inline constexpr glm::vec3 kWoodenChestLidColor{0.07f, 0.035f, 0.015f};
+/// Color of the body of a golden chest, linear RGB.
+inline constexpr glm::vec3 kGoldenChestBodyColor{0.55f, 0.3f, 0.01f};
+/// Color of the lid of a golden chest, linear RGB: brighter than the body.
+inline constexpr glm::vec3 kGoldenChestLidColor{0.9f, 0.6f, 0.03f};
+
 /// Creates triangles for the floor, the ceiling, the boundary walls, the obstacles and the ramps of a world.
 ///
 /// Obstacles with a Surface::kDark surface are untextured, in kDarkSurfaceColor. Everything else has the level
@@ -47,7 +57,8 @@ inline constexpr glm::vec3 kTorchHeadColor{0.05f, 0.035f, 0.025f};
 /// Texture coordinates come from the position on the surface's plane, so the texture is never stretched,
 /// also on ramp slopes. On vertical surfaces the texture is upright: its top is up.
 ///
-/// The torches and the exit are left out, see build_torch_mesh() and build_exit_mesh().
+/// The torches, the chests and the exit are left out, see build_torch_mesh(), build_chest_mesh() and
+/// build_exit_mesh().
 std::vector<Vertex> build_world_mesh(const World& world);
 
 /// Creates the faces that only shadow maps need, which build_world_mesh() leaves out.
@@ -71,6 +82,12 @@ std::vector<Vertex> build_shadow_faces(const World& world, float thickness);
 /// Triangles are counter-clockwise as in build_world_mesh(). The flames are not part of the mesh: the
 /// renderer draws them as sprites.
 std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches);
+
+/// Creates triangles for chests: two untextured boxes each, the body and the lid on it, see Chest::body() and
+/// Chest::lid(), with all six faces. A wooden chest is in kWoodenChestBodyColor and kWoodenChestLidColor, a golden
+/// one in kGoldenChestBodyColor and kGoldenChestLidColor. Triangles are counter-clockwise as in build_world_mesh(),
+/// with normals pointing out of the boxes.
+std::vector<Vertex> build_chest_mesh(std::span<const Chest> chests);
 
 /// Creates triangles for the cube of the level exit, centered on the origin. The renderer spins it and moves it
 /// into place, see exit_spin_angle().

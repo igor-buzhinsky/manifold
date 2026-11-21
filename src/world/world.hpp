@@ -7,6 +7,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
@@ -69,12 +70,12 @@ struct LevelExit {
     bool touches(const VerticalCylinder& body) const;
 };
 
-/// The static part of a level: its boundaries, the geometry inside them, the torches on the walls, the doors and the
-/// exit.
+/// The static part of a level: its boundaries, the geometry inside them, the torches on the walls, the chests, the
+/// doors and the exit.
 ///
-/// Only obstacles, ramps and the boundaries collide. The frames of doors are obstacles too, but the halves are not:
-/// how far a door is open changes, so it is kept outside of the world model, with the other dynamic state, such as
-/// the player. See DoorState.
+/// Only obstacles, ramps and the boundaries collide: chests don't, for now. The frames of doors are obstacles too, but
+/// the halves are not: how far a door is open changes, so it is kept outside of the world model, with the other dynamic
+/// state, such as the player. See DoorState.
 ///
 /// The world sorts its obstacles, ramps and doors into grids, so that collision and ray casts can test only the ones
 /// near a body or a ray.
@@ -87,6 +88,7 @@ public:
     std::span<const Obstacle> obstacles() const { return obstacles_; }
     std::span<const Ramp> ramps() const { return ramps_; }
     std::span<const Torch> torches() const { return torches_; }
+    std::span<const Chest> chests() const { return chests_; }
     std::span<const Door> doors() const { return doors_; }
     /// What all doors of the level are made of. Wood unless set.
     DoorLook door_look() const { return door_look_; }
@@ -108,6 +110,7 @@ public:
     void add_obstacle(const Obstacle& obstacle);
     void add_ramp(const Ramp& ramp);
     void add_torch(const Torch& torch);
+    void add_chest(const Chest& chest) { chests_.push_back(chest); }
     /// Adds a door, and its two frames as obstacles, see Door::frame().
     void add_door(const Door& door);
     void set_door_look(DoorLook look) { door_look_ = look; }
@@ -126,6 +129,7 @@ private:
     SpatialGrid ramp_grid_;
     SpatialGrid door_grid_;
     std::vector<Torch> torches_;
+    std::vector<Chest> chests_;
     std::vector<Door> doors_;
     DoorLook door_look_ = DoorLook::kWood;
     std::optional<LevelExit> exit_;

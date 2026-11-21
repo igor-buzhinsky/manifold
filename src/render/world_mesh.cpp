@@ -12,6 +12,7 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/torch.hpp"
@@ -209,6 +210,18 @@ void add_wall(std::vector<Vertex>& vertices, const glm::vec3& from, const glm::v
     add_quad(vertices, {to, from, from + up, to + up}, material);
 }
 
+/// Adds all six faces of an obstacle, facing outwards, in one material.
+void add_box(std::vector<Vertex>& vertices, const Obstacle& box, const Material& material) {
+    // The corners are counter-clockwise, so the walls go through them clockwise to face outwards.
+    const std::array<glm::vec3, 4> corners = obstacle_corners(box);
+    for (std::size_t i = 0; i < corners.size(); ++i) {
+        add_wall(vertices, corners.at((i + 1) % corners.size()), corners.at(i), box.height, material);
+    }
+    const glm::vec3 top{0.0f, 0.0f, box.height};
+    add_quad(vertices, {corners[0] + top, corners[1] + top, corners[2] + top, corners[3] + top}, material);
+    add_quad(vertices, {corners[3], corners[2], corners[1], corners[0]}, material);
+}
+
 }  // namespace
 
 std::vector<Vertex> build_world_mesh(const World& world) {
@@ -292,6 +305,18 @@ std::vector<Vertex> build_torch_mesh(std::span<const Torch> torches) {
     std::vector<Vertex> vertices;
     for (const Torch& torch : torches) {
         add_torch(vertices, torch);
+    }
+    return vertices;
+}
+
+std::vector<Vertex> build_chest_mesh(std::span<const Chest> chests) {
+    std::vector<Vertex> vertices;
+    for (const Chest& chest : chests) {
+        const bool golden = chest.look == ChestLook::kGold;
+        const Material body{.color = golden ? kGoldenChestBodyColor : kWoodenChestBodyColor, .texture_weight = 0.0f};
+        const Material lid{.color = golden ? kGoldenChestLidColor : kWoodenChestLidColor, .texture_weight = 0.0f};
+        add_box(vertices, chest.body(), body);
+        add_box(vertices, chest.lid(), lid);
     }
     return vertices;
 }

@@ -19,6 +19,7 @@
 #include "level/level.hpp"
 #include "util/log.hpp"
 #include "util/random.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
@@ -731,20 +732,89 @@ std::pair<int, int> add_doors(World& world, const LayeredPlan& plan, const GridP
     return {doors, openings};
 }
 
+/// A chest of a room level and where it stands on the plan.
+struct PlacedChest {
+    int layer = 0;      ///< Index of the layer.
+    TilePosition tile;  ///< The tile it stands on.
+    /// The side of the tile with the wall behind the chest, as an index into kNeighborSteps.
+    std::size_t wall_side = 0;
+    ChestLook look = ChestLook::kWood;
+};
+
+/// All places for a chest in a room, see RoomLayout, tile by tile, row by row. Their look is not chosen yet.
+std::vector<PlacedChest> find_chest_spots(const LayeredPlan& plan, int layer_number, const GridRoom& room) {
+    const RoomPlan& layer = plan.layers.at(static_cast<std::size_t>(layer_number));
+    std::vector<PlacedChest> spots;
+    // A chest in front of an opening would stand in the way between rooms, and one at a hole would stand on the drop
+    // or on a ramp.
+    for_each_inside_tile(room, [&](int x, int y) {
+        const bool exit = layer_number == plan.exit_layer && x == plan.exit_x && y == plan.exit_y;
+        if (exit || find_hole(plan, layer_number, x, y) || near_opening(layer, x, y)) {
+            return;
+        }
+        for (std::size_t side = 0; side < kNeighborSteps.size(); ++side) {
+            const TilePosition& step = kNeighborSteps.at(side);
+            if (layer.tile(x + step.x, y + step.y) == Tile::kWall) {
+                spots.push_back({.layer = layer_number, .tile = {.x = x, .y = y}, .wall_side = side});
+            }
+        }
+    });
+    return spots;
+}
+
+/// Puts small chests into rooms, see RoomLayout.
+///
+/// The chest chance must be valid, see RoomLayout::generate().
+///
+/// \return The chests, in the order they were added to the world.
+std::vector<PlacedChest> add_chests(World& world, const LayeredPlan& plan, const GridPlacement& grid,
+                                    const RoomLayoutConfig& config, LevelRng& rng) {
+    const int start_room =
+        plan.layers.at(static_cast<std::size_t>(plan.start_layer)).room_at(plan.start_x, plan.start_y);
+    std::vector<PlacedChest> chests;
+    for (std::size_t index = 0; index < plan.layers.size(); ++index) {
+        const RoomPlan& layer = plan.layers[index];
+        const auto layer_number = static_cast<int>(index);
+        for (std::size_t room_index = 0; room_index < layer.rooms.size(); ++room_index) {
+            const GridRoom& room = layer.rooms[room_index];
+            const bool is_start_room = layer_number == plan.start_layer && static_cast<int>(room_index) == start_room;
+            // A room 1 tile wide is a corridor, where a chest would stand in the way.
+            if (room.width < 2 || room.height < 2 || is_start_room || !random_chance(rng, config.chest_chance)) {
+                continue;
+            }
+            const std::vector<PlacedChest> spots = find_chest_spots(plan, layer_number, room);
+            if (spots.empty()) {
+                continue;
+            }
+            PlacedChest chest = spots[random_index(rng, spots.size())];
+            chest.look = choose_chest_look(rng);
+            const TilePosition& step = kNeighborSteps.at(chest.wall_side);
+            const glm::vec3 to_wall{static_cast<float>(step.x), static_cast<float>(step.y), 0.0f};
+            const glm::vec3 wall_point =
+                grid.tile_center(chest.tile.x, chest.tile.y, grid.floor_z[index]) + (to_wall * (grid.tile / 2.0f));
+            world.add_chest(Chest::at_wall(wall_point, std::atan2(-to_wall.y, -to_wall.x), chest.look));
+            chests.push_back(chest);
+        }
+    }
+    return chests;
+}
+
 /// How far below its ceiling the cut of the `cutaway` console command shows a layer best: low enough to
 /// leave out the ceiling, high enough to keep almost all of the walls.
 constexpr float kCutBelowCeiling = 0.1f;
 
 /// Describes the level for Level::info: how tiles map to world coordinates, where the player starts, where
-/// the exit is, how many openings have doors and what the doors are made of, and the plan, see draw_plan().
+/// the exit is, how many openings have doors and what the doors are made of, where the chests are, and the plan, see
+/// draw_plan().
 ///
 /// \param plan   The plan of the level.
 /// \param grid   Where the tiles are in the world.
 /// \param height Height of a layer from its floor to its ceiling.
 /// \param doors  The number of doors and the number of openings, see add_doors().
 /// \param look   What the doors are made of.
+/// \param chests The chests, see add_chests().
 std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float height, std::pair<int, int> doors,
-                     DoorLook look) {
+                     DoorLook look, const std::vector<PlacedChest>& chests) {
     constexpr std::array<const char*, 4> kDirections{"+x", "+y", "-x", "-y"};
     const TileBox box = used_tiles(plan);
     std::string floors;
@@ -753,16 +823,22 @@ std::string describe(const LayeredPlan& plan, const GridPlacement& grid, float h
         floors += std::format("{}{:.2f}", floors.empty() ? "" : ", ", z);
         cuts += std::format("{}{:.2f}", cuts.empty() ? "" : ", ", z + height - kCutBelowCeiling);
     }
+    std::string chest_list;
+    for (const PlacedChest& chest : chests) {
+        chest_list += std::format("\n  {} on layer {}, tile ({}, {}), wall towards {}", chest_look_name(chest.look),
+                                  chest.layer, chest.tile.x, chest.tile.y, kDirections.at(chest.wall_side));
+    }
     return std::format(
         "Tiles of {} m: tile (x, y) covers world x from {} + {} x to {} + {} x and y from {} + {} y to {} + {} y.\n"
         "Floors of the layers at z = {}. To see a layer from above: cutaway {}.\n"
         "The plan shows tiles x = {} to {} from left to right, y = {} down to {} from top to bottom.\n"
         "Start: layer {}, tile ({}, {}), facing {}.\nExit: layer {}, tile ({}, {}).\nDoors of {} in {} of {} "
-        "openings.\n{}",
+        "openings.\nChests: {}{}\n{}",
         grid.tile, grid.x_min, grid.tile, grid.x_min + grid.tile, grid.tile, grid.y_min, grid.tile,
         grid.y_min + grid.tile, grid.tile, floors, cuts, box.x_min, box.x_max, box.y_max, box.y_min, plan.start_layer,
         plan.start_x, plan.start_y, kDirections.at(static_cast<std::size_t>(plan.start_direction)), plan.exit_layer,
-        plan.exit_x, plan.exit_y, door_look_name(look), doors.first, doors.second, draw_plan(plan));
+        plan.exit_x, plan.exit_y, door_look_name(look), doors.first, doors.second, chests.size(), chest_list,
+        draw_plan(plan));
 }
 
 }  // namespace
@@ -781,6 +857,9 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     }
     if (!valid_chances(config_.min_door_chance, config_.max_door_chance)) {
         throw std::invalid_argument("door chances must be in [0, 1], the smallest first");
+    }
+    if (!valid_chances(config_.chest_chance, config_.chest_chance)) {
+        throw std::invalid_argument("the chest chance must be in [0, 1]");
     }
     const LayeredPlan plan = plan_layers(config_, rng);
     const RoomPlan& bottom = plan.layers.at(0);
@@ -805,7 +884,9 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     build_ramps(world, plan, grid);
     std::vector<Torch> free_start_torches = add_torches(world, plan, grid, config_, rng);
     const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
-    std::string info = describe(plan, grid, config_.height, doors, world.door_look());
+    // Chests come last, so they don't change the other random choices of a seed.
+    const std::vector<PlacedChest> chests = add_chests(world, plan, grid, config_, rng);
+    std::string info = describe(plan, grid, config_.height, doors, world.door_look(), chests);
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
                                                     grid.floor_z.at(static_cast<std::size_t>(plan.exit_layer)))});
 

@@ -134,6 +134,7 @@ add_library(manifold_core STATIC
     src/util/frame_times.cpp
     src/util/log.cpp
     src/util/random.cpp
+    src/world/chest.cpp
     src/world/door.cpp
     src/world/geometry.cpp
     src/world/obstacle.cpp
@@ -195,6 +196,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/asset_files_test.cpp
         tests/button_list_test.cpp
         tests/camera_test.cpp
+        tests/chest_test.cpp
         tests/collision_test.cpp
         tests/console_test.cpp
         tests/console_window_test.cpp
