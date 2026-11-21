@@ -194,14 +194,14 @@ std::string draw_plan(const LayeredPlan& plan);
 /// Each opening gets a door with the same chance, chosen for the level uniformly from [`min_door_chance`,
 /// `max_door_chance`]. A door fills its opening, with the wall running across the way between the rooms, see Door.
 /// Each room at least 2 tiles wide and deep, except the one where the player starts, gets a small chest with the
-/// chance `chest_chance`. The chest stands at a random wall side of the room, in the middle of it, facing into the
-/// room, see Chest::at_wall(). Its tile is not part of a hole in its floor or ceiling (where a ramp may be), doesn't
-/// share a side with an opening, and is not the tile of the exit. A room without such a tile gets no chest. Each chest
-/// is golden or wooden, see choose_chest_look().
-/// The player starts in the center of a random tile, facing a random direction, and the exit is in the center
-/// of a random tile of another layer, see plan_layers(). The level info tells how tiles map to world coordinates,
-/// where the player starts and where the exit is, how many openings have doors, where the chests are, and draws the
-/// plan, see draw_plan().
+/// chance `chest_chance`. The chest stands in the middle of a side of one of the room's tiles that has a wall behind
+/// it, facing into the room, see Chest::at_wall(). All such sides have the same chance, so corner tiles, with two of
+/// them, are chosen twice as often. Its tile is not part of a hole in its floor or ceiling (where a ramp may be),
+/// doesn't share a side with an opening, and is not the tile of the exit. A room without such a tile gets no chest.
+/// Each chest is golden or wooden, see choose_chest_look(). The player starts in the center of a random tile, facing a
+/// random direction, and the exit is in the center of a random tile of another layer, see plan_layers(). The level info
+/// tells how tiles map to world coordinates, where the player starts and where the exit is, how many openings have
+/// doors, where the chests are, and draws the plan, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}

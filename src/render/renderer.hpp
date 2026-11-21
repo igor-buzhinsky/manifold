@@ -48,12 +48,12 @@ class Renderer {
 public:
     /// Compiles the shaders and uploads the meshes of the world, its texture and the flames to the GPU.
     ///
-    /// The world casts shadows, see build_world_mesh() and build_shadow_faces(), and so do the chests (see
-    /// build_chest_mesh()) and the door halves (see
-    /// build_door_mesh()), which are lit like the world, with the texture of make_door_texture() for the world's door
-    /// look. Torches and the exit don't: torch handles (see build_torch_mesh()), flames and the exit (see
-    /// build_exit_mesh()) are only drawn. Torch i flickers with torch_phase(i). The exit spins (see exit_spin_angle()),
-    /// and is painted as an animated, partly see-through portal that pulses with its light (see exit_pulse()).
+    /// The world, with the chests (see build_chest_mesh()), casts shadows, see build_world_mesh() and
+    /// build_shadow_faces(), and so do the door halves (see build_door_mesh()), which are lit like the world, with the
+    /// texture of make_door_texture() for the world's door look. Torches and the exit don't: torch handles (see
+    /// build_torch_mesh()), flames and the exit (see build_exit_mesh()) are only drawn. Torch i flickers with
+    /// torch_phase(i). The exit spins (see exit_spin_angle()), and is painted as an animated, partly see-through portal
+    /// that pulses with its light (see exit_pulse()).
     ///
     /// \param world   The world to draw. Only its geometry is copied, so it doesn't need to outlive the
     ///                renderer.
