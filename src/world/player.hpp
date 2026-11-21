@@ -23,8 +23,8 @@ class Player {
 public:
     /// How far the eyes are below the top of the head, in metres.
     static constexpr float kEyeDepth = 0.12f;
-    /// How far the player can look up or down: 30 degrees.
-    static constexpr float kMaxPitch = std::numbers::pi_v<float> / 6.0f;
+    /// How far the player can look up or down: 40 degrees.
+    static constexpr float kMaxPitch = 40.0f * std::numbers::pi_v<float> / 180.0f;
 
     /// Creates the player looking straight ahead.
     explicit Player(const PlayerParams& params)

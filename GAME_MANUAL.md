@@ -7,11 +7,11 @@
 | W / S | Walk forward / backward |
 | A / D | Step left / right |
 | Left / Right arrow | Turn left / right |
-| Up / Down arrow | Look up / down (at most 30° each way) |
+| Up / Down arrow | Look up / down (at most 40° each way) |
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or Levitate: fly up |
 | Page Down | With noclip or Levitate: fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
-| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 30° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |
+| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |
 | C | Cast Candlelight, see Spells below |
 | L | Cast Levitate, see Spells below |
 | F9 | Load the saved game: start the saved level again from its start, see Saving below |
