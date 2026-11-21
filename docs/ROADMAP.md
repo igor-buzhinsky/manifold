@@ -267,6 +267,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   chests are golden, the others wooden. A chest is an object of its own in the world, not a part of a wall or a floor
   tile, so it stays if a wall goes. Activating a chest does nothing yet. Chests are drawn with the world and cast
   shadows.
+- **Looking up and down by 40°** instead of 30°, so that E reaches a chest on the floor more easily.
 
 ## Later (unordered)
 

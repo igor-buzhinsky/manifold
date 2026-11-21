@@ -154,9 +154,9 @@ TEST(PlayerTest, RotateTurnsAndLooks) {
     EXPECT_FLOAT_EQ(player.pitch(), -0.1f);
 }
 
-TEST(PlayerTest, PitchIsClampedTo30Degrees) {
+TEST(PlayerTest, PitchIsClampedTo40Degrees) {
     Player player({});
-    EXPECT_NEAR(Player::kMaxPitch, 30.0f * std::numbers::pi_v<float> / 180.0f, 1e-6f);
+    EXPECT_NEAR(Player::kMaxPitch, 40.0f * std::numbers::pi_v<float> / 180.0f, 1e-6f);
     player.rotate(0.0f, 2.0f);
     EXPECT_FLOAT_EQ(player.pitch(), Player::kMaxPitch);
     player.rotate(0.0f, -5.0f);
