@@ -38,6 +38,9 @@ struct RoomLayoutConfig {
     float min_door_chance = 0.1f;
     /// Largest chance that an opening gets a door, in [0, 1].
     float max_door_chance = 1.0f;
+    /// Chance that a room gets a small chest, in [0, 1]. Only rooms at least 2 tiles wide and deep, other than the
+    /// one where the player starts, can get one.
+    float chest_chance = 0.1f;
 };
 
 /// What a tile of the room grid contains.
@@ -190,9 +193,15 @@ std::string draw_plan(const LayeredPlan& plan);
 /// choose_torch_flame().
 /// Each opening gets a door with the same chance, chosen for the level uniformly from [`min_door_chance`,
 /// `max_door_chance`]. A door fills its opening, with the wall running across the way between the rooms, see Door.
+/// Each room at least 2 tiles wide and deep, except the one where the player starts, gets a small chest with the
+/// chance `chest_chance`. The chest stands at a random wall side of the room, in the middle of it, facing into the
+/// room, see Chest::at_wall(). Its tile is not part of a hole in its floor or ceiling (where a ramp may be), doesn't
+/// share a side with an opening, and is not the tile of the exit. A room without such a tile gets no chest. Each chest
+/// is golden or wooden, see choose_chest_look().
 /// The player starts in the center of a random tile, facing a random direction, and the exit is in the center
 /// of a random tile of another layer, see plan_layers(). The level info tells how tiles map to world coordinates,
-/// where the player starts and where the exit is, how many openings have doors, and draws the plan, see draw_plan().
+/// where the player starts and where the exit is, how many openings have doors, where the chests are, and draws the
+/// plan, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
     explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}
@@ -200,7 +209,7 @@ public:
     /// \copydoc LevelLayout::generate
     /// \throws std::runtime_error also if the tiles are too narrow for the clearance, or if doors can appear and the
     ///         gap between their frames (see Door::gap()) is too narrow for it.
-    /// \throws std::invalid_argument if the torch or door chances are not in [0, 1], or min_torch_chance >
+    /// \throws std::invalid_argument if the torch, door or chest chances are not in [0, 1], or min_torch_chance >
     ///         max_torch_chance, or min_door_chance > max_door_chance.
     Level generate(float clearance, LevelRng& rng) const override;
 

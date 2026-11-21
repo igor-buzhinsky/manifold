@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <format>
 #include <numbers>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -15,6 +17,7 @@
 
 #include "level/level.hpp"
 #include "util/random.hpp"
+#include "world/chest.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 #include "world/torch.hpp"
@@ -170,10 +173,34 @@ void place_torches(const DebugLayoutConfig& config, TorchFlame flame, World& wor
     }
 }
 
+/// Puts small chests below some torches, see DebugLayout. The exit must be placed already.
+void place_chests(const DebugLayoutConfig& config, World& world, LevelRng& rng) {
+    if (config.torches_per_chest <= 0) {
+        return;
+    }
+    const std::span<const Torch> torches = world.torches();
+    for (std::size_t i = 0; i < torches.size(); i += static_cast<std::size_t>(config.torches_per_chest)) {
+        const Torch& torch = torches[i];
+        const Chest chest = Chest::at_wall({torch.mount.x, torch.mount.y, 0.0f}, torch.yaw, choose_chest_look(rng));
+        const RotatedRectangle footprint = chest.footprint();
+        const auto overlaps = [&footprint](const auto& thing) { return intersects(footprint, thing.footprint()); };
+        // Ceiling blocks are far above the chests, so only obstacles on the floor can be in the way.
+        const auto obstacle_blocks = [&](const Obstacle& obstacle) {
+            return obstacle.base_center.z < Chest::kHeight && overlaps(obstacle);
+        };
+        const std::optional<LevelExit>& exit = world.exit();
+        const bool exit_blocks = exit && overlaps(*exit);
+        if (!exit_blocks && !std::ranges::any_of(world.obstacles(), obstacle_blocks) &&
+            !std::ranges::any_of(world.ramps(), overlaps)) {
+            world.add_chest(chest);
+        }
+    }
+}
+
 /// Converts radians to degrees, for the level info.
 float degrees(float radians) { return radians * 180.0f / std::numbers::pi_v<float>; }
 
-/// Lists the obstacles, ceiling blocks, ramps and the exit, one per line.
+/// Lists the obstacles, ceiling blocks, ramps, the exit and the chests, one per line.
 std::string describe(const World& world) {
     std::string info;
     for (const Obstacle& obstacle : world.obstacles()) {
@@ -189,6 +216,11 @@ std::string describe(const World& world) {
     if (const std::optional<LevelExit>& exit = world.exit()) {
         info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}) on the floor\n", "Exit", exit->floor_point.x,
                             exit->floor_point.y, exit->floor_point.z);
+    }
+    for (const Chest& chest : world.chests()) {
+        info += std::format("{:13} center ({:6.2f}, {:6.2f}, {:4.2f}), {}, facing {:5.1f} deg\n", "Chest",
+                            chest.base_center.x, chest.base_center.y, chest.base_center.z, chest_look_name(chest.look),
+                            degrees(chest.yaw));
     }
     return info;
 }
@@ -215,6 +247,8 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     place_ramps(config_, keep_clear, world, rng);
     place_torches(config_, choose_torch_flame(rng), world);
     place_exit(config_, keep_clear, world, rng);
+    // Chests come last, so they don't change the other random choices of a seed.
+    place_chests(config_, world, rng);
     std::string info = describe(world);
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .info = std::move(info)};
 }

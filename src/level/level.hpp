@@ -8,6 +8,7 @@
 
 #include "level/texture_kind.hpp"
 #include "util/random.hpp"
+#include "world/chest.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
 
@@ -22,6 +23,12 @@ constexpr float kEarthGravity = 9.81f;
 
 /// Chooses the flame of all torches of a level: orange with a chance of 50%, blue and green with 25% each.
 TorchFlame choose_torch_flame(LevelRng& rng);
+
+/// Chance that a chest is golden rather than wooden, see choose_chest_look().
+inline constexpr double kGoldenChestChance = 0.2;
+
+/// Chooses what a chest is made of: gold with a chance of kGoldenChestChance, wood otherwise.
+ChestLook choose_chest_look(LevelRng& rng);
 
 /// Whether the level generated from `level_seed` has ambient light, which it has for half of the seeds, see
 /// level_ambient(). The choice depends only on the seed, and is independent of the other random choices made from it.

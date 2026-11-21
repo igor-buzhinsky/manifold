@@ -257,9 +257,16 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
     This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
     and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
   - Items and inventory. Items lying on the level are implemented either as 3D objects (preferred) or billboard
-    sprites.
+    sprites. Chests that hold items, opened by activating them.
   - **Damage from falling**: a fall from high enough hurts the characters of the party.
   - **A single casting sound for spells**: one sound that plays whenever a spell is cast.
+
+- **Small chests** (`Chest`): boxes with a lid of another color, at a small gap from a wall, without collision.
+  In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a chance of 10%, at a random
+  wall side away from holes, ramps, openings and the exit. The debug layout puts one below every third torch. 20% of
+  chests are golden, the others wooden. A chest is an object of its own in the world, not a part of a wall or a floor
+  tile, so it stays if a wall goes. Activating a chest does nothing yet. Chests are drawn with the world and cast
+  shadows.
 
 ## Later (unordered)
 
