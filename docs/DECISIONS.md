@@ -592,3 +592,35 @@ Drawbacks:
   (see Fewer shadow maps per frame in ROADMAP.md).
 - Lights fade out at the cut of the lights drawn more often.
 - The extra torch can hang 1 m beside the start, which is bright up close.
+
+## 2026-11-21: Small chests as objects of their own, placed at walls
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: a small chest is an object of its own in the world (`World::chests()`), with a position on the floor, the
+direction it faces and its look, not a decoration of a wall or of a floor tile. Level generation puts it at a wall, 5 cm
+from it, facing into the room. In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a
+chance of 10%, at a random wall side of a tile that isn't part of a hole or a ramp, isn't next to an opening and isn't
+the exit's tile. 20% of chests are golden, the others wooden. For now chests don't collide and do nothing when
+activated. They are placed after all other random choices of a level.
+
+Gains:
+
+- A chest stays where it is if its wall is ever removed, and it can later get its own state (contents, open or
+  closed), like doors have DoorState.
+- The same kind of object serves room levels and the debug layout, which has no tiles.
+- Levels of all seeds are otherwise unchanged, and saves stay valid.
+
+Rejected alternatives:
+
+- **Chests as wall decorations, like torches**: a chest stands on the floor, not on the wall, so it would have to be
+  moved or dropped when its wall goes.
+- **Chests as floor tile decorations**: ties chests to the tile grid, which the debug layout doesn't have, and to one
+  place per tile.
+- **Chests in corridors and next to openings**: they would stand in the way once chests collide.
+
+Drawbacks:
+
+- Without collision, the player walks through chests.
+- A chest right below a torch gets little light on its front, which faces away from the torch.
+- Golden chests look shiny only by their color: the renderer has no specular highlights.
