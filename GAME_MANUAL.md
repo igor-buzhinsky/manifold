@@ -104,7 +104,7 @@ A door makes a sound when it starts to open and when it starts to close, also wi
 has its own two sounds, picked when the level is generated.
 
 Small chests stand at walls. In room levels, each room at least 2 tiles wide and deep, except the one where the player
-starts, has a chest with a chance of 10%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
+starts, has a chest with a chance of 20%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
 or golden with a chance of 20%. Chests don't block the way, and activating one does nothing yet.
 
 ## Saving

@@ -262,7 +262,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   - **A single casting sound for spells**: one sound that plays whenever a spell is cast.
 
 - **Small chests** (`Chest`): boxes with a lid of another color, at a small gap from a wall, without collision.
-  In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a chance of 10%, at a random
+  In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a chance of 20%, at a random
   wall side of a tile that isn't part of a hole or a ramp, isn't next to an opening and isn't the exit's tile. The
   debug layout puts one below every third torch, unless an obstacle, a ramp or the exit is in the way. 20% of
   chests are golden, the others wooden. A chest is an object of its own in the world, not a part of a wall or a floor

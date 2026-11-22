@@ -600,7 +600,7 @@ Status: **ACCEPTED**. Done in v0.4.
 Decision: a small chest is an object of its own in the world (`World::chests()`), with a position on the floor, the
 direction it faces and its look, not a decoration of a wall or of a floor tile. Level generation puts it at a wall, 5 cm
 from it, facing into the room. In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a
-chance of 10%, at a random wall side of a tile that isn't part of a hole or a ramp, isn't next to an opening and isn't
+chance of 20%, at a random wall side of a tile that isn't part of a hole or a ramp, isn't next to an opening and isn't
 the exit's tile. 20% of chests are golden, the others wooden. For now chests don't collide and do nothing when
 activated. They are placed after all other random choices of a level.
 

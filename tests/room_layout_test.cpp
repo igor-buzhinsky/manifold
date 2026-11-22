@@ -1069,10 +1069,10 @@ TEST(RoomLayoutTest, ChestChanceControlsChestCountAndAFifthAreGolden) {
         all += level.world.chests().size();
         golden += static_cast<std::size_t>(std::ranges::count_if(
             level.world.chests(), [](const Chest& chest) { return chest.look == ChestLook::kGold; }));
-        some += generate(seed).world.chests().size();  // The default chance: 10%.
+        some += generate(seed).world.chests().size();  // The default chance: 20%.
     }
-    EXPECT_GT(some, all / 20);
-    EXPECT_LT(some, all / 5);
+    EXPECT_GT(some, all / 10);
+    EXPECT_LT(some, all * 3 / 10);
     EXPECT_GT(golden, all / 10);
     EXPECT_LT(golden, all * 3 / 10);
 }
