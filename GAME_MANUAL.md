@@ -188,7 +188,7 @@ it types can't be typed.
 | `shadows [on\|off]` | Turn shadows off or on |
 | `imgui [on\|off]` | Show or hide the debug overlay, like F3 |
 | `menu start\|game\|close` | Show the start menu or the game menu (see Menus above) instead of the open menus, or close them. The commands after it run in the next frame, when the menu is open, so that a screenshot shows it. The game is paused while a menu is open, but commands still run |
-| `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window. The commands after it run in the next frame, so they don't change the picture. Other sizes keep the 16:9 view, with black bars |
+| `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window. The commands after it run in the next frame, so they don't change the picture. The game goes on for that frame, as with `wait 1`. Other sizes keep the 16:9 view, with black bars |
 | `wait FRAMES` | Run the next commands this many frames later: with 1 in the next frame. E.g. to let the player fall |
 | `quit` | Quit the game after this frame, without running the commands after it |
 
