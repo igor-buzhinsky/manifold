@@ -210,6 +210,7 @@ TEST(GameCommandsTest, SwitchesToggleWithoutArgument) {
 
 TEST(GameCommandsTest, ScreenshotsKeepTheViewOfTheirTime) {
     Fixture fixture;
+    // The commands after the first screenshot run in the next frame, see CommandsAfterAScreenshotRunInTheNextFrame.
     fixture.run("camera 0 0 20 0 -90; screenshot top.png 800 450; camera player; arrow on; screenshot eyes.png");
     fixture.queue.run_frame(fixture.console);
     ASSERT_EQ(fixture.state.screenshots.size(), 2U);
