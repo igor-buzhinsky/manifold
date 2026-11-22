@@ -40,7 +40,7 @@ struct RoomLayoutConfig {
     float max_door_chance = 1.0f;
     /// Chance that a room gets a small chest, in [0, 1]. Only rooms at least 2 tiles wide and deep, other than the
     /// one where the player starts, can get one.
-    float chest_chance = 0.1f;
+    float chest_chance = 0.2f;
 };
 
 /// What a tile of the room grid contains.
