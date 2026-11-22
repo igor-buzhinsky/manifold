@@ -26,9 +26,9 @@ ctest --test-dir build --output-on-failure
 ## Function complexity
 
 clang-tidy limits the cognitive complexity of each function to 25 (`readability-function-cognitive-complexity`, with
-its default threshold), and `lint` fails above it. Nested loops and conditions count the most. Keep functions below
-the limit from the start by splitting them into functions with one job each, rather than splitting them only when
-`lint` fails.
+its default threshold), and `lint` fails above it. Each level of nesting adds to the cost of a loop or condition. Keep
+functions below the limit from the start by splitting them into functions with one job each, rather than splitting
+them only when `lint` fails.
 
 ## Units and coordinates
 
