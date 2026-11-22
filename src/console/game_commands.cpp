@@ -375,7 +375,8 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
 
     const std::string screenshot_usage = "screenshot FILE [WIDTH HEIGHT]";
     console.add("screenshot", screenshot_usage,
-                "Saves the view as a PNG file after this frame, by default as large as the window.",
+                "Saves the view as a PNG file after this frame, by default as large as the window. The next commands "
+                "run in the next frame.",
                 [&queue, &state, screenshot_usage](std::span<const std::string> arguments) {
                     if (arguments.size() != 1) {
                         expect_count(arguments, 3, screenshot_usage);
@@ -389,6 +390,9 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                                                  .height = parse_screenshot_size(arguments[2])};
                     }
                     state.screenshots.push_back(std::move(request));
+                    // The picture is drawn after the commands of this frame, so commands after it that move the player
+                    // or change the game would show in it. They wait for the next frame instead.
+                    queue.wait(1);
                 });
 
     const std::string menu_usage = "menu start|game|close";
