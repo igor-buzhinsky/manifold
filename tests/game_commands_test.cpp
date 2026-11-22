@@ -211,6 +211,7 @@ TEST(GameCommandsTest, SwitchesToggleWithoutArgument) {
 TEST(GameCommandsTest, ScreenshotsKeepTheViewOfTheirTime) {
     Fixture fixture;
     fixture.run("camera 0 0 20 0 -90; screenshot top.png 800 450; camera player; arrow on; screenshot eyes.png");
+    fixture.queue.run_frame(fixture.console);
     ASSERT_EQ(fixture.state.screenshots.size(), 2U);
     const ScreenshotRequest& top = fixture.state.screenshots[0];
     EXPECT_EQ(top.path, "top.png");
@@ -228,6 +229,17 @@ TEST(GameCommandsTest, ScreenshotsKeepTheViewOfTheirTime) {
     fixture.queue.add("screenshot typed.png", false);
     fixture.queue.run_frame(fixture.console);
     EXPECT_FALSE(fixture.state.screenshots.back().stop_on_error);
+}
+
+TEST(GameCommandsTest, CommandsAfterAScreenshotRunInTheNextFrame) {
+    Fixture fixture;
+    fixture.run("screenshot a.png; teleport 1 2 3; screenshot b.png");
+    ASSERT_EQ(fixture.state.screenshots.size(), 1U);
+    EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
+    EXPECT_EQ(fixture.state.screenshots.size(), 2U);
+    EXPECT_EQ(fixture.queue.size(), 0U);
 }
 
 TEST(GameCommandsTest, ScreenshotRejectsWrongSizes) {

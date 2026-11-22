@@ -269,6 +269,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   tile, so it stays if a wall goes. Activating a chest does nothing yet. Chests are drawn with the world and cast
   shadows.
 - **Looking up and down by 40°** instead of 30°, so that E reaches a chest on the floor more easily.
+- **Screenshots wait a frame**: the commands after `screenshot` run in the next frame. A screenshot is drawn after
+  the commands of its frame, so a `teleport` right after it used to show in the picture.
 
 ## Later (unordered)
 
