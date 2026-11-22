@@ -23,6 +23,13 @@ ctest --test-dir build --output-on-failure
 | Constants and enum values | `kPascalCase` | `kMaxPitch` |
 | Macros | `UPPER_CASE` | `MANIFOLD_ASSERT` |
 
+## Function complexity
+
+clang-tidy limits the cognitive complexity of each function to 25 (`readability-function-cognitive-complexity`, with
+its default threshold), and `lint` fails above it. Nested loops and conditions count the most. Keep functions below
+the limit from the start by splitting them into functions with one job each, rather than splitting them only when
+`lint` fails.
+
 ## Units and coordinates
 
 - Lengths are in metres, angles in radians, time in seconds.
