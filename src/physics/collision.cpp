@@ -22,8 +22,13 @@ namespace {
 
 /// A single step may move the body at most this fraction of its radius, so it can't skip through thin walls.
 constexpr float kMaxStepFraction = 0.5f;
-/// How many times per step overlaps are resolved. Several are needed in corners between surfaces.
-constexpr int kMaxResolveIterations = 4;
+/// How many times per step overlaps are resolved. Several are needed in corners between surfaces, and more where two
+/// surfaces nearly face each other, e.g. a block and the side of a ramp, where each push goes towards the other.
+/// Pushes that don't get the body free in this many take back the step, see move_and_slide().
+constexpr int kMaxResolveIterations = 16;
+/// An overlap shallower than this, in metres, that is left after the pushes doesn't keep the body from moving there.
+/// Pushes far below a millimetre can be lost to rounding: at x = 6.6 m, a float changes by about 5e-7 m at least.
+constexpr float kLeftOverlap = 1e-4f;
 
 /// Replaces `deepest` with `contact` if `contact` is deeper.
 void keep_deepest(std::optional<Contact>& deepest, const std::optional<Contact>& contact) {
@@ -70,6 +75,30 @@ std::optional<Contact> find_deepest_contact(const World& world, std::span<const 
         keep_deepest(deepest, find_contact(body, world.ramps()[index]));
     }
     return deepest;
+}
+
+/// Pushes a body out of what it overlaps, the deepest overlap first, at most kMaxResolveIterations times.
+///
+/// \param world          See find_deepest_contact().
+/// \param blockers       See find_deepest_contact().
+/// \param[in,out] body   The body, which is moved.
+/// \param[in,out] pushed The pushes are added to it.
+/// \param[out] nearby    See find_deepest_contact().
+/// \return Whether the body overlaps nothing at the end, or only by less than kLeftOverlap. It can still overlap
+///         something after the last push, e.g. between two surfaces closer than its width, which push it towards each
+///         other.
+bool resolve_overlaps(const World& world, std::span<const Obstacle> blockers, VerticalCylinder& body, glm::vec3& pushed,
+                      NearbyIndices& nearby) {
+    for (int iteration = 0; iteration < kMaxResolveIterations; ++iteration) {
+        const std::optional<Contact> contact = find_deepest_contact(world, blockers, body, nearby);
+        if (!contact) {
+            return true;
+        }
+        body.base += contact->normal * contact->depth;
+        pushed += contact->normal * contact->depth;
+    }
+    const std::optional<Contact> left = find_deepest_contact(world, blockers, body, nearby);
+    return !left || left->depth < kLeftOverlap;
 }
 
 /// The horizontal frame of a block rotated around the vertical axis, where its footprint is axis-aligned.
@@ -201,14 +230,18 @@ SlideResult move_and_slide(const World& world, const VerticalCylinder& body, con
     glm::vec3 correction{0.0f};
     NearbyIndices nearby;
     for (int i = 0; i < steps; ++i) {
+        const VerticalCylinder before = moved;
+        const glm::vec3 correction_before = correction;
         moved.base += step;
-        for (int iteration = 0; iteration < kMaxResolveIterations; ++iteration) {
-            const std::optional<Contact> contact = find_deepest_contact(world, blockers, moved, nearby);
-            if (!contact) {
-                break;
-            }
-            moved.base += contact->normal * contact->depth;
-            correction += contact->normal * contact->depth;
+        if (!resolve_overlaps(world, blockers, moved, correction, nearby)) {
+            // The pushes didn't get the body free, as in a gap narrower than the body, where each push out of one side
+            // goes into the other. They may also have left out a shallow overlap such as the floor's. The body can't
+            // go there, so the horizontal part of the step is taken back, as a correction, and only the vertical part
+            // is made.
+            moved = before;
+            moved.base.z += step.z;
+            correction = correction_before - glm::vec3(step.x, step.y, 0.0f);
+            resolve_overlaps(world, blockers, moved, correction, nearby);
         }
     }
     return {.position = moved.base, .correction = correction};
