@@ -367,12 +367,12 @@ TEST(GameTest, WalksUpRampOntoPlatform) {
     EXPECT_TRUE(game.player().on_ground());
 }
 
-/// An empty level whose wall at y = 1 is a little more than the player's radius from the start at the origin.
-Level make_wall_level(float yaw) {
+/// An empty level with a wall at y = 1, and the player at x = 0, `gap` metres from touching it.
+Level make_wall_level(float yaw, float gap = 0.01f) {
     const World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 1.0f, .height = 3.0f});
     return {.layout = LayoutKind::kDebug,
             .world = world,
-            .player_start = {0.0f, 1.0f - PlayerParams{}.radius - 0.01f, 0.0f},
+            .player_start = {0.0f, 1.0f - PlayerParams{}.radius - gap, 0.0f},
             .player_yaw = yaw,
             .info = ""};
 }
@@ -454,15 +454,52 @@ TEST(GameTest, SteppingOffALedgeKeepsTheWalkingVelocity) {
 }
 
 TEST(GameTest, AWallInTheAirStopsOnlyThePartOfTheVelocityIntoIt) {
-    // A jump at 45 degrees towards the wall at y = 1: after hitting it, the player slides along it.
-    Game game(make_config(), make_wall_level(kPi / 4.0f));
+    // A jump at 45 degrees towards the wall at y = 1, 0.3 m away: the player reaches it in the air, at about 0.2 s,
+    // and then slides along it.
+    Game game(make_config(), make_wall_level(kPi / 4.0f, 0.3f));
     run(game, {}, 0.1f);
     game.update({.forward = 1.0f, .rise = 1.0f}, 0.01f);
+    const float part = std::numbers::sqrt2_v<float> / 2.0f;
+    EXPECT_NEAR(game.player().horizontal_velocity().y, 2.0f * part, 1e-3f);
+    run(game, {}, 0.4f);
+    EXPECT_FALSE(game.player().on_ground());
+    EXPECT_NEAR(game.player().horizontal_velocity().x, 2.0f * part, 1e-3f);
+    EXPECT_NEAR(game.player().horizontal_velocity().y, 0.0f, 1e-3f);
+}
+
+TEST(GameTest, ARunningTakeOffIntoAWallKeepsTheWalkingSlide) {
+    // Running and jumping at 45 degrees into the wall, from touching it: the take-off frame is moved again at walking
+    // speed, so the velocity kept in the air is the walking speed's part along the wall.
+    Game game(make_config(), make_wall_level(kPi / 4.0f, 0.0f));
     run(game, {}, 0.1f);
+    game.update({.forward = 1.0f, .run = true, .rise = 1.0f}, 0.01f);
     EXPECT_FALSE(game.player().on_ground());
     const float part = std::numbers::sqrt2_v<float> / 2.0f;
     EXPECT_NEAR(game.player().horizontal_velocity().x, 2.0f * part, 1e-3f);
     EXPECT_NEAR(game.player().horizontal_velocity().y, 0.0f, 1e-3f);
+}
+
+TEST(GameTest, NoclipTurnedOffInTheAirFallsStraightDown) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.set_noclip(true);
+    game.update({.forward = 1.0f, .rise = 1.0f}, 1.0f);
+    game.set_noclip(false);
+    const float x = game.player().position().x;
+    run(game, {.forward = 1.0f}, 0.3f);
+    EXPECT_FALSE(game.player().on_ground());
+    EXPECT_NEAR(game.player().position().x, x, 1e-5f);
+}
+
+TEST(GameTest, TheNextAndTheLoadedLevelStartOnTheGround) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_TRUE(game.player().on_ground());
+    const SavedGame save = game.save_point();
+    game.teleport({0.0f, 0.0f, 2.0f});
+    game.next_level();
+    EXPECT_TRUE(game.player().on_ground());
+    game.teleport({0.0f, 0.0f, 2.0f});
+    game.load(save);
+    EXPECT_TRUE(game.player().on_ground());
 }
 
 TEST(GameTest, TeleportAndTheEndOfLevitationFallFromRest) {

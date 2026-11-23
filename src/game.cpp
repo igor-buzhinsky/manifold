@@ -223,6 +223,10 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
     rise_held_ = input.rise > 0.0f;
     player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
+    if (dt <= 0.0f) {
+        // Nothing moves, and the player stays on the ground or in the air, with the same velocity.
+        return;
+    }
 
     // Walking is horizontal, in the direction the player faces, whatever the pitch.
     // Walking diagonally is not faster than walking straight.
@@ -277,9 +281,7 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     }
     player_.set_position(result.position);
     // The velocity follows the actual movement, so what stops the player, such as a wall, also stops the velocity.
-    if (dt > 0.0f) {
-        player_.set_horizontal_velocity(glm::vec2(result.position - start) / dt);
-    }
+    player_.set_horizontal_velocity(glm::vec2(result.position - start) / dt);
     bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
 
     // Walking down a slope, the ground drops away faster than gravity pulls the player down at first. If
