@@ -59,6 +59,8 @@ std::string movement_violation_name(MovementViolation violation);
 /// One broken invariant, where and when it happened.
 struct MovementSimExample {
     MovementViolation violation = MovementViolation::kOverlap;
+    /// The layout of the level it happened in. After an exit, it can differ from the run's first level, since the
+    /// next levels choose their layouts at random.
     LayoutKind layout = LayoutKind::kDebug;
     std::uint64_t seed = 0;    ///< The seed of the run, which is that of its first level.
     int level_number = 0;      ///< How many levels came before the one it happened in, in the run.
@@ -73,6 +75,7 @@ struct MovementSimReport {
     int levels = 0;      ///< Levels played, including the next levels reached through an exit.
     int jumps = 0;       ///< Jumps made.
     int real_drops = 0;  ///< Falls of at least kRealDrop without a jump, e.g. off the side of a ramp.
+    int door_moves = 0;  ///< Doors that the simulation started to open or close near the player.
     /// How often each kind of violation happened, indexed by MovementViolation.
     std::array<int, kMovementViolationCount> counts{};
     /// The first MovementSimConfig::examples of each kind, in the order they happened.
@@ -84,14 +87,20 @@ struct MovementSimReport {
 
 /// Plays levels with random input and checks invariants of the player's movement after every frame.
 ///
-/// For each layout and seed, a game starts at that seed and the player walks, runs, steps aside, turns and jumps at
-/// random, with new keys every 0.7 s, for MovementSimConfig::seconds. A level whose exit is reached is followed by
-/// the next one, as in the game. The random choices depend only on the seed, so a run can be repeated. It checks the
-/// invariants of MovementViolation.
+/// For each layout and seed, a game starts at that seed and the player walks, runs, steps aside, stands, turns, looks
+/// up and down and jumps at random, with new keys every 0.7 s, for MovementSimConfig::seconds. Each time, the door
+/// nearest to the player, if one is within 4 m, starts to open or close with a chance of 50%, unless the game refuses.
+/// A level whose exit is reached is followed by the next one, as in the game. The random choices depend only on the
+/// seed, so a run can be repeated. It checks the invariants of MovementViolation.
+///
+/// \throws std::invalid_argument if `config.seeds` is not positive, `config.dt` is not above 0 and at most half of the
+///         0.7 s between new keys (so that a jump is a new press), or `config.seconds` gives no frame or more than
+///         1e9 frames per seed.
 MovementSimReport run_movement_sim(const MovementSimConfig& config);
 
-/// The report as text: the totals, the count of each violation and the examples, with the seed and layout to look at
-/// them in the game.
+/// The report as text: the totals, the count of each violation and the examples, with the layout, the seed of the run,
+/// the level number and the frame. An example in the first level (level 0) can be looked at in the game with
+/// `manifold SEED --layout LAYOUT` and `teleport`; a later level is reached only by running the simulation again.
 std::string format_movement_sim_report(const MovementSimReport& report);
 
 }  // namespace manifold

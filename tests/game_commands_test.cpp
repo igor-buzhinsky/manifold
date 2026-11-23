@@ -284,19 +284,52 @@ TEST(GameCommandsTest, LevelInfoTakesNoArguments) {
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }
 
+/// Keeps the messages logged while it lives, and stops listening when it is destroyed, also when a test fails.
+class LogCapture {
+public:
+    LogCapture() {
+        set_log_listener([this](LogLevel, std::string_view message) { messages_.emplace_back(message); });
+    }
+    ~LogCapture() { set_log_listener({}); }
+    LogCapture(const LogCapture&) = delete;
+    LogCapture& operator=(const LogCapture&) = delete;
+    LogCapture(LogCapture&&) = delete;
+    LogCapture& operator=(LogCapture&&) = delete;
+
+    /// The last message, or an empty string if there is none.
+    std::string last() const { return messages_.empty() ? std::string() : messages_.back(); }
+
+private:
+    std::vector<std::string> messages_;
+};
+
+/// Whether `text` contains `part`, with `text` in the failure message.
+testing::AssertionResult contains(const std::string& text, const std::string& part) {
+    if (text.find(part) != std::string::npos) {
+        return testing::AssertionSuccess();
+    }
+    return testing::AssertionFailure() << "\"" << part << "\" not in:\n" << text;
+}
+
 TEST(GameCommandsTest, PlayerInfoDescribesHowThePlayerMoves) {
     Fixture fixture;
-    std::vector<std::string> messages;
-    set_log_listener([&messages](LogLevel, std::string_view message) { messages.emplace_back(message); });
+    const LogCapture log;
     fixture.game.update({.forward = 1.0f}, 0.4f);  // Walks 1 m along +x at 2.5 m/s.
     fixture.run("player_info");
+    EXPECT_TRUE(contains(log.last(), "Player at (1.00, 0.00, 0.00), yaw 0.0 deg, pitch 0.0 deg"));
+    EXPECT_TRUE(contains(log.last(), "On the ground, horizontal velocity (2.50, 0.00) m/s, 2.50 m/s"));
+    EXPECT_TRUE(contains(log.last(), "vertical speed 0.00 m/s"));
+    EXPECT_TRUE(contains(log.last(), "Noclip off, Levitate not in effect"));
+
+    fixture.game.update({.rise = 1.0f}, 0.01f);  // A jump.
+    fixture.run("player_info");
+    EXPECT_TRUE(contains(log.last(), "In the air, horizontal velocity (0.00, 0.00) m/s, 0.00 m/s, vertical speed 3."));
+
+    fixture.run("noclip on");
+    ASSERT_TRUE(fixture.game.cast(Spell::kLevitate));
+    fixture.run("player_info");
+    EXPECT_TRUE(contains(log.last(), "Noclip on, Levitate in effect"));
     fixture.expect_error("player_info now");
-    set_log_listener({});
-    ASSERT_FALSE(messages.empty());
-    const std::string& text = messages.front();
-    EXPECT_NE(text.find("Player at (1.00, 0.00, 0.00), yaw 0.0 deg, pitch 0.0 deg"), std::string::npos) << text;
-    EXPECT_NE(text.find("On the ground, horizontal velocity (2.50, 0.00) m/s, 2.50 m/s"), std::string::npos) << text;
-    EXPECT_NE(text.find("Noclip off, Levitate not in effect"), std::string::npos) << text;
 }
 
 TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {

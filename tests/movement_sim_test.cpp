@@ -1,6 +1,8 @@
 #include "sim/movement_sim.hpp"
 
+#include <cmath>
 #include <cstddef>
+#include <stdexcept>
 #include <string>
 
 #include <gtest/gtest.h>
@@ -54,6 +56,22 @@ TEST(MovementSimTest, TheReportListsTheCountsAndExamples) {
               std::string::npos)
         << text;
     EXPECT_NE(text.find("FAILED"), std::string::npos) << text;
+}
+
+TEST(MovementSimTest, RejectsConfigsThatCantRun) {
+    const auto with = [](auto change) {
+        MovementSimConfig config = short_config();
+        change(config);
+        return config;
+    };
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.seeds = 0; })), std::invalid_argument);
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.dt = 0.0f; })), std::invalid_argument);
+    // So large that a jump, a single press, would be held in every frame.
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.dt = 0.5f; })), std::invalid_argument);
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.dt = std::nanf(""); })), std::invalid_argument);
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.seconds = std::nanf(""); })),
+                 std::invalid_argument);
+    EXPECT_THROW(run_movement_sim(with([](MovementSimConfig& c) { c.seconds = 0.001f; })), std::invalid_argument);
 }
 
 TEST(MovementSimTest, EveryViolationHasAName) {
