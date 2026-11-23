@@ -61,9 +61,11 @@ struct ConsoleState {
     std::vector<ScreenshotRequest> screenshots;  ///< To take after this frame is drawn, in order.
     bool quit = false;                           ///< Whether to quit after this frame.
     bool debug_overlay = false;                  ///< Whether the debug overlay is shown.
-    /// For how many more frames the player walks forward as if W were held, see the `walk` command. The main loop
-    /// counts it down.
+    /// For how many more frames the player walks forward as if W were held, see the `walk` and `run` commands. The
+    /// main loop counts it down.
     int walk_frames = 0;
+    /// Whether the player runs during walk_frames, as if Shift were held too, see the `run` command.
+    bool walk_runs = false;
     /// Whether to load the saved game at the start of the next frame, as the load key (F9) does and the `load` command
     /// asks. The main loop does it and resets this.
     bool load = false;

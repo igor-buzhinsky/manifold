@@ -29,7 +29,11 @@ struct GameConfig {
     PlayerParams player;  ///< The player at the start. The position and yaw are replaced by the level's start.
     float turn_speed = std::numbers::pi_v<float> / 2.0f;  ///< Radians per second: 90 degrees.
     float look_speed = std::numbers::pi_v<float> / 3.0f;  ///< Radians per second: 60 degrees.
-    float move_speed = 3.0f;                              ///< Metres per second, also when rising.
+    /// Metres per second: walking, stepping aside, rising and sinking with noclip or Levitate, and what running
+    /// becomes when it runs into something. A brisk walk.
+    float walk_speed = 2.5f;
+    /// Forward speed while running, in metres per second, see PlayerInput::run. A fast run, at 3:42 minutes per km.
+    float run_speed = 4.5f;
     /// Steepest slope, as height per horizontal distance, that the player sticks to when walking down.
     float max_snap_slope = 1.0f;
     /// How high a jump lifts the player's feet under Earth gravity, in metres. The take-off speed is the same
@@ -47,7 +51,12 @@ struct PlayerInput {
     float turn = 0.0f;     ///< Positive turns left.
     float look = 0.0f;     ///< Positive looks up.
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
-    float strafe = 0.0f;   ///< Positive steps right, negative left.
+    /// Whether the player runs: walking forward is at GameConfig::run_speed instead of GameConfig::walk_speed. Only
+    /// the forward part of the movement is faster, not walking backward or stepping aside. It has no effect while
+    /// Levitate is in effect, and in a frame where the faster movement would run into something, the player moves at
+    /// walking speed instead.
+    bool run = false;
+    float strafe = 0.0f;  ///< Positive steps right, negative left.
     /// Positive jumps, or flies up with noclip or levitation. Negative flies down with noclip or levitation. A jump
     /// needs a new press: rise must have been <= 0 in the previous frame.
     float rise = 0.0f;
@@ -206,9 +215,9 @@ public:
 
     /// How many footsteps the player made since the last call, e.g. to play their sounds. Resets the count.
     ///
-    /// Without noclip, a player on the ground makes a step every kStepLength walked, the first one kStepLength / 4
-    /// after starting to walk from standing. Landing at more than kLandingSpeed, e.g. after a jump, is a step too.
-    /// The count starts again from 0 in each level and after teleport().
+    /// Without noclip, a player on the ground makes a step every kWalkStepLength walked, or kRunStepLength run, the
+    /// first one a quarter of a step after starting to move from standing. Landing at more than kLandingSpeed, e.g.
+    /// after a jump, is a step too. The count starts again from 0 in each level and after teleport().
     int take_footsteps() { return std::exchange(footsteps_, 0); }
 
     /// The doors that started to move since the last call, in the order they started, e.g. to play their sounds.
@@ -256,13 +265,17 @@ public:
 
     /// Length of the cycle of animation_time(), in seconds: one hour.
     static constexpr double kAnimationPeriod = 3600.0;
-    /// How far the player walks per footstep, in metres. At move_speed 3 m/s, that is 3 steps per second.
-    static constexpr float kStepLength = 1.0f;
+    /// How far the player walks per footstep, in metres. At the default walk_speed of 2.5 m/s, that is 2.5 steps per
+    /// second.
+    static constexpr float kWalkStepLength = 1.0f;
+    /// How far the player runs per footstep, in metres. At the default run_speed of 4.5 m/s, that is 3 steps per
+    /// second, a usual cadence of running.
+    static constexpr float kRunStepLength = 1.5f;
     /// The slowest vertical speed of landing that makes a footstep, in metres per second. A jump of 0.5 m lands at
     /// about 3 m/s, and walking down a ramp lands much slower.
     static constexpr float kLandingSpeed = 2.0f;
-    /// How far the player walks from standing before the first footstep, in metres.
-    static constexpr float kFirstStepLength = kStepLength / 4.0f;
+    /// The part of a step that the player moves from standing before the first footstep.
+    static constexpr float kFirstStepFraction = 0.25f;
     /// Moving less than this in a frame, in metres, counts as standing still for footsteps, e.g. pushing into a wall.
     static constexpr float kStandingDistance = 1e-4f;
     /// How far from the eyes the player can activate things, in metres.
@@ -286,7 +299,8 @@ private:
     ///
     /// \param walked        How far the player moved horizontally in the frame, in metres.
     /// \param landing_speed The vertical speed at which the player landed in the frame, positive downwards, or 0.
-    void count_footsteps(float walked, float landing_speed);
+    /// \param step_length   The length of a step of the frame's gait, kWalkStepLength or kRunStepLength, in metres.
+    void count_footsteps(float walked, float landing_speed, float step_length);
 
     /// The blockers of the doors that are not passable, see Door::blocker().
     std::vector<Obstacle> door_blockers() const;
@@ -298,7 +312,8 @@ private:
     PlayerParams player_params_;
     float turn_speed_;
     float look_speed_;
-    float move_speed_;
+    float walk_speed_;
+    float run_speed_;
     float max_snap_slope_;
     float jump_speed_;                     ///< Take-off speed of a jump, in metres per second.
     std::vector<PortraitFile> portraits_;  ///< See GameConfig::portraits.
@@ -321,8 +336,9 @@ private:
     std::vector<DoorState> doors_;              ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;          ///< See take_door_moves().
     int footsteps_ = 0;                         ///< See take_footsteps().
-    /// How far the player has walked on the ground since the last footstep, in metres.
-    float step_distance_ = kStepLength - kFirstStepLength;
+    /// How much of a step the player has moved on the ground since the last footstep, from 0 to 1. Running and
+    /// walking add to it by their own step lengths.
+    float step_progress_ = 1.0f - kFirstStepFraction;
 };
 
 }  // namespace manifold

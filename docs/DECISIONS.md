@@ -658,3 +658,39 @@ Drawbacks:
 
 - The picture is drawn at the screen's full resolution, which is slower than a 1600 x 900 window on large screens.
 - Settings are changed only by editing a file until the game menu gets a settings screen.
+
+## 2026-11-23: Running with Shift at 4.5 m/s, and walking at 2.5 m/s
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: holding Shift makes the player run. Walking slows from 3 m/s to 2.5 m/s, a brisk walk, and running is
+4.5 m/s, a fast run (3:42 minutes per km). Only the forward part of the movement, in the horizontal direction of the
+view, gets the running speed: walking backward and stepping aside stay at walking speed, and running diagonally is
+faster only in its forward part. If a frame of running is pushed back sideways by a wall, a block or a door, the frame
+is moved again at walking speed, so running into something, also sliding along it, is no faster than walking. Ramps
+push the player straight up, so running up them stays fast. Running works on the ground, in the air and with noclip,
+but not with Levitate. A running footstep is 1.5 m instead of 1 m. Running costs nothing yet; stamina comes later.
+
+Gains:
+
+- Speeds near real ones: 3 m/s was a jog, with 180 steps per minute. Now a walk is about 150 steps per minute and a
+  run 180, at step lengths of 1 m and 1.5 m.
+- Running only forward keeps strafing and backing away slow, as they are for a real runner.
+- Slowing down at walls keeps running from making the player shoot along walls and into corners, and the check is
+  cheap: a second collision pass only in frames that hit something.
+
+Rejected alternatives:
+
+- **Twice the walking speed of 3 m/s, i.e. 6 m/s**: faster than the pace of elite marathon runners, which doesn't
+  fit the game's realistic speeds.
+- **A realistic slow walk of 1.4 m/s**: too slow to cross the levels, which are tens of metres wide.
+- **Running in every direction**: runners don't run backwards or sideways at full speed.
+- **Clamping the speed of the slide along a wall** instead of moving the frame again: needs changes in the collision
+  code, while moving again at walking speed gives the same slide as walking.
+
+Drawbacks:
+
+- Walking is a sixth slower than before.
+- There is no momentum: running stops at once when Shift is let go, also in the middle of a jump.
+- A frame that touches something while running moves at walking speed, e.g. when the player brushes a corner, which
+  can feel like a small stutter.

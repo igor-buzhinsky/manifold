@@ -151,7 +151,7 @@ TEST(GameCommandsTest, NoclipTogglesOrIsSet) {
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }
 
-TEST(GameCommandsTest, WalkSetsTheFramesToWalk) {
+TEST(GameCommandsTest, WalkAndRunSetTheFramesToMove) {
     Fixture fixture;
     fixture.run("walk 30");
     EXPECT_EQ(fixture.state.walk_frames, 30);
@@ -159,6 +159,15 @@ TEST(GameCommandsTest, WalkSetsTheFramesToWalk) {
     EXPECT_EQ(fixture.state.walk_frames, 0);
     fixture.expect_error("walk -1");
     fixture.expect_error("walk");
+    EXPECT_FALSE(fixture.state.walk_runs);
+    fixture.run("run 20");
+    EXPECT_EQ(fixture.state.walk_frames, 20);
+    EXPECT_TRUE(fixture.state.walk_runs);
+    fixture.run("walk 10");
+    EXPECT_EQ(fixture.state.walk_frames, 10);
+    EXPECT_FALSE(fixture.state.walk_runs);
+    fixture.expect_error("run -1");
+    fixture.expect_error("run");
 }
 
 TEST(GameCommandsTest, CutawaySetsAndClearsTheHeight) {

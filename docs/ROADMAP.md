@@ -277,6 +277,11 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   resolution without changing the screen's mode, in its pixels also on high-DPI screens. The 16:9 picture is scaled
   to fit, with black bars, as in a window (`fit_viewport()`). Runs with `--exec` or `--screenshot` stay in a
   window.
+- **Running** with Shift, at 4.5 m/s, and **a slower walk** of 2.5 m/s instead of 3 m/s, which was a jog. Only the
+  forward part of the movement, in the horizontal direction of the view, is faster. A frame in which running would be
+  pushed back sideways by a wall, a block or a door moves at walking speed instead; ramps push straight up, so running
+  up them stays fast. Running works in the air and with noclip, but not with Levitate. A running footstep is 1.5 m
+  instead of 1 m, about 3 steps per second. The `run FRAMES` console command runs like `walk FRAMES` walks.
 
 ## Later (unordered)
 
@@ -308,7 +313,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   `src/world/geometry.cpp`, which decides whether a block of a debug level fits), whose last bits can differ between C
   libraries. Before saves move between platforms, compare the levels of many seeds on each platform, and make
   generation independent of such differences where they show, e.g. by deciding on the tile grid.
-- **Stamina and sanity** of each character of the party, next to its hit points.
+- **Stamina and sanity** of each character of the party, next to its hit points. Running uses up stamina, and the
+  party can't run without it.
 - **Advanced party implementation**: The party is bound to a magical orb (?), and characters can transport
   themselves to a pocket dimension.
 - New level layouts: areas with floating platforms and no walls, open areas, pseudo-platformer levels.

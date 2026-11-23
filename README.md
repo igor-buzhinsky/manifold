@@ -21,7 +21,7 @@ Done so far (v0.1 to v0.3):
 - **Lighting**: linear-space lighting with tonemapping, flickering torches in three flame colors, up to 32 point
   lights at once, and cubemap shadows, cached for static lights, for up to 31 of them. Some levels are lit only by
   torches and the player's spells.
-- **Movement and collision** in full 3D: walking, jumping, ramps, and doors that block movement and light.
+- **Movement and collision** in full 3D: walking, running, jumping, ramps, and doors that block movement and light.
 - **A party** of three characters with hit points, shared mana and portraits from public-domain artworks in
   museum collections.
 - **Spells**: Candlelight (a light around the party) and Levitate, as timed effects.

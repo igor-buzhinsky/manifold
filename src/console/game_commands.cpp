@@ -75,9 +75,31 @@ int parse_screenshot_size(const std::string& text) {
     return size;
 }
 
-/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, walk, next_level,
-/// load and noclip.
+/// Adds the commands that move the player forward for a number of frames: walk and run.
+void add_walk_commands(Console& console, ConsoleState& state) {
+    // `walk` and `run` differ only in whether the player runs.
+    for (const bool runs : {false, true}) {
+        const std::string name = runs ? "run" : "walk";
+        const std::string usage = name + " FRAMES";
+        console.add(name, usage,
+                    runs ? "Runs the player forward for this many frames, as holding W and Shift does."
+                         : "Walks the player forward for this many frames, as holding W does.",
+                    [&state, usage, runs](std::span<const std::string> arguments) {
+                        expect_count(arguments, 1, usage);
+                        const int frames = parse_int_argument(arguments[0]);
+                        if (frames < 0) {
+                            throw CommandError("frames must not be negative: " + arguments[0]);
+                        }
+                        state.walk_frames = frames;
+                        state.walk_runs = runs;
+                    });
+    }
+}
+
+/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, walk, run,
+/// next_level, load and noclip.
 void add_player_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
+    add_walk_commands(console, state);
     console.add(
         "level_info", "level_info", "Describes the level, depending on its layout, its ambient light, and the player.",
         [&game, &state](std::span<const std::string> arguments) {
@@ -130,16 +152,6 @@ void add_player_commands(Console& console, CommandQueue& queue, Game& game, Cons
                         yaw = to_radians(parse_float_argument(arguments[3]));
                     }
                     game.teleport(position, yaw);
-                });
-
-    console.add("walk", "walk FRAMES", "Walks the player forward for this many frames, as holding W does.",
-                [&state](std::span<const std::string> arguments) {
-                    expect_count(arguments, 1, "walk FRAMES");
-                    const int frames = parse_int_argument(arguments[0]);
-                    if (frames < 0) {
-                        throw CommandError("frames must not be negative: " + arguments[0]);
-                    }
-                    state.walk_frames = frames;
                 });
 
     console.add("next_level", "next_level", "Starts the next level, as if the player reached the exit.",

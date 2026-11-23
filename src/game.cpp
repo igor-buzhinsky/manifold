@@ -29,6 +29,10 @@ namespace manifold {
 
 namespace {
 
+/// A horizontal push out of the world geometry longer than this, in metres, means that running ran into something.
+/// Ramps and floors push straight up, so it is only rounding error there.
+constexpr float kRunBlockedCorrection = 1e-5f;
+
 /// The player's settings, moved to the start of `level` and turned the way it says.
 PlayerParams at_start(PlayerParams params, const Level& level) {
     params.position = level.player_start;
@@ -62,7 +66,8 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       player_params_(config.player),
       turn_speed_(config.turn_speed),
       look_speed_(config.look_speed),
-      move_speed_(config.move_speed),
+      walk_speed_(config.walk_speed),
+      run_speed_(config.run_speed),
       max_snap_slope_(config.max_snap_slope),
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       portraits_(config.portraits),
@@ -88,7 +93,7 @@ void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     player_.set_vertical_speed(0.0f);
     player_.set_on_ground(false);
     footsteps_ = 0;
-    step_distance_ = kStepLength - kFirstStepLength;
+    step_progress_ = 1.0f - kFirstStepFraction;
     if (yaw) {
         player_.rotate(*yaw - player_.yaw(), 0.0f);
     }
@@ -138,7 +143,7 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();
     footsteps_ = 0;
-    step_distance_ = kStepLength - kFirstStepLength;
+    step_progress_ = 1.0f - kFirstStepFraction;
 }
 
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
@@ -222,9 +227,12 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     }
     const glm::vec3 forward{std::cos(player_.yaw()), std::sin(player_.yaw()), 0.0f};
     const glm::vec3 right{forward.y, -forward.x, 0.0f};
-    glm::vec3 displacement = ((direction.x * forward) + (direction.y * right)) * move_speed_ * dt;
+    const glm::vec3 walk = ((direction.x * forward) + (direction.y * right)) * walk_speed_ * dt;
+    // Running only adds speed forward, in the horizontal direction of the view.
+    bool running = input.run && direction.x > 0.0f && !levitating();
+    glm::vec3 displacement = running ? walk + (direction.x * (run_speed_ - walk_speed_) * dt * forward) : walk;
     if (noclip_) {
-        displacement.z = input.rise * move_speed_ * dt;
+        displacement.z = input.rise * walk_speed_ * dt;
         player_.set_position(player_.position() + displacement);
         // When noclip is turned off in the air, the fall starts from rest.
         player_.set_vertical_speed(0.0f);
@@ -234,7 +242,7 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     if (levitating()) {
         // As with noclip, but stopped by what is in the way. Without gravity there is nothing to stand on, so there
         // are no footsteps and no sticking to ramps, and when the spell ends the fall starts from rest.
-        displacement.z = input.rise * move_speed_ * dt;
+        displacement.z = input.rise * walk_speed_ * dt;
         player_.set_position(move_and_slide(level_.world, player_.body(), displacement, blockers).position);
         player_.set_vertical_speed(0.0f);
         player_.set_on_ground(false);
@@ -252,7 +260,14 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     displacement.z = vertical_speed * dt;
     const glm::vec3 start = player_.position();
     const bool was_on_ground = player_.on_ground();
-    const SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
+    SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
+    // Running into something, such as a wall or a door, moves only at walking speed, also along it. Ramps and floors
+    // push the player straight up, so running on them goes on.
+    if (running && glm::length(glm::vec2(result.correction)) > kRunBlockedCorrection) {
+        running = false;
+        displacement = glm::vec3(glm::vec2(walk), displacement.z);
+        result = move_and_slide(level_.world, player_.body(), displacement, blockers);
+    }
     player_.set_position(result.position);
     bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
 
@@ -272,26 +287,26 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     player_.set_vertical_speed(landed || bumped ? 0.0f : vertical_speed);
     player_.set_on_ground(landed);
     count_footsteps(glm::length(glm::vec2(player_.position() - start)),
-                    landed && !was_on_ground ? -vertical_speed : 0.0f);
+                    landed && !was_on_ground ? -vertical_speed : 0.0f, running ? kRunStepLength : kWalkStepLength);
 }
 
-void Game::count_footsteps(float walked, float landing_speed) {
+void Game::count_footsteps(float walked, float landing_speed, float step_length) {
     if (landing_speed > kLandingSpeed) {
         ++footsteps_;
-        step_distance_ = 0.0f;
+        step_progress_ = 0.0f;
     }
     if (!player_.on_ground()) {
         return;
     }
     if (walked < kStandingDistance) {
         // Standing still: the next step comes soon after starting to walk again.
-        step_distance_ = std::max(step_distance_, kStepLength - kFirstStepLength);
+        step_progress_ = std::max(step_progress_, 1.0f - kFirstStepFraction);
         return;
     }
-    step_distance_ += walked;
-    while (step_distance_ >= kStepLength) {
+    step_progress_ += walked / step_length;
+    while (step_progress_ >= 1.0f) {
         ++footsteps_;
-        step_distance_ -= kStepLength;
+        step_progress_ -= 1.0f;
     }
 }
 

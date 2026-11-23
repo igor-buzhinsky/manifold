@@ -22,6 +22,7 @@
 #include "party/spells.hpp"
 #include "save/saved_game.hpp"
 #include "world/door.hpp"
+#include "world/player.hpp"
 #include "world/world.hpp"
 
 namespace manifold {
@@ -36,7 +37,8 @@ GameConfig make_config() {
     config.level.debug.ramp_count = 0;
     config.turn_speed = kPi / 2.0f;
     config.look_speed = kPi / 3.0f;
-    config.move_speed = 2.0f;
+    config.walk_speed = 2.0f;
+    config.run_speed = 4.0f;
     return config;
 }
 
@@ -119,6 +121,43 @@ TEST(GameTest, DiagonalWalkIsNotFaster) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     game.update({.forward = 1.0f, .strafe = 1.0f}, 1.0f);
     EXPECT_NEAR(glm::length(game.player().position()), 2.0f, 1e-5f);
+}
+
+TEST(GameTest, RunningIsFasterOnlyForward) {
+    // Facing +x, forward is +x and right is -y. Walks at 2 m/s and runs at 4 m/s.
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.forward = 1.0f, .run = true}, 0.5f);
+    expect_near(game.player().position(), {2.0f, 0.0f, 0.0f});
+    game.update({.forward = -1.0f, .run = true}, 0.5f);
+    expect_near(game.player().position(), {1.0f, 0.0f, 0.0f});
+    game.update({.run = true, .strafe = 1.0f}, 0.5f);
+    expect_near(game.player().position(), {1.0f, -1.0f, 0.0f});
+}
+
+TEST(GameTest, RunningDiagonallyIsFasterOnlyInTheForwardPart) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.forward = 1.0f, .run = true, .strafe = 1.0f}, 1.0f);
+    const float part = std::numbers::sqrt2_v<float> / 2.0f;
+    expect_near(game.player().position(), {4.0f * part, -2.0f * part, 0.0f});
+}
+
+TEST(GameTest, RunningIgnoresPitch) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.look = 1.0f}, 10.0f);
+    game.update({.forward = 1.0f, .run = true}, 1.0f);
+    expect_near(game.player().position(), {4.0f, 0.0f, 0.0f});
+}
+
+TEST(GameTest, NoclipRunsButLevitationDoesNot) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.set_noclip(true);
+    game.update({.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(game.player().position().x, 4.0f, 1e-5f);
+    game.set_noclip(false);
+    game.teleport({0.0f, 0.0f, 0.0f});
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    game.update({.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(game.player().position().x, 2.0f, 1e-5f);
 }
 
 TEST(GameTest, CollisionsStopPlayerAtLevelWall) {
@@ -224,13 +263,24 @@ TEST(GameTest, WalkingMakesAFootstepPerStepLengthTheFirstSoon) {
     EXPECT_EQ(game.take_footsteps(), 0);
     run(game, {.forward = 1.0f}, 0.1f);  // 0.2 m.
     EXPECT_EQ(game.take_footsteps(), 0);
-    run(game, {.forward = 1.0f}, 0.05f);  // 0.3 m: the first step at Game::kFirstStepLength.
+    run(game, {.forward = 1.0f}, 0.05f);  // 0.3 m: the first step at a quarter of Game::kWalkStepLength.
     EXPECT_EQ(game.take_footsteps(), 1);
     EXPECT_EQ(game.take_footsteps(), 0);
     run(game, {.forward = 1.0f}, 1.0f);  // 2.3 m: steps at 1.25 and 2.25 m.
     EXPECT_EQ(game.take_footsteps(), 2);
     run(game, {}, 1.0f);  // Standing makes no steps.
     EXPECT_EQ(game.take_footsteps(), 0);
+}
+
+TEST(GameTest, RunningMakesAFootstepPerRunStepLength) {
+    Game game(make_config(), 1, LayoutKind::kDebug);  // Runs at 4 m/s.
+    run(game, {}, 0.1f);
+    run(game, {.forward = 1.0f, .run = true}, 0.05f);  // 0.2 m.
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f, .run = true}, 0.05f);  // 0.4 m: the first step at a quarter of 1.5 m.
+    EXPECT_EQ(game.take_footsteps(), 1);
+    run(game, {.forward = 1.0f, .run = true}, 1.0f);  // 4.4 m: steps at 1.875 and 3.375 m.
+    EXPECT_EQ(game.take_footsteps(), 2);
 }
 
 TEST(GameTest, NoclipAndFallingMakeNoFootstepsButLandingFromAJumpDoes) {
@@ -302,6 +352,39 @@ TEST(GameTest, WalksUpRampOntoPlatform) {
     }
     expect_near(game.player().position(), {4.0f, 0.0f, 2.5f});
     EXPECT_TRUE(game.player().on_ground());
+}
+
+/// An empty level whose wall at y = 1 is a little more than the player's radius from the start at the origin.
+Level make_wall_level(float yaw) {
+    const World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 1.0f, .height = 3.0f});
+    return {.layout = LayoutKind::kDebug,
+            .world = world,
+            .player_start = {0.0f, 1.0f - PlayerParams{}.radius - 0.01f, 0.0f},
+            .player_yaw = yaw,
+            .info = ""};
+}
+
+TEST(GameTest, RunningIntoAWallMovesAtWalkingSpeed) {
+    // Facing 45 degrees into the wall, the player slides along it at the walking speed's part along the wall.
+    Game game(make_config(), make_wall_level(kPi / 4.0f));
+    run(game, {.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(game.player().position().x, 2.0f * std::numbers::sqrt2_v<float> / 2.0f, 0.02f);
+}
+
+TEST(GameTest, RunningAlongAWallIsFullSpeed) {
+    Game game(make_config(), make_wall_level(0.0f));
+    run(game, {.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(game.player().position().x, 4.0f, 1e-3f);
+}
+
+TEST(GameTest, RunsUpRampAtFullSpeed) {
+    // Ramps push the player straight up, so they don't slow running down.
+    Game game(make_config(), make_ramp_level());
+    for (int frame = 0; frame < 90; ++frame) {
+        game.update({.forward = 1.0f, .run = true}, 1.0f / 60.0f);
+    }
+    EXPECT_NEAR(game.player().position().x, 2.0f, 1e-3f);
+    EXPECT_GT(game.player().position().z, 2.0f);
 }
 
 TEST(GameTest, WalksDownRampWithoutLeavingGround) {
