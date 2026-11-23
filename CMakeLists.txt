@@ -121,6 +121,7 @@ add_library(manifold_core STATIC
     src/render/world_mesh.cpp
     src/save/saved_game.cpp
     src/settings/settings.cpp
+    src/sim/movement_sim.cpp
     src/ui/button_list.cpp
     src/ui/crosshair.cpp
     src/ui/game_menus.cpp
@@ -163,6 +164,11 @@ add_executable(manifold
 )
 target_link_libraries(manifold PRIVATE manifold_core SDL3::SDL3 glad imgui)
 target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
+# Plays levels with random input and checks invariants of the player's movement, see src/sim/movement_sim.hpp. It needs
+# no window, and isn't part of a copy of the game.
+add_executable(manifold_sim src/sim/sim_main.cpp)
+target_link_libraries(manifold_sim PRIVATE manifold_core)
+target_compile_options(manifold_sim PRIVATE ${MANIFOLD_WARNINGS})
 # Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
@@ -219,6 +225,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/log_test.cpp
         tests/marker_test.cpp
         tests/menu_screen_test.cpp
+        tests/movement_sim_test.cpp
         tests/overlay_mesh_test.cpp
         tests/party_hud_test.cpp
         tests/spell_hud_test.cpp
@@ -248,10 +255,14 @@ if(MANIFOLD_BUILD_TESTS)
     target_compile_definitions(manifold_tests PRIVATE MANIFOLD_SOUNDS_DIR="${CMAKE_SOURCE_DIR}/assets/sounds")
 
     include(GoogleTest)
-    gtest_discover_tests(manifold_tests)
+    # A test that runs longer than this fails, so that one that hangs, e.g. in a loop waiting for the player to land,
+    # is named at once instead of stopping the whole run.
+    set(MANIFOLD_TEST_TIMEOUT 60)
+    gtest_discover_tests(manifold_tests PROPERTIES TIMEOUT ${MANIFOLD_TEST_TIMEOUT})
     # Random choices must be the same on every platform, see cmake/check_random.cmake.
     add_test(NAME PortableRandomChoices COMMAND ${CMAKE_COMMAND} -DSOURCE_DIR=${CMAKE_SOURCE_DIR}
              -P ${CMAKE_SOURCE_DIR}/cmake/check_random.cmake)
+    set_tests_properties(PortableRandomChoices PROPERTIES TIMEOUT ${MANIFOLD_TEST_TIMEOUT})
 endif()
 
 # Code style: `format` fixes formatting in place, `lint` checks formatting and runs clang-tidy.

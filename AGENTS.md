@@ -31,6 +31,21 @@ commit, and on the .cpp files that include a changed header. It lints everything
 folders to lint. The full `cmake --build build --target lint` takes a few minutes; use it only when
 asked or when unsure what a change affects.
 
+Each test fails after 60 s, so a test that hangs is named instead of stopping the run. In tests, a loop that waits
+for something, such as the player landing, has a limit: use `run_until()` of `tests/game_test.cpp` or the like.
+
+After a change to movement, collision, doors or level generation, also run the movement simulation, which must
+print `OK` (it takes about a minute):
+
+```sh
+./build/manifold_sim   # options such as --layout debug --seeds 100 --seconds 60; a wrong option prints the usage
+```
+
+It plays 40 seeds of each layout with random walking, running, stepping aside, turning and jumping, and checks the
+player's movement after every frame: no brief losses of the ground, no overlaps with the geometry, no endless falls,
+no speeds above running. It exits with 1 and lists examples, with their seed, layout and frame, if one is broken.
+A run with more seeds or longer is worth it for a change that touches collision itself.
+
 - Python scripts in `scripts/` follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md#python-scripts). After
   changing one, run the Python checks, which must pass:
 
@@ -45,6 +60,15 @@ asked or when unsure what a change affects.
   [README.md](README.md). Only add assets whose license allows redistributing the files in this repo.
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.
+- A bug fix comes with a test that fails without the fix. Check that it does: stash the fix
+  (`git stash push FILE...`), build and run the test, then `git stash pop`.
+- For experiments, such as reproducing a bug, measuring something over many seeds or checking old code, write a
+  throwaway program in a scratch directory outside the repo and build it against `manifold_core` with
+  `scripts/scratch_build.py FILE.cpp [--run ARGS...]`. Don't commit such programs; turn what they check into a test
+  or into the movement simulation if it should be kept.
+- When a change alters a constant, a behavior or a name, search the docs (`docs/`, `README.md`, `GAME_MANUAL.md`,
+  `AGENTS.md`) and the comments for its old value and name, e.g. `grep -rn "3 m/s"`, and update what no longer
+  holds, also in older entries of `docs/DECISIONS.md` (with a note in their Status line).
 - When changing key bindings or cheats, update [GAME_MANUAL.md](GAME_MANUAL.md).
 - If a new system package is needed, add it to the install command in [README.md](README.md) and to
   `APT_PACKAGES` in [.github/workflows/ci.yml](.github/workflows/ci.yml).
@@ -52,7 +76,10 @@ asked or when unsure what a change affects.
   [GAME_MANUAL.md](GAME_MANUAL.md)) and look at the screenshots, e.g.
   `./build/manifold SEED --exec "level_info; arrow on; cutaway HEIGHT; camera X Y 40 90 -90; screenshot FILE.png 800 450; quit"`.
   Small screenshots (800 x 450) are usually enough. For room levels, `level_info` tells how tiles map to
-  world coordinates and the `cutaway` height of each layer. `--screenshot FILE.png` saves the first frame.
+  world coordinates and the `cutaway` height of each layer, and `player_info` tells where the player is and how
+  they move. `--screenshot FILE.png` saves the first frame. Runs with `--exec` always use a window and never
+  save; to check a normal run, e.g. in full screen, pipe the commands into it instead, see the Console section of
+  GAME_MANUAL.md.
   Add console commands rather than command-line options for new ways to inspect the game.
 - When adding or changing console commands, update [GAME_MANUAL.md](GAME_MANUAL.md).
 

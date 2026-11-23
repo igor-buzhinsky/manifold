@@ -250,6 +250,21 @@ TEST(GameTest, FallsByGravityAndLands) {
     EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
 }
 
+/// Advances `game` in frames of 10 ms with the same input until `done()` holds, but for at most `max_seconds`, so that
+/// a test fails instead of hanging if it never does.
+///
+/// \return Whether `done()` held in time.
+template <typename Done>
+bool run_until(Game& game, const PlayerInput& input, Done done, float max_seconds = 10.0f) {
+    for (int frame = 0; frame < static_cast<int>(std::lround(max_seconds / 0.01f)); ++frame) {
+        if (done()) {
+            return true;
+        }
+        game.update(input, 0.01f);
+    }
+    return done();
+}
+
 /// Advances `game` by `seconds` in frames of 10 ms with the same input.
 void run(Game& game, const PlayerInput& input, float seconds) {
     for (int frame = 0; frame < static_cast<int>(std::lround(seconds / 0.01f)); ++frame) {
@@ -408,9 +423,7 @@ TEST(GameTest, RunningJumpGoesFarther) {
         Game game(make_config(), 1, LayoutKind::kDebug);
         run(game, {}, 0.1f);  // Find the ground.
         game.update({.forward = 1.0f, .run = running, .rise = 1.0f}, 0.01f);
-        while (!game.player().on_ground()) {
-            game.update({.forward = 1.0f, .run = running}, 0.01f);
-        }
+        EXPECT_TRUE(run_until(game, {.forward = 1.0f, .run = running}, [&game] { return game.player().on_ground(); }));
         return game.player().position().x;
     };
     const float walking = jump_distance(false);
@@ -427,9 +440,7 @@ TEST(GameTest, InTheAirTheVelocityOfTheTakeOffIsKeptWhateverTheKeys) {
         Game game(make_config(), 1, LayoutKind::kDebug);
         run(game, {}, 0.1f);
         game.update({.forward = 1.0f, .run = true, .rise = 1.0f}, 0.01f);
-        while (!game.player().on_ground()) {
-            game.update(air_input, 0.01f);
-        }
+        EXPECT_TRUE(run_until(game, air_input, [&game] { return game.player().on_ground(); }));
         landings.push_back(game.player().position());
     }
     for (const glm::vec3& landing : landings) {
@@ -443,9 +454,7 @@ TEST(GameTest, SteppingOffALedgeKeepsTheWalkingVelocity) {
     Level level = make_ramp_level();
     level.player_start = {5.0f, 0.0f, 2.5f};
     Game game(make_config(), std::move(level));
-    while (game.player().position().z > 2.4f) {
-        game.update({.forward = 1.0f}, 0.01f);
-    }
+    ASSERT_TRUE(run_until(game, {.forward = 1.0f}, [&game] { return game.player().position().z <= 2.4f; }));
     const float x = game.player().position().x;
     run(game, {.forward = -1.0f}, 0.2f);  // Falling: the keys change nothing.
     EXPECT_FALSE(game.player().on_ground());
@@ -834,11 +843,15 @@ void walk(Game& game, float seconds) {
 
 /// A seed whose level has ambient light, or none, see level_has_ambient_light().
 std::uint64_t seed_with_ambient(bool ambient) {
-    std::uint64_t seed = 1;
-    while (level_has_ambient_light(seed) != ambient) {
-        ++seed;
+    // Bounded, so that a change that gives every level ambient light, or none, fails instead of hanging.
+    constexpr std::uint64_t kMaxSeed = 1000;
+    for (std::uint64_t seed = 1; seed <= kMaxSeed; ++seed) {
+        if (level_has_ambient_light(seed) == ambient) {
+            return seed;
+        }
     }
-    return seed;
+    ADD_FAILURE() << "no level with ambient light " << ambient << " up to seed " << kMaxSeed;
+    return 1;
 }
 
 TEST(GameTest, FirstLevelGetsATorchOnTheNearestWall) {

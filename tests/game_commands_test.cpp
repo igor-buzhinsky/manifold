@@ -2,6 +2,7 @@
 
 #include <numbers>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,6 +15,7 @@
 #include "level/level.hpp"
 #include "party/spells.hpp"
 #include "render/camera.hpp"
+#include "util/log.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -280,6 +282,21 @@ TEST(GameCommandsTest, LevelInfoTakesNoArguments) {
     EXPECT_NO_THROW(fixture.run("level_info"));
     fixture.queue.add("level_info now", true);
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
+}
+
+TEST(GameCommandsTest, PlayerInfoDescribesHowThePlayerMoves) {
+    Fixture fixture;
+    std::vector<std::string> messages;
+    set_log_listener([&messages](LogLevel, std::string_view message) { messages.emplace_back(message); });
+    fixture.game.update({.forward = 1.0f}, 0.4f);  // Walks 1 m along +x at 2.5 m/s.
+    fixture.run("player_info");
+    fixture.expect_error("player_info now");
+    set_log_listener({});
+    ASSERT_FALSE(messages.empty());
+    const std::string& text = messages.front();
+    EXPECT_NE(text.find("Player at (1.00, 0.00, 0.00), yaw 0.0 deg, pitch 0.0 deg"), std::string::npos) << text;
+    EXPECT_NE(text.find("On the ground, horizontal velocity (2.50, 0.00) m/s, 2.50 m/s"), std::string::npos) << text;
+    EXPECT_NE(text.find("Noclip off, Levitate not in effect"), std::string::npos) << text;
 }
 
 TEST(GameCommandsTest, DoorOpensAndClosesDoorsByNumber) {

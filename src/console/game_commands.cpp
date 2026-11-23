@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include <glm/geometric.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
@@ -96,22 +97,38 @@ void add_walk_commands(Console& console, ConsoleState& state) {
     }
 }
 
-/// Adds the commands that inspect and move the player and the camera: level_info, camera, teleport, walk, run,
-/// next_level, load and noclip.
+/// Describes the player's state for the player_info command: where they are and look, how they move, and noclip and
+/// Levitate.
+std::string describe_player(const Game& game) {
+    const Player& player = game.player();
+    const glm::vec2& velocity = player.horizontal_velocity();
+    return std::format(
+        "Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg, pitch {:.1f} deg\n"
+        "{}, horizontal velocity ({:.2f}, {:.2f}) m/s, {:.2f} m/s, vertical speed {:.2f} m/s\n"
+        "Noclip {}, Levitate {}",
+        player.position().x, player.position().y, player.position().z, to_degrees(player.yaw()),
+        to_degrees(player.pitch()), player.on_ground() ? "On the ground" : "In the air", velocity.x, velocity.y,
+        glm::length(velocity), player.vertical_speed(), game.noclip() ? "on" : "off",
+        game.levitating() ? "in effect" : "not in effect");
+}
+
+/// Adds the commands that inspect and move the player and the camera: level_info, player_info, camera, teleport,
+/// walk, run, next_level, load and noclip.
 void add_player_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     add_walk_commands(console, state);
-    console.add(
-        "level_info", "level_info", "Describes the level, depending on its layout, its ambient light, and the player.",
-        [&game, &state](std::span<const std::string> arguments) {
-            expect_count(arguments, 0, "level_info");
-            const Player& player = game.player();
-            const glm::vec3& ambient = state.view.level_ambient;
-            log_info(
-                "Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})\n"
-                "Player at ({:.2f}, {:.2f}, {:.2f}), yaw {:.1f} deg",
-                game.seed(), layout_name(game.level().layout), game.level().info, ambient.r, ambient.g, ambient.b,
-                player.position().x, player.position().y, player.position().z, to_degrees(player.yaw()));
-        });
+    console.add("level_info", "level_info", "Describes the level, depending on its layout, and its ambient light.",
+                [&game, &state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "level_info");
+                    const glm::vec3& ambient = state.view.level_ambient;
+                    log_info("Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})", game.seed(),
+                             layout_name(game.level().layout), game.level().info, ambient.r, ambient.g, ambient.b);
+                });
+    console.add("player_info", "player_info",
+                "Describes the player: position, view, velocity, whether on the ground, noclip and Levitate.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "player_info");
+                    log_info("{}", describe_player(game));
+                });
 
     const std::string camera_usage = "camera [X Y Z YAW PITCH | player]";
     console.add("camera", camera_usage,
