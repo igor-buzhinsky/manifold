@@ -712,9 +712,5 @@ Drawbacks:
 - Walking is a sixth slower than before.
 - On the ground there is no momentum: running stops at once when Shift is let go. In the air, a jump can't be
   corrected, so a missed jump onto a ledge can't be saved.
-- Where collision loses contact with the floor for a frame, e.g. in a gap narrower than the player between the high
-  end of a ramp and a wall in debug levels, the keys don't work for a few frames, and the velocity kept is that of
-  the pushes of the collision. A guard by the height of the drop can't tell this from the first frame of a real fall,
-  which also drops only a few millimetres; the fix belongs in the collision code.
 - Running into a wall at about 30° switches between walking and running speed as the angle crosses the limit, and
   a frame that hits a corner steeply moves at walking speed, which can feel like a small stutter.

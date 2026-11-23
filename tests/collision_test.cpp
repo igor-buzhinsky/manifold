@@ -1,6 +1,7 @@
 #include "physics/collision.hpp"
 
 #include <array>
+#include <cmath>
 #include <numbers>
 #include <optional>
 
@@ -220,6 +221,54 @@ TEST(MoveAndSlideTest, BumpsIntoCeiling) {
     const SlideResult result = move_and_slide(make_world(), body_at({-5.0f, 0.0f, 2.0f}), {0.0f, 0.0f, 0.5f});
     expect_near(result.position, {-5.0f, 0.0f, 4.0f - kHeight});
     EXPECT_LT(result.correction.z, 0.0f);
+}
+
+// A gap that narrows below the body's width, between the level wall at y = 1 and a block whose side is turned by 10
+// degrees towards it: 1.5 m wide at x = 0, and narrower by tan(10 degrees) = 0.18 m per metre along +x. The body walks
+// into it along +x, with gravity pulling it into the floor.
+World make_narrowing_gap() {
+    World world({.x_min = -10.0f, .x_max = 10.0f, .y_min = -10.0f, .y_max = 1.0f, .height = 4.0f});
+    const float angle = std::numbers::pi_v<float> / 18.0f;
+    // The block's +y side runs from (0, -0.5) at the angle, so it is 1.5 m from the wall at x = 0.
+    const glm::vec2 side_center = glm::vec2(0.0f, -0.5f) + (5.0f * glm::vec2(std::cos(angle), std::sin(angle)));
+    const glm::vec2 inward{std::sin(angle), -std::cos(angle)};
+    world.add_obstacle({.base_center = glm::vec3(side_center + inward, 0.0f),
+                        .half_size = {5.0f, 1.0f},
+                        .height = 4.0f,
+                        .yaw = angle});
+    return world;
+}
+
+TEST(MoveAndSlideTest, StopsAtAGapNarrowerThanTheBodyAndStillLands) {
+    const World world = make_narrowing_gap();
+    VerticalCylinder body = body_at({-1.0f, 0.25f, 0.0f});
+    // Frames of walking into the gap, each with a small fall into the floor, as gravity gives.
+    for (int frame = 0; frame < 200; ++frame) {
+        const glm::vec3 displacement{0.05f, 0.0f, -0.003f};
+        const SlideResult result = move_and_slide(world, body, displacement);
+        // Each frame lands on the floor, and the body ends inside nothing.
+        ASSERT_GT(result.correction.z, 0.0f) << "frame " << frame;
+        ASSERT_FALSE(find_contact(body_at(result.position), world.bounds()).has_value()) << "frame " << frame;
+        for (const Obstacle& obstacle : world.obstacles()) {
+            const std::optional<Contact> contact = find_contact(body_at(result.position), obstacle);
+            ASSERT_TRUE(!contact || contact->depth < 1e-4f) << "frame " << frame << ", depth " << contact->depth;
+        }
+        expect_near(result.position, body.base + displacement + result.correction);
+        body.base = result.position;
+    }
+    // The body went into the gap as far as it is wide enough: 0.6 m, at x = (1.5 - 0.6) / tan(10 degrees) = 5.1.
+    EXPECT_NEAR(body.base.x, 5.1f, 0.1f);
+}
+
+TEST(MoveAndSlideTest, WalksOffTheEdgeOfABlock) {
+    // On top of a 1 m high block, walking over its edge at x = 1: tiny overlaps that rounding leaves don't stop it.
+    World world(kBounds);
+    world.add_obstacle({.base_center = {0.0f, 0.0f, 0.0f}, .half_size = glm::vec2(1.0f), .height = 1.0f, .yaw = 0.0f});
+    VerticalCylinder body = body_at({0.5f, 0.0f, 1.0f});
+    for (int frame = 0; frame < 100; ++frame) {
+        body.base = move_and_slide(world, body, {0.02f, 0.0f, -0.003f}).position;
+    }
+    EXPECT_GT(body.base.x, 1.0f + kRadius);
 }
 
 TEST(CollisionTest, BlockersStopTheBodyLikeObstacles) {
