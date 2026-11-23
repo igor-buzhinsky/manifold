@@ -675,9 +675,10 @@ the ground and with noclip, but not with Levitate. A running footstep is 1.5 m i
 yet; stamina comes later.
 
 In the air, after a jump or a step off a ledge, without noclip or Levitate, the player keeps the horizontal velocity
-of the last frame on the ground, whatever the keys, and turning only turns the view. The velocity is that of the actual
-movement of each frame, so what stops the player in the air, such as a wall, also removes that part of it. Teleporting,
-noclip and Levitate leave the player at rest, so a fall after them is straight down.
+of the take-off, the frame that left the ground and was still moved by the keys. The keys change nothing until the
+player lands, and turning only turns the view. The velocity is that of the actual movement of each frame, so what
+stops the player in the air, such as a wall, also removes that part of it. Teleporting, noclip and Levitate leave the
+player at rest, so a fall after them is straight down.
 
 Gains:
 
@@ -687,7 +688,7 @@ Gains:
 - Slowing down at walls keeps running from making the player shoot along walls and into corners, and the check is
   cheap: a second collision pass only in frames that hit something steeply.
 - Momentum in the air is realistic: a running jump goes farther than a walking one, and a jump can't be steered or
-  stopped in the air. It is simple, since only the take-off velocity is kept, and no velocity is kept on the ground.
+  stopped in the air. It is simple, since only the take-off velocity is kept, and the velocity isn't used on the ground.
 - The 30° limit lets the player run along a corridor without holding a heading exactly parallel to its walls, which
   the keys can't do. The check compares the push with the frame's movement, so it doesn't depend on the frame rate.
 
@@ -711,5 +712,9 @@ Drawbacks:
 - Walking is a sixth slower than before.
 - On the ground there is no momentum: running stops at once when Shift is let go. In the air, a jump can't be
   corrected, so a missed jump onto a ledge can't be saved.
+- Where collision loses contact with the floor for a frame, e.g. in a gap narrower than the player between the high
+  end of a ramp and a wall in debug levels, the keys don't work for a few frames, and the velocity kept is that of
+  the pushes of the collision. A guard by the height of the drop can't tell this from the first frame of a real fall,
+  which also drops only a few millimetres; the fix belongs in the collision code.
 - Running into a wall at about 30° switches between walking and running speed as the angle crosses the limit, and
   a frame that hits a corner steeply moves at walking speed, which can feel like a small stutter.

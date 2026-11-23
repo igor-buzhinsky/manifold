@@ -38,8 +38,8 @@ public:
     float vertical_speed() const { return vertical_speed_; }
     void set_vertical_speed(float vertical_speed) { vertical_speed_ = vertical_speed; }
 
-    /// Horizontal velocity in metres per second, from the movement of the last update. In the air, the player keeps it,
-    /// see Game::update().
+    /// Horizontal velocity in metres per second. Game::update() sets it from the player's horizontal movement in each
+    /// frame with gravity, and keeps it in the air; teleporting, noclip and Levitate set it to 0.
     const glm::vec2& horizontal_velocity() const { return horizontal_velocity_; }
     void set_horizontal_velocity(const glm::vec2& velocity) { horizontal_velocity_ = velocity; }
 
