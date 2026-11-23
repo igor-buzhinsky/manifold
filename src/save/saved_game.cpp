@@ -6,7 +6,6 @@
 #include <filesystem>
 #include <fstream>
 #include <ios>
-#include <iterator>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -22,6 +21,7 @@
 #include "level/layout_factory.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
+#include "util/text_file.hpp"
 
 namespace manifold {
 
@@ -270,14 +270,7 @@ void write_save_file(const std::filesystem::path& path, const SavedGame& save) {
 }
 
 SavedGame read_save_file(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("can't open " + path.string());
-    }
-    const std::string text{std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>()};
-    if (file.bad()) {
-        throw std::runtime_error("can't read " + path.string());
-    }
+    const std::string text = read_text_file(path);
     try {
         return parse_saved_game(text);
     } catch (const std::runtime_error& error) {
