@@ -24,12 +24,13 @@ import json
 import shlex
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 # The target whose compile flags and libraries a scratch program gets: it links manifold_core and nothing else.
 TARGET = "manifold_sim"
-TARGET_SOURCE = ROOT / "src" / "sim" / "sim_main.cpp"
+TARGET_SOURCE = (ROOT / "src" / "sim" / "sim_main.cpp").resolve()
 
 
 def run_checked(command: list[str], cwd: Path) -> str:
@@ -56,7 +57,7 @@ def compile_command(build_dir: Path, source: Path, obj: Path) -> list[str]:
     :raises SystemExit: If the compilation database has no entry for TARGET_SOURCE.
     """
     database = json.loads((build_dir / "compile_commands.json").read_text())
-    entries = [entry for entry in database if Path(entry["file"]) == TARGET_SOURCE]
+    entries = [entry for entry in database if Path(entry["file"]).resolve() == TARGET_SOURCE]
     if not entries:
         sys.exit(f"{TARGET_SOURCE} is not in {build_dir / 'compile_commands.json'}; configure with CMake first")
     words = shlex.split(entries[0]["command"])
@@ -123,13 +124,16 @@ def main() -> None:
     if not source.is_file():
         sys.exit(f"{source} is not a file")
     output = (options.output or source.with_suffix("")).resolve()
-    obj = output.with_suffix(".o")
     build_dir = options.build_dir.resolve()
+    if not (build_dir / "build.ninja").is_file():
+        sys.exit(f"{build_dir} has no build.ninja: configure it with CMake and the Ninja generator, see README.md")
 
     run_checked(["cmake", "--build", str(build_dir), "--target", TARGET], ROOT)
-    run_checked(compile_command(build_dir, source, obj), build_dir)
-    run_checked(link_command(build_dir, obj, output), build_dir)
-    obj.unlink()
+    # The object file goes into a directory of its own, which is removed also when compiling or linking fails.
+    with tempfile.TemporaryDirectory() as temporary:
+        obj = Path(temporary) / "scratch.o"
+        run_checked(compile_command(build_dir, source, obj), build_dir)
+        run_checked(link_command(build_dir, obj, output), build_dir)
     print(f"Built {output}", file=sys.stderr)
     if options.run is not None:
         sys.exit(subprocess.run([str(output), *options.run]).returncode)

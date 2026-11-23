@@ -1,11 +1,14 @@
 #include "sim/movement_sim.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <format>
 #include <optional>
+#include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -20,6 +23,7 @@
 #include "party/party.hpp"
 #include "physics/collision.hpp"
 #include "util/random.hpp"
+#include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/world.hpp"
 
@@ -33,22 +37,53 @@ constexpr std::uint64_t kInputSalt = 0x5eed'1e9b'7a1c'0f3dULL;
 constexpr float kInputPeriod = 0.7f;
 /// The margin over GameConfig::run_speed that MovementViolation::kTooFast allows.
 constexpr float kSpeedMargin = 1.01f;
+/// The most frames per seed, so that their count fits an int.
+constexpr float kMaxFrames = 1e9f;
+/// How near a door must be, in metres from the center of its opening, for the simulation to open or close it.
+constexpr float kDoorReach = 4.0f;
+/// The chance that the nearest door is opened or closed when new keys are chosen.
+constexpr double kDoorChance = 0.5;
 
-/// New random keys: mostly forward, sometimes backward, sometimes with a step aside, a turn, running or a jump.
+/// New random keys: mostly forward, sometimes backward or neither (standing or only stepping aside), sometimes with a
+/// step aside, a turn, a look up or down, running or a jump.
 PlayerInput random_input(Rng& rng) {
     PlayerInput input;
-    input.forward = random_chance(rng, 0.8) ? 1.0f : -1.0f;
+    constexpr std::array<double, 3> kForwardWeights{0.7, 0.1, 0.2};  // Forward, backward, neither.
+    constexpr std::array<float, 3> kForward{1.0f, -1.0f, 0.0f};
+    input.forward = kForward.at(random_weighted_index(rng, kForwardWeights));
     if (random_chance(rng, 0.3)) {
         input.strafe = random_chance(rng, 0.5) ? 1.0f : -1.0f;
     }
     if (random_chance(rng, 0.5)) {
         input.turn = random_float(rng, -1.0f, 1.0f);
     }
+    if (random_chance(rng, 0.3)) {
+        input.look = random_float(rng, -1.0f, 1.0f);
+    }
     input.run = random_chance(rng, 0.5);
     if (random_chance(rng, 0.2)) {
         input.rise = 1.0f;  // Only in the first frame of the period, see run_seed().
     }
     return input;
+}
+
+/// Starts to open the door nearest to the player, or to close it if it is open or opening, if it is closer than
+/// kDoorReach. The game refuses to close a door on the player, and to move a door that is moving.
+///
+/// \return Whether a door started to move.
+bool move_nearest_door(Game& game) {
+    const std::span<const Door> doors = game.level().world.doors();
+    const glm::vec2 player(game.player().position());
+    std::optional<std::size_t> nearest;
+    float nearest_distance = kDoorReach;
+    for (std::size_t i = 0; i < doors.size(); ++i) {
+        const float distance = glm::distance(glm::vec2(doors[i].base_center), player);
+        if (distance < nearest_distance) {
+            nearest = i;
+            nearest_distance = distance;
+        }
+    }
+    return nearest && game.set_door_open(*nearest, game.doors()[*nearest].target < 1.0f);
 }
 
 /// The deepest overlap of the player with the level, its obstacles, ramps and closed doors, in metres, or 0.
@@ -84,22 +119,21 @@ float deepest_overlap(const Game& game) {
 class Recorder {
 public:
     /// \param report Where the violations are added. It must outlive the recorder.
-    Recorder(MovementSimReport& report, std::size_t examples, LayoutKind layout, std::uint64_t seed)
-        : report_(&report), examples_(examples), layout_(layout), seed_(seed) {}
+    /// \param seed   The seed of the run.
+    Recorder(MovementSimReport& report, std::size_t examples, std::uint64_t seed)
+        : report_(&report), examples_(examples), seed_(seed) {}
 
-    /// Counts a violation, and keeps it as an example if there are fewer of its kind yet.
-    ///
-    /// \param level_number See MovementSimExample::level_number.
-    void add(MovementViolation violation, int level_number, int frame, const glm::vec3& position, std::string detail) {
+    /// Counts a violation after a frame of `game`, and keeps it as an example if there are fewer of its kind yet.
+    void add(MovementViolation violation, const Game& game, int frame, std::string detail) {
         int& count = report_->counts.at(static_cast<std::size_t>(violation));
         ++count;
         if (static_cast<std::size_t>(count) <= examples_) {
             report_->examples.push_back({.violation = violation,
-                                         .layout = layout_,
+                                         .layout = game.level().layout,
                                          .seed = seed_,
-                                         .level_number = level_number,
+                                         .level_number = game.level_number(),
                                          .frame = frame,
-                                         .position = position,
+                                         .position = game.player().position(),
                                          .detail = std::move(detail)});
         }
     }
@@ -107,7 +141,6 @@ public:
 private:
     MovementSimReport* report_;
     std::size_t examples_;
-    LayoutKind layout_;
     std::uint64_t seed_;
 };
 
@@ -135,7 +168,7 @@ bool check_air_time(AirTime& air, const Game& game, bool was_on_ground, float st
             if (drop >= kRealDrop) {
                 ++report.real_drops;
             } else {
-                recorder.add(MovementViolation::kBriefGroundLoss, game.level_number(), frame, position,
+                recorder.add(MovementViolation::kBriefGroundLoss, game, frame,
                              std::format("{} frame(s) in the air, drop {:.4f} m", air.frames, drop));
             }
         }
@@ -147,8 +180,7 @@ bool check_air_time(AirTime& air, const Game& game, bool was_on_ground, float st
     }
     ++air.frames;
     if (static_cast<float>(air.frames) * dt > kMaxAirTime) {
-        recorder.add(MovementViolation::kLongFall, game.level_number(), frame, position,
-                     std::format("{:.1f} s in the air", kMaxAirTime));
+        recorder.add(MovementViolation::kLongFall, game, frame, std::format("{:.1f} s in the air", kMaxAirTime));
         return true;
     }
     return false;
@@ -162,7 +194,7 @@ void run_seed(const MovementSimConfig& config, LayoutKind layout, std::uint64_t 
         game_config.portraits.push_back({.path = std::format("portrait{}.png", i), .gender = std::nullopt});
     }
     Game game(game_config, seed, layout);
-    Recorder recorder(report, config.examples, layout, seed);
+    Recorder recorder(report, config.examples, seed);
     Rng rng(seed ^ kInputSalt);
     const int frames = static_cast<int>(std::lround(config.seconds / config.dt));
     const int period = std::max(1, static_cast<int>(std::lround(kInputPeriod / config.dt)));
@@ -173,6 +205,9 @@ void run_seed(const MovementSimConfig& config, LayoutKind layout, std::uint64_t 
     for (int frame = 0; frame < frames; ++frame) {
         if (frame % period == 0) {
             keys = random_input(rng);
+            if (random_chance(rng, kDoorChance) && move_nearest_door(game)) {
+                ++report.door_moves;
+            }
         }
         PlayerInput input = keys;
         if (frame % period != 0) {
@@ -194,13 +229,12 @@ void run_seed(const MovementSimConfig& config, LayoutKind layout, std::uint64_t 
         const glm::vec3& position = game.player().position();
         const float step = glm::length(glm::vec2(position - start));
         if (step > max_step) {
-            recorder.add(MovementViolation::kTooFast, game.level_number(), frame, position,
+            recorder.add(MovementViolation::kTooFast, game, frame,
                          std::format("{:.3f} m in a frame, {:.2f} m/s", step, step / config.dt));
         }
         const float overlap = deepest_overlap(game);
         if (overlap > kMaxOverlap) {
-            recorder.add(MovementViolation::kOverlap, game.level_number(), frame, position,
-                         std::format("{:.4f} m deep", overlap));
+            recorder.add(MovementViolation::kOverlap, game, frame, std::format("{:.4f} m deep", overlap));
         }
         if (check_air_time(air, game, was_on_ground, start.z, jumped, config.dt, frame, recorder, report)) {
             return;
@@ -229,6 +263,15 @@ bool MovementSimReport::ok() const {
 }
 
 MovementSimReport run_movement_sim(const MovementSimConfig& config) {
+    if (config.seeds < 1) {
+        throw std::invalid_argument("the number of seeds must be positive");
+    }
+    if (!std::isfinite(config.dt) || config.dt <= 0.0f || config.dt > kInputPeriod / 2.0f) {
+        throw std::invalid_argument(std::format("dt must be above 0 and at most {} s", kInputPeriod / 2.0f));
+    }
+    if (!std::isfinite(config.seconds) || config.seconds < config.dt || config.seconds / config.dt > kMaxFrames) {
+        throw std::invalid_argument(std::format("seconds must give from 1 to {} frames", kMaxFrames));
+    }
     MovementSimReport report;
     for (const LayoutKind layout : config.layouts) {
         for (int i = 0; i < config.seeds; ++i) {
@@ -239,8 +282,8 @@ MovementSimReport run_movement_sim(const MovementSimConfig& config) {
 }
 
 std::string format_movement_sim_report(const MovementSimReport& report) {
-    std::string text = std::format("{} frames, {} levels, {} jumps, {} real drops\n", report.frames, report.levels,
-                                   report.jumps, report.real_drops);
+    std::string text = std::format("{} frames, {} levels, {} jumps, {} real drops, {} door moves\n", report.frames,
+                                   report.levels, report.jumps, report.real_drops, report.door_moves);
     for (std::size_t i = 0; i < kMovementViolationCount; ++i) {
         text +=
             std::format("{}: {}\n", movement_violation_name(static_cast<MovementViolation>(i)), report.counts.at(i));

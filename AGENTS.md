@@ -41,10 +41,11 @@ print `OK` (it takes about a minute):
 ./build/manifold_sim   # options such as --layout debug --seeds 100 --seconds 60; a wrong option prints the usage
 ```
 
-It plays 40 seeds of each layout with random walking, running, stepping aside, turning and jumping, and checks the
-player's movement after every frame: no brief losses of the ground, no overlaps with the geometry, no endless falls,
-no speeds above running. It exits with 1 and lists examples, with their seed, layout and frame, if one is broken.
-A run with more seeds or longer is worth it for a change that touches collision itself.
+It plays 40 seeds of each layout with random walking, running, stepping aside, standing, turning, looking and jumping,
+and opens and closes doors near the player, and checks the player's movement after every frame: no brief losses of
+the ground, no overlaps with the geometry or closed doors, no endless falls, no speeds above running. It exits with 1
+if one is broken, and lists examples with their layout, seed, level and frame (`--help` tells more). A run with more
+seeds or longer is worth it for a change that touches collision itself.
 
 - Python scripts in `scripts/` follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md#python-scripts). After
   changing one, run the Python checks, which must pass:
@@ -60,8 +61,10 @@ A run with more seeds or longer is worth it for a change that touches collision 
   [README.md](README.md). Only add assets whose license allows redistributing the files in this repo.
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.
-- A bug fix comes with a test that fails without the fix. Check that it does: stash the fix
-  (`git stash push FILE...`), build and run the test, then `git stash pop`.
+- A bug fix comes with a test that fails without the fix. Check that it does before committing: stash the fix
+  (`git stash push FILE...`), build and run the test, then `git stash pop`. For a fix that is already committed, put
+  the old files back with `git checkout HEAD~1 -- FILE...`, build and run the test, then restore them with
+  `git checkout HEAD -- FILE...`.
 - For experiments, such as reproducing a bug, measuring something over many seeds or checking old code, write a
   throwaway program in a scratch directory outside the repo and build it against `manifold_core` with
   `scripts/scratch_build.py FILE.cpp [--run ARGS...]`. Don't commit such programs; turn what they check into a test
