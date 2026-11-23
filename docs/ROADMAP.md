@@ -271,6 +271,11 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Looking up and down by 40°** instead of 30°, so that E reaches a chest on the floor more easily.
 - **Screenshots wait a frame**: the commands after `screenshot` run in the next frame. A screenshot is drawn after
   the commands of its frame, so a `teleport` right after it used to show in the picture.
+- **Full-screen mode and settings files**: `settings.json` in the root of the repo (next to the executable in a copy
+  of the game) holds the game's settings, and the player's `settings.json` next to the save replaces what it gives
+  (`src/settings/settings.hpp`). `fullscreen`, `true` in the game's file, fills the screen at the desktop's
+  resolution without changing the screen's mode, in its pixels also on high-DPI screens. The 16:9 picture is scaled
+  to fit, with black bars, as in a window (`fit_viewport()`). Runs with `--exec` stay in a window.
 
 ## Later (unordered)
 
@@ -284,7 +289,9 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Fewer shadow maps per frame**: a limit on how many shadow maps are drawn in one frame, so that many torches at
   once don't cause a stutter. While a door moves, only the cube faces that can see it could be drawn again.
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
-- Full-screen mode, and mouse look.
+- Mouse look.
+- **In-game settings**: a screen in the game menu to change the settings of `settings.json`, such as full-screen
+  mode, which writes them to the player's `settings.json`.
 - Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
 - Attack spells, spell effects, projectiles that emit light (?).
 - Audio: ambient sound, spell sounds.

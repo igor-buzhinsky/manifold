@@ -20,15 +20,18 @@ constexpr int kGlMinorVersion = 1;
 /// at a time.
 class Window {
 public:
-    /// Opens a window that can't be resized, makes its OpenGL context current with vsync on, and loads
-    /// the OpenGL functions.
+    /// Opens a window that can't be resized, or one that fills the screen, makes its OpenGL context current with
+    /// vsync on, and loads the OpenGL functions.
     ///
-    /// \param title  Text in the title bar.
-    /// \param width  Width in screen units, which may differ from pixels on high-DPI screens.
-    /// \param height Height in screen units.
+    /// \param title      Text in the title bar.
+    /// \param width      Width in screen units, which may differ from pixels on high-DPI screens.
+    /// \param height     Height in screen units.
+    /// \param fullscreen Whether the window fills the screen instead, at the resolution of the desktop and in its
+    ///                   pixels also on high-DPI screens. The mode of the screen isn't changed. `width` and
+    ///                   `height` are then ignored.
     /// \throws std::runtime_error if SDL, the window or the OpenGL context can't be created, or OpenGL
     ///         functions can't be loaded.
-    Window(const std::string& title, int width, int height);
+    Window(const std::string& title, int width, int height, bool fullscreen);
     ~Window();
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;

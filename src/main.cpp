@@ -54,6 +54,7 @@
 #include "render/texture_image.hpp"
 #include "render/viewport.hpp"
 #include "save/saved_game.hpp"
+#include "settings/settings.hpp"
 #include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
 #include "ui/game_menus.hpp"
@@ -374,19 +375,45 @@ void log_game(const manifold::Game& game) {
     manifold::log_info("Level info:\n{}", game.level().info);
 }
 
-/// Where the game is saved: `save.json` in the game's directory for user data, which SDL_GetPrefPath() gives and
+/// The game's directory for user data, of the save and the player's settings, which SDL_GetPrefPath() gives and
 /// creates: on Linux `$XDG_DATA_HOME/manifold/`, by default `~/.local/share/manifold/`.
 ///
-/// \return The path, or nothing (after logging a warning) if there is no such directory.
-std::optional<std::filesystem::path> save_file_path() {
+/// \return The directory, or nothing (after logging a warning) if there is no such directory.
+std::optional<std::filesystem::path> user_data_dir() {
     char* dir = SDL_GetPrefPath("", "manifold");
     if (dir == nullptr) {
-        manifold::log_warning("The game can't be saved or loaded: {}", SDL_GetError());
+        manifold::log_warning("The game's directory for user data isn't known: {}", SDL_GetError());
         return std::nullopt;
     }
-    std::filesystem::path path = std::filesystem::path(dir) / "save.json";
+    std::filesystem::path path(dir);
     SDL_free(dir);
     return path;
+}
+
+/// Where the game is saved: `save.json` in the game's directory for user data, see user_data_dir().
+///
+/// \return The path, or nothing (after logging a warning) if there is no such directory.
+std::optional<std::filesystem::path> save_file_path(const std::optional<std::filesystem::path>& data_dir) {
+    if (!data_dir) {
+        manifold::log_warning("The game can't be saved or loaded");
+        return std::nullopt;
+    }
+    return *data_dir / "save.json";
+}
+
+/// Reads the settings: the game's own (see manifold::find_game_settings_file()), with the player's in the game's
+/// directory for user data over them, see manifold::load_settings().
+///
+/// \param data_dir See user_data_dir().
+manifold::Settings read_settings(const std::optional<std::filesystem::path>& data_dir) {
+    // SDL keeps the string, so it isn't freed.
+    const char* base_path = SDL_GetBasePath();
+    std::vector<std::filesystem::path> files = {manifold::find_game_settings_file(
+        base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path(), MANIFOLD_SETTINGS_FILE)};
+    if (data_dir) {
+        files.push_back(*data_dir / manifold::kSettingsFileName);
+    }
+    return manifold::load_settings(files);
 }
 
 /// Saves the game at the start of its current level, see manifold::Game::save_point(). A failure is only logged.
@@ -1059,8 +1086,13 @@ void run(const Options& options) {
     manifold::log_info("Portraits: {} in {}", config.portraits.size(), assets.portraits.string());
     manifold::Game game(config, options.seed.value_or(random_seed()), options.layout);
 
+    const std::optional<std::filesystem::path> data_dir = user_data_dir();
+    // Scripts of console commands mostly test the game and take screenshots, so they run in a window, which doesn't
+    // take over the screen.
+    const bool scripted = !options.commands.empty();
+    const bool fullscreen = read_settings(data_dir).fullscreen && !scripted;
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
-    manifold::Window window("Manifold", kWindowWidth, window_height);
+    manifold::Window window("Manifold", kWindowWidth, window_height, fullscreen);
     manifold::ConsoleState state;
     manifold::AudioOutput audio;
     const DoorSoundSets door_sounds(assets.sounds);
@@ -1070,8 +1102,8 @@ void run(const Options& options) {
     // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
     // mostly test the game, so they leave the player's save alone. If there is a save, the player is asked first
     // whether to continue it, and the new game is saved only once the start menu is closed without continuing.
-    const bool saving = options.commands.empty();
-    std::optional<std::filesystem::path> save_path = save_file_path();
+    const bool saving = !scripted;
+    std::optional<std::filesystem::path> save_path = save_file_path(data_dir);
     const bool ask = saving && has_readable_save(save_path);
     LevelSession level(game, state.view, assets, std::move(save_path), saving, ask);
     Ui ui;

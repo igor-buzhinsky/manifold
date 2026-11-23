@@ -35,7 +35,7 @@ std::string gl_string(GLenum name) {
 
 }  // namespace
 
-Window::Window(const std::string& title, int width, int height) {
+Window::Window(const std::string& title, int width, int height, bool fullscreen) {
     if (!SDL_Init(SDL_INIT_VIDEO)) {
         throw std::runtime_error(sdl_error("SDL_Init failed"));
     }
@@ -48,7 +48,11 @@ Window::Window(const std::string& title, int width, int height) {
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
 
-    window_ = SDL_CreateWindow(title.c_str(), width, height, SDL_WINDOW_OPENGL);
+    // Without a fullscreen mode set, SDL fills the screen at the desktop's resolution. A full-screen picture is drawn
+    // in the screen's pixels, also where the desktop is scaled; the black bars come from fit_viewport().
+    const SDL_WindowFlags flags =
+        SDL_WINDOW_OPENGL | (fullscreen ? SDL_WINDOW_FULLSCREEN | SDL_WINDOW_HIGH_PIXEL_DENSITY : SDL_WindowFlags{0});
+    window_ = SDL_CreateWindow(title.c_str(), width, height, flags);
     if (window_ == nullptr) {
         const std::string error = sdl_error("SDL_CreateWindow failed");
         SDL_Quit();

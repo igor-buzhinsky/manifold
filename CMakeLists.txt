@@ -120,6 +120,7 @@ add_library(manifold_core STATIC
     src/render/viewport.cpp
     src/render/world_mesh.cpp
     src/save/saved_game.cpp
+    src/settings/settings.cpp
     src/ui/button_list.cpp
     src/ui/crosshair.cpp
     src/ui/game_menus.cpp
@@ -164,15 +165,18 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 # Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+# The game's own settings are read the same way: `settings.json` next to the executable, or else the one in the source
+# tree. The player's settings in the directory of the saves take priority over them.
+target_compile_definitions(manifold PRIVATE MANIFOLD_SETTINGS_FILE="${CMAKE_SOURCE_DIR}/settings.json")
 # `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
-# with the game manual and the licenses of the game and of the libraries built into it. Releases are such copies.
+# with the game manual, the game's settings and the licenses of the game and of the libraries built into it. Releases are such copies.
 # The layout isn't the usual one of /usr/local, so without --prefix the copy goes into the build directory.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
 endif()
 install(TARGETS manifold RUNTIME DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
-install(FILES LICENSE GAME_MANUAL.md DESTINATION .)
+install(FILES LICENSE GAME_MANUAL.md settings.json DESTINATION .)
 install(FILES ${sdl3_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME SDL3.txt)
 install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
 install(FILES ${stb_SOURCE_DIR}/LICENSE DESTINATION licenses RENAME stb.txt)
@@ -224,6 +228,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/room_layout_test.cpp
         tests/saved_game_test.cpp
         tests/screen_stack_test.cpp
+        tests/settings_test.cpp
         tests/shadow_map_test.cpp
         tests/sound_set_test.cpp
         tests/sound_test.cpp
