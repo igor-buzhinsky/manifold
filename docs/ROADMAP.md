@@ -288,12 +288,13 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   whatever the keys, so a running jump goes farther and can't be steered. What stops the player, such as a wall,
   also removes that part of the velocity. Teleporting, noclip and Levitate leave the player at rest, so a fall after
   them is straight down. At the start of a level, the player stands on the floor.
-- **No getting stuck in narrow gaps**: in a gap narrower than the player, e.g. between the high end of a ramp and a
+- **Stopping at narrow gaps**: in a gap narrower than the player, e.g. between the high end of a ramp and a
   wall in debug levels, each push out of one side went into the other, and the pushes ran out before the shallow one
   out of the floor, so the player was left inside both sides and below the floor, and lost the ground for a frame
-  (and, with momentum in the air, the keys for a few). Now a step of `move_and_slide()` whose pushes don't get the
-  body free (to less than 0.1 mm) moves only vertically, so the player stops at such a gap, and overlaps are pushed
-  out up to 16 times per step instead of 4. In a simulation of 80 levels with random walking, the short losses of the
+  (and, with momentum in the air, the keys for a few). Now a step of `move_and_slide()` whose pushes don't get a
+  body that was free before it free again (to less than 0.1 mm) moves only vertically, so the player stops at such a
+  gap, and overlaps are pushed out up to 16 times per step instead of 4. A player who is in such a gap already, after
+  `teleport` or noclip, is pushed as before, so they can walk out. In a simulation of 80 levels with random walking, the short losses of the
   ground went from 116 to 0.
 
 ## Later (unordered)
