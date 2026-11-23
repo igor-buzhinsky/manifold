@@ -329,7 +329,8 @@ Drawbacks:
 
 ## 2026-11-17: Footsteps by distance walked, with sounds chosen by the directory of the level texture
 
-Status: **ACCEPTED**. Done in v0.3.
+Status: **ACCEPTED**. Done in v0.3. Since running was added (see below), walking is 2.5 m/s, a footstep is 1 m
+walking and 1.5 m running, and the first one comes a quarter of a step after starting from standing.
 
 Decision:
 
@@ -666,8 +667,10 @@ Status: **ACCEPTED**. Done in v0.4.
 Decision: holding Shift makes the player run. Walking slows from 3 m/s to 2.5 m/s, a brisk walk, and running is
 4.5 m/s, a fast run (3:42 minutes per km). Only the forward part of the movement, in the horizontal direction of the
 view, gets the running speed: walking backward and stepping aside stay at walking speed, and running diagonally is
-faster only in its forward part. If a frame of running is pushed back sideways by a wall, a block or a door, the frame
-is moved again at walking speed, so running into something, also sliding along it, is no faster than walking. Ramps
+faster only in its forward part. If a frame of running is pushed back sideways by a wall, a block or a door by more
+than half of its horizontal movement (sin 30°), the frame is moved again at walking speed. So running into something at
+more than 30° from along it, also sliding along it, is no faster than walking, while at a shallower angle the player
+slides along it at running speed. Ramps
 push the player straight up, so running up them stays fast. Running works on the ground, in the air and with noclip,
 but not with Levitate. A running footstep is 1.5 m instead of 1 m. Running costs nothing yet; stamina comes later.
 
@@ -677,7 +680,9 @@ Gains:
   run 180, at step lengths of 1 m and 1.5 m.
 - Running only forward keeps strafing and backing away slow, as they are for a real runner.
 - Slowing down at walls keeps running from making the player shoot along walls and into corners, and the check is
-  cheap: a second collision pass only in frames that hit something.
+  cheap: a second collision pass only in frames that hit something steeply.
+- The 30° limit lets the player run along a corridor without holding a heading exactly parallel to its walls, which
+  the keys can't do. The check compares the push with the frame's movement, so it doesn't depend on the frame rate.
 
 Rejected alternatives:
 
@@ -687,10 +692,12 @@ Rejected alternatives:
 - **Running in every direction**: runners don't run backwards or sideways at full speed.
 - **Clamping the speed of the slide along a wall** instead of moving the frame again: needs changes in the collision
   code, while moving again at walking speed gives the same slide as walking.
+- **Slowing down at any touch of an obstacle**: running along a wall at a heading even a little into it, as when
+  hugging a corridor wall, would be at walking speed for as long as the wall is touched.
 
 Drawbacks:
 
 - Walking is a sixth slower than before.
 - There is no momentum: running stops at once when Shift is let go, also in the middle of a jump.
-- A frame that touches something while running moves at walking speed, e.g. when the player brushes a corner, which
-  can feel like a small stutter.
+- Running into a wall at about 30° switches between walking and running speed as the angle crosses the limit, and
+  a frame that hits a corner steeply moves at walking speed, which can feel like a small stutter.

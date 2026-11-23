@@ -29,9 +29,11 @@ namespace manifold {
 
 namespace {
 
-/// A horizontal push out of the world geometry longer than this, in metres, means that running ran into something.
-/// Ramps and floors push straight up, so it is only rounding error there.
-constexpr float kRunBlockedCorrection = 1e-5f;
+/// Running into something slows down to walking if the horizontal push out of the world geometry is longer than this
+/// part of the frame's horizontal movement: sin 30 degrees. Moving at an angle a into a wall, the push is sin a of the
+/// movement past the wall, so a run at less than 30 degrees to a wall slides along it at running speed. Ramps and
+/// floors push straight up, so they don't slow running down.
+constexpr float kRunBlockedSine = 0.5f;
 
 /// The player's settings, moved to the start of `level` and turned the way it says.
 PlayerParams at_start(PlayerParams params, const Level& level) {
@@ -261,9 +263,9 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     const glm::vec3 start = player_.position();
     const bool was_on_ground = player_.on_ground();
     SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
-    // Running into something, such as a wall or a door, moves only at walking speed, also along it. Ramps and floors
-    // push the player straight up, so running on them goes on.
-    if (running && glm::length(glm::vec2(result.correction)) > kRunBlockedCorrection) {
+    // Running into something, such as a wall or a door, at more than 30 degrees moves only at walking speed, also
+    // along it. Ramps and floors push the player straight up, so running on them goes on.
+    if (running && glm::length(glm::vec2(result.correction)) > kRunBlockedSine * glm::length(glm::vec2(displacement))) {
         running = false;
         displacement = glm::vec3(glm::vec2(walk), displacement.z);
         result = move_and_slide(level_.world, player_.body(), displacement, blockers);

@@ -186,7 +186,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Audio: footsteps, entering portals, doors**. Portals: each level picks its exit sound among the OGG files in
   `assets/sounds/portal/` from the level seed, and plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Doors: level generation gives each door a random open and close sound, from `assets/sounds/door_open/`
   and `assets/sounds/door_close/`, played when the door starts to move. Footsteps: the directory of the level's texture (grass, wood, metal or stone) gives the level's texture kind, and walking plays a random footstep of that kind every
-  metre.
+  metre (every 1.5 m running, since v0.4).
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
   returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
@@ -279,8 +279,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   window.
 - **Running** with Shift, at 4.5 m/s, and **a slower walk** of 2.5 m/s instead of 3 m/s, which was a jog. Only the
   forward part of the movement, in the horizontal direction of the view, is faster. A frame in which running would be
-  pushed back sideways by a wall, a block or a door moves at walking speed instead; ramps push straight up, so running
-  up them stays fast. Running works in the air and with noclip, but not with Levitate. A running footstep is 1.5 m
+  pushed back sideways by a wall, a block or a door by more than half of its movement, i.e. a run into it at more than
+  30°, moves at walking speed instead; ramps push straight up, so running up them stays fast. Running works in the air and with noclip, but not with Levitate. A running footstep is 1.5 m
   instead of 1 m, about 3 steps per second. The `run FRAMES` console command runs like `walk FRAMES` walks.
 
 ## Later (unordered)

@@ -5,7 +5,7 @@
 | Key | Action |
 |---|---|
 | W / S | Walk forward / backward, at 2.5 m/s (a brisk walk) |
-| Shift (left or right) + W | Run forward, at 4.5 m/s. Only the forward part of the movement is faster: walking backward and stepping aside stay at walking speed. Running into a wall, a block or a door slows down to walking speed, also when sliding along it. Running works on the ground, in the air (a running jump goes farther) and with noclip, but not while Levitate is in effect |
+| Shift (left or right) + W | Run forward, at 4.5 m/s. Only the forward part of the movement is faster: walking backward and stepping aside stay at walking speed. Running into a wall, a block or a door at more than 30° from along it slows down to walking speed, also when sliding along it; at a shallower angle, the party slides along it at running speed. Running works on the ground, in the air (a running jump goes farther) and with noclip, but not while Levitate is in effect |
 | A / D | Step left / right |
 | Left / Right arrow | Turn left / right |
 | Up / Down arrow | Look up / down (at most 40° each way) |
@@ -114,8 +114,8 @@ Each level has an exit: a spinning blue portal cube floating above the floor, wh
 the way to it. In room levels it is on another layer than the start. Touching it, also with noclip, starts
 the next level, with the sound of the portal. Each level's portal has its own sound, picked from the level seed.
 
-Walking on the ground makes a footstep about every metre, running about every 1.5 metres, and so does landing from a fall of more than about 0.2 m,
-such as a jump onto the same floor. The steps sound like what
+Walking on the ground makes a footstep about every metre, and running about every 1.5 metres. Landing from a fall of
+more than about 0.2 m, such as a jump onto the same floor, makes a footstep too. The steps sound like what
 the level's texture shows: grass, wood, metal or stone (also bricks, tiles, plaster and dirt).
 
 In room levels, some openings between rooms (10% to 100% of them, random for each level) have doors: two
@@ -196,10 +196,10 @@ it types can't be typed.
 | `doors` | List the doors of the level: what they are made of, their numbers, where they stand, the direction of their wall, and whether they are open, closed, opening or closing |
 | `door N open\|close` | Start to open or close door N, as E does. Fails if the door moves, is already open or closed, or the player stands in it |
 | `activate [X Y]` | Activate what the center of the player's view points at, like E, or what a click at (X, Y) would: fractions of the view's width and height from its top-left corner, from 0 to 1. Uses the player's eyes also while `camera` shows another view |
-| `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level |
+| `walk FRAMES` | Walk the player forward for this many frames, as holding W does, e.g. to hear the footsteps. The commands after it don't wait for it: use `wait`. A walk goes on in the next level, and so does a run |
 | `run FRAMES` | Run the player forward for this many frames, as holding Shift and W does, like `walk`. A `walk` or `run` replaces the one before |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
-| `load` | Load the saved game, as F9 does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` goes on in the loaded level |
+| `load` | Load the saved game, as F9 does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` or `run` goes on in the loaded level |
 | `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait |
 | `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
 | `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells above). Fails if the party has less mana than it costs |
