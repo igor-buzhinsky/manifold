@@ -280,8 +280,14 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Running** with Shift, at 4.5 m/s, and **a slower walk** of 2.5 m/s instead of 3 m/s, which was a jog. Only the
   forward part of the movement, in the horizontal direction of the view, is faster. A frame in which running would be
   pushed back sideways by a wall, a block or a door by more than half of its movement, i.e. a run into it at more than
-  30°, moves at walking speed instead; ramps push straight up, so running up them stays fast. Running works in the air and with noclip, but not with Levitate. A running footstep is 1.5 m
-  instead of 1 m, about 3 steps per second. The `run FRAMES` console command runs like `walk FRAMES` walks.
+  30°, moves at walking speed instead; ramps push straight up, so running up them stays fast. Running works with
+  noclip, but not with Levitate. A running footstep is 1.5 m instead of 1 m, about 3 steps per second. The
+  `run FRAMES` console command runs like `walk FRAMES` walks.
+- **Momentum in the air**: after a jump or a step off a ledge, without noclip or Levitate, the player keeps the
+  horizontal velocity of the take-off (`Player::horizontal_velocity()`, from the actual movement of the last frame),
+  whatever the keys, so a running jump goes farther and can't be steered. What stops the player, such as a wall,
+  also removes that part of the velocity. Teleporting, noclip and Levitate leave the player at rest, so a fall after
+  them is straight down. At the start of a level, the player stands on the floor.
 
 ## Later (unordered)
 

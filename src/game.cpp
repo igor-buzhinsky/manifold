@@ -35,11 +35,14 @@ namespace {
 /// floors push straight up, so they don't slow running down.
 constexpr float kRunBlockedSine = 0.5f;
 
-/// The player's settings, moved to the start of `level` and turned the way it says.
-PlayerParams at_start(PlayerParams params, const Level& level) {
+/// The player at the start of `level`, turned the way it says, standing on the floor there, so that the first update
+/// already walks rather than keeping the velocity of the air, see Game::update().
+Player at_start(PlayerParams params, const Level& level) {
     params.position = level.player_start;
     params.yaw = level.player_yaw;
-    return params;
+    Player player(params);
+    player.set_on_ground(true);
+    return player;
 }
 
 /// Generates the level of a game, see generate_level(). The first level of a game gets a torch on the free wall side of
@@ -93,6 +96,7 @@ void Game::set_hp(std::size_t index, int hp) {
 void Game::teleport(const glm::vec3& position, std::optional<float> yaw) {
     player_.set_position(position);
     player_.set_vertical_speed(0.0f);
+    player_.set_horizontal_velocity(glm::vec2(0.0f));
     player_.set_on_ground(false);
     footsteps_ = 0;
     step_progress_ = 1.0f - kFirstStepFraction;
@@ -141,7 +145,7 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     level_start_time_ = time_;
     level_start_party_ = party_;
     level_start_magic_ = magic_;
-    player_ = Player(at_start(player_params_, level_));
+    player_ = at_start(player_params_, level_);
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();
     footsteps_ = 0;
@@ -233,22 +237,24 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     // Running only adds speed forward, in the horizontal direction of the view.
     bool running = input.run && direction.x > 0.0f && !levitating();
     glm::vec3 displacement = running ? walk + (direction.x * (run_speed_ - walk_speed_) * dt * forward) : walk;
-    if (noclip_) {
+    if (noclip_ || levitating()) {
+        // Levitation is like noclip, but stopped by what is in the way. Without gravity there is nothing to stand on,
+        // so there are no footsteps and no sticking to ramps. When noclip is turned off or the spell ends in the air,
+        // the fall starts from rest.
         displacement.z = input.rise * walk_speed_ * dt;
-        player_.set_position(player_.position() + displacement);
-        // When noclip is turned off in the air, the fall starts from rest.
+        player_.set_position(noclip_ ? player_.position() + displacement
+                                     : move_and_slide(level_.world, player_.body(), displacement, blockers).position);
         player_.set_vertical_speed(0.0f);
+        player_.set_horizontal_velocity(glm::vec2(0.0f));
         player_.set_on_ground(false);
         return;
     }
-    if (levitating()) {
-        // As with noclip, but stopped by what is in the way. Without gravity there is nothing to stand on, so there
-        // are no footsteps and no sticking to ramps, and when the spell ends the fall starts from rest.
-        displacement.z = input.rise * walk_speed_ * dt;
-        player_.set_position(move_and_slide(level_.world, player_.body(), displacement, blockers).position);
-        player_.set_vertical_speed(0.0f);
-        player_.set_on_ground(false);
-        return;
+    // In the air, there is nothing to push off: the player keeps the horizontal velocity of the take-off, whatever the
+    // keys, and turning only turns the view.
+    const bool was_on_ground = player_.on_ground();
+    if (!was_on_ground) {
+        running = false;
+        displacement = glm::vec3(player_.horizontal_velocity() * dt, 0.0f);
     }
 
     float start_speed = player_.vertical_speed();
@@ -261,7 +267,6 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     const float vertical_speed = start_speed - (level_.gravity * dt);
     displacement.z = vertical_speed * dt;
     const glm::vec3 start = player_.position();
-    const bool was_on_ground = player_.on_ground();
     SlideResult result = move_and_slide(level_.world, player_.body(), displacement, blockers);
     // Running into something, such as a wall or a door, at more than 30 degrees moves only at walking speed, also
     // along it. Ramps and floors push the player straight up, so running on them goes on.
@@ -271,6 +276,10 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
         result = move_and_slide(level_.world, player_.body(), displacement, blockers);
     }
     player_.set_position(result.position);
+    // The velocity follows the actual movement, so what stops the player, such as a wall, also stops the velocity.
+    if (dt > 0.0f) {
+        player_.set_horizontal_velocity(glm::vec2(result.position - start) / dt);
+    }
     bool landed = vertical_speed < 0.0f && result.correction.z > 0.0f;
 
     // Walking down a slope, the ground drops away faster than gravity pulls the player down at first. If

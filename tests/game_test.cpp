@@ -418,6 +418,73 @@ TEST(GameTest, RunningJumpGoesFarther) {
     EXPECT_NEAR(jump_distance(true), 2.0f * walking, 0.05f);
 }
 
+TEST(GameTest, InTheAirTheVelocityOfTheTakeOffIsKeptWhateverTheKeys) {
+    // The same running jump, but in the air the player lets go of Shift, walks backward, steps aside or turns.
+    const std::vector<PlayerInput> air_inputs = {
+        {.forward = 1.0f, .run = true}, {}, {.forward = -1.0f}, {.strafe = 1.0f}, {.turn = 1.0f, .forward = 1.0f}};
+    std::vector<glm::vec3> landings;
+    for (const PlayerInput& air_input : air_inputs) {
+        Game game(make_config(), 1, LayoutKind::kDebug);
+        run(game, {}, 0.1f);
+        game.update({.forward = 1.0f, .run = true, .rise = 1.0f}, 0.01f);
+        while (!game.player().on_ground()) {
+            game.update(air_input, 0.01f);
+        }
+        landings.push_back(game.player().position());
+    }
+    for (const glm::vec3& landing : landings) {
+        expect_near(landing, landings[0]);
+    }
+    EXPECT_GT(landings[0].x, 2.0f);
+}
+
+TEST(GameTest, SteppingOffALedgeKeepsTheWalkingVelocity) {
+    // From the platform of the ramp level, which ends at x = 6, 2.5 m high, walking along +x.
+    Level level = make_ramp_level();
+    level.player_start = {5.0f, 0.0f, 2.5f};
+    Game game(make_config(), std::move(level));
+    while (game.player().position().z > 2.4f) {
+        game.update({.forward = 1.0f}, 0.01f);
+    }
+    const float x = game.player().position().x;
+    run(game, {.forward = -1.0f}, 0.2f);  // Falling: the keys change nothing.
+    EXPECT_FALSE(game.player().on_ground());
+    EXPECT_NEAR(game.player().position().x, x + 0.4f, 1e-3f);
+    EXPECT_NEAR(game.player().horizontal_velocity().x, 2.0f, 1e-3f);
+}
+
+TEST(GameTest, AWallInTheAirStopsOnlyThePartOfTheVelocityIntoIt) {
+    // A jump at 45 degrees towards the wall at y = 1: after hitting it, the player slides along it.
+    Game game(make_config(), make_wall_level(kPi / 4.0f));
+    run(game, {}, 0.1f);
+    game.update({.forward = 1.0f, .rise = 1.0f}, 0.01f);
+    run(game, {}, 0.1f);
+    EXPECT_FALSE(game.player().on_ground());
+    const float part = std::numbers::sqrt2_v<float> / 2.0f;
+    EXPECT_NEAR(game.player().horizontal_velocity().x, 2.0f * part, 1e-3f);
+    EXPECT_NEAR(game.player().horizontal_velocity().y, 0.0f, 1e-3f);
+}
+
+TEST(GameTest, TeleportAndTheEndOfLevitationFallFromRest) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    run(game, {.forward = 1.0f}, 0.5f);
+    game.teleport({0.0f, 0.0f, 2.0f});
+    run(game, {.forward = 1.0f}, 0.3f);
+    EXPECT_FALSE(game.player().on_ground());
+    EXPECT_NEAR(game.player().position().x, 0.0f, 1e-5f);
+
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    game.update({.forward = 1.0f}, 0.5f);
+    EXPECT_NEAR(game.player().position().x, 1.0f, 1e-5f);
+    // The spell ends in the air while walking forward: the fall is straight down.
+    run(game, {.forward = 1.0f}, game.magic().spells[0].remaining - 0.005f);
+    const float x = game.player().position().x;
+    run(game, {.forward = 1.0f}, 0.3f);
+    EXPECT_FALSE(game.levitating());
+    EXPECT_FALSE(game.player().on_ground());
+    EXPECT_NEAR(game.player().position().x, x, 1e-5f);
+}
+
 TEST(GameTest, RunsUpRampAtFullSpeed) {
     // Ramps push the player straight up, so they don't slow running down.
     Game game(make_config(), make_ramp_level());
@@ -970,6 +1037,7 @@ TEST(GameTest, ClickActivatesInItsDirectionWithTheSameReach) {
     ASSERT_TRUE(game.set_door_open(0, false));
     game.update({}, Door::kMoveTime);
     game.teleport({0.0f, -2.1f, 0.0f}, 0.0f);
+    game.update({}, 0.01f);  // Land on the floor, since a teleported player is in the air until then.
     EXPECT_EQ(game.activate(glm::vec3(0.0f, 1.0f, 0.0f)), Activation::kNothing);
     // Stepping 0.2 m to the left in the same update brings it within reach: the click activates after the move.
     game.update({.strafe = -1.0f, .click = glm::vec3(0.0f, 1.0f, 0.0f)}, 0.1f);

@@ -2,6 +2,7 @@
 
 #include <numbers>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "world/geometry.hpp"
@@ -37,7 +38,13 @@ public:
     float vertical_speed() const { return vertical_speed_; }
     void set_vertical_speed(float vertical_speed) { vertical_speed_ = vertical_speed; }
 
-    /// Whether the player stood on something at the end of the last update.
+    /// Horizontal velocity in metres per second, from the movement of the last update. In the air, the player keeps it,
+    /// see Game::update().
+    const glm::vec2& horizontal_velocity() const { return horizontal_velocity_; }
+    void set_horizontal_velocity(const glm::vec2& velocity) { horizontal_velocity_ = velocity; }
+
+    /// Whether the player stood on something at the end of the last update, or stands on the floor at the start of a
+    /// level.
     bool on_ground() const { return on_ground_; }
     void set_on_ground(bool on_ground) { on_ground_ = on_ground; }
 
@@ -77,6 +84,7 @@ private:
     float yaw_;
     float pitch_ = 0.0f;
     float vertical_speed_ = 0.0f;
+    glm::vec2 horizontal_velocity_{0.0f};
     bool on_ground_ = false;
 };
 
