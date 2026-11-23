@@ -156,7 +156,13 @@ Console commands inspect the game, e.g. to test a level. There are three ways to
 
 - In the console window, which the `/~ key opens over the top half of the picture. It shows the log and
   an input line. While it is open, the keys type into it and the player stands still.
-- In the terminal the game was started from: type them one per line.
+- In the terminal the game was started from: type them one per line. They can also be piped into a normal run, which,
+  unlike `--exec`, uses the settings (e.g. full screen) and saves, e.g. with a scratch directory for the save:
+
+  ```sh
+  (sleep 2; echo "menu close"; echo "screenshot full.png"; sleep 1; echo quit) | XDG_DATA_HOME=/tmp/m ./build/manifold 42
+  ```
+
 - On the command line with `--exec`, separated by `;`:
 
 ```sh
@@ -188,7 +194,8 @@ it types can't be typed.
 | Command | Action |
 |---|---|
 | `help` | List all commands |
-| `level_info` | Describe the level, depending on its layout, its ambient light, and where the player is. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, the chests with their tiles, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps, the exit and the chests |
+| `level_info` | Describe the level, depending on its layout, and its ambient light. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, the chests with their tiles, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps, the exit and the chests |
+| `player_info` | Describe the player: where their feet are, yaw and pitch, whether they stand on the ground, the horizontal velocity and its speed, the vertical speed, and whether noclip is on and Levitate in effect |
 | `camera` | Show where the camera is |
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
 | `camera player` | Put the camera back at the player's eyes |

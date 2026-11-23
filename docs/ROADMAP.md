@@ -296,6 +296,12 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   gap, and overlaps are pushed out up to 16 times per step instead of 4. A player who is in such a gap already, after
   `teleport` or noclip, is pushed as before, so they can walk out. In a simulation of 80 levels with random walking, the short losses of the
   ground went from 116 to 0.
+- **Tools for checking changes**: a limit of 60 s on each test, and limits on the loops of tests that wait for
+  something. `manifold_sim` (`src/sim/movement_sim.hpp`) plays 40 seeds of each layout with random input and checks
+  the player's movement after every frame: brief losses of the ground, overlaps, endless falls and speeds above
+  running. It catches the collision bug of narrow gaps fixed above on the old code. `scripts/scratch_build.py` builds
+  throwaway programs against `manifold_core`. The `player_info` console command shows the player's position, view,
+  velocity, whether they stand on the ground, noclip and Levitate; `level_info` no longer shows the player.
 
 ## Later (unordered)
 

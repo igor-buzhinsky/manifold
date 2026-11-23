@@ -140,6 +140,10 @@ Unit tests use GoogleTest, which CMake downloads. Build as above, then:
 ctest --test-dir build --output-on-failure
 ```
 
+Each test fails after 60 s. `./build/manifold_sim` plays many levels with random input and checks the player's
+movement after every frame, see [AGENTS.md](AGENTS.md); it isn't run in CI, since it takes about a minute.
+`scripts/scratch_build.py` builds a throwaway program against the game's library, for experiments.
+
 Pass `-DMANIFOLD_BUILD_TESTS=OFF` to the first `cmake` command to skip building the tests, or
 `-DMANIFOLD_WARNINGS_AS_ERRORS=ON` to fail on compiler warnings in Manifold's own code.
 
