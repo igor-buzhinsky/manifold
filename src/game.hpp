@@ -53,8 +53,8 @@ struct PlayerInput {
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     /// Whether the player runs: walking forward is at GameConfig::run_speed instead of GameConfig::walk_speed. Only
     /// the forward part of the movement is faster, not walking backward or stepping aside. It has no effect while
-    /// Levitate is in effect, and in a frame where the faster movement would run into something, the player moves at
-    /// walking speed instead.
+    /// Levitate is in effect, and in a frame where the faster movement would run into something at more than 30 degrees
+    /// from along it, the player moves at walking speed instead.
     bool run = false;
     float strafe = 0.0f;  ///< Positive steps right, negative left.
     /// Positive jumps, or flies up with noclip or levitation. Negative flies down with noclip or levitation. A jump

@@ -283,6 +283,19 @@ TEST(GameTest, RunningMakesAFootstepPerRunStepLength) {
     EXPECT_EQ(game.take_footsteps(), 2);
 }
 
+TEST(GameTest, WalkingAndRunningAddUpTheirPartsOfAStep) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    run(game, {}, 0.1f);
+    run(game, {.forward = 1.0f}, 0.15f);  // 0.3 m: the first footstep, and 0.05 of the next step.
+    EXPECT_EQ(game.take_footsteps(), 1);
+    run(game, {.forward = 1.0f}, 0.25f);  // Half a walking step: 0.55 of the step.
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f, .run = true}, 0.15f);  // 0.6 m, 0.4 of a running step: 0.95, none yet.
+    EXPECT_EQ(game.take_footsteps(), 0);
+    run(game, {.forward = 1.0f, .run = true}, 0.05f);  // 0.2 m more: 1.08, a footstep.
+    EXPECT_EQ(game.take_footsteps(), 1);
+}
+
 TEST(GameTest, NoclipAndFallingMakeNoFootstepsButLandingFromAJumpDoes) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     run(game, {}, 0.1f);
@@ -375,6 +388,34 @@ TEST(GameTest, RunningAlongAWallIsFullSpeed) {
     Game game(make_config(), make_wall_level(0.0f));
     run(game, {.forward = 1.0f, .run = true}, 1.0f);
     EXPECT_NEAR(game.player().position().x, 4.0f, 1e-3f);
+}
+
+TEST(GameTest, RunningIntoAWallAtLessThan30DegreesSlidesAtRunningSpeed) {
+    // Facing 20 degrees into the wall, the player slides along it at the running speed's part along the wall.
+    const float angle = kPi / 9.0f;
+    Game game(make_config(), make_wall_level(angle));
+    run(game, {.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(game.player().position().x, 4.0f * std::cos(angle), 0.02f);
+    // At 40 degrees, it slides at the walking speed's part.
+    Game steep(make_config(), make_wall_level(2.0f * angle));
+    run(steep, {.forward = 1.0f, .run = true}, 1.0f);
+    EXPECT_NEAR(steep.player().position().x, 2.0f * std::cos(2.0f * angle), 0.02f);
+}
+
+TEST(GameTest, RunningJumpGoesFarther) {
+    // A jump of 0.5 m is in the air for about 0.64 s, so the distance follows the horizontal speed.
+    const auto jump_distance = [](bool running) {
+        Game game(make_config(), 1, LayoutKind::kDebug);
+        run(game, {}, 0.1f);  // Find the ground.
+        game.update({.forward = 1.0f, .run = running, .rise = 1.0f}, 0.01f);
+        while (!game.player().on_ground()) {
+            game.update({.forward = 1.0f, .run = running}, 0.01f);
+        }
+        return game.player().position().x;
+    };
+    const float walking = jump_distance(false);
+    EXPECT_NEAR(walking, 2.0f * 0.64f, 0.05f);
+    EXPECT_NEAR(jump_distance(true), 2.0f * walking, 0.05f);
 }
 
 TEST(GameTest, RunsUpRampAtFullSpeed) {
