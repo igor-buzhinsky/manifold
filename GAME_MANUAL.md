@@ -57,6 +57,29 @@ The spells in effect are listed in the top-right corner, each name in a white bo
 A box blinks in the last 10 seconds of its spell. The blue bar in the bottom-right corner shows the party's mana.
 Clicks on them, or between the boxes, don't activate what is behind.
 
+## Settings
+
+The game reads its settings from two JSON files, if they exist:
+
+1. The game's own `settings.json`, next to the executable in a copy of the game, otherwise in the source tree.
+2. The player's `settings.json`, in the same directory as the save (see Saving below): `$XDG_DATA_HOME/manifold/` on
+   Linux, by default `~/.local/share/manifold/`. A setting given here replaces the game's own; settings it doesn't
+   give stay as the game's file has them.
+
+```json
+{
+  "fullscreen": true
+}
+```
+
+- `fullscreen`: `true` fills the screen at its current resolution, `false` opens a window of 1600 x 900. The picture
+  keeps its aspect ratio of 16:9 and is scaled to the screen, with black bars above and below, or on the sides,
+  where the screen's aspect ratio differs. The game's own file sets `true`; without any file, the game runs in a
+  window. Runs with `--exec` or `--screenshot` (see Console below) always open a window.
+
+Unknown settings are ignored with a warning in the log. A file that isn't valid JSON or has a setting of a wrong
+type is skipped as a whole, with an error in the log. The settings are read only when the game starts.
+
 ## Party
 
 The player leads a party of three characters, who move together. Their portraits are in the bottom-left corner of the

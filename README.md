@@ -35,7 +35,7 @@ Planned (see [docs/ROADMAP.md](docs/ROADMAP.md)):
 - Water with swimming and diving.
 - Static 3D props (furniture, statues) loaded from glTF.
 - Attack spells and spell effects, a spell book, more level layouts, secrets.
-- Mouse look and full-screen mode, Windows and macOS support.
+- Mouse look, in-game settings, Windows and macOS support.
 - Story and lore, eventually.
 
 ## Technologies
@@ -114,11 +114,13 @@ cmake --build build
 ```
 
 The game reads its textures and sounds from the `assets/` directory next to the executable, if there is one, and
-otherwise from `assets/` in the source tree, whose path is built into the executable. To make a copy of the game
-that runs from anywhere, without the checkout:
+otherwise from `assets/` in the source tree, whose path is built into the executable. It reads its settings, such as
+full-screen mode, from `settings.json` in the same way, and then from the player's own `settings.json`, which takes
+priority, see [GAME_MANUAL.md](GAME_MANUAL.md#settings). To make a copy of the game that runs from anywhere, without
+the checkout:
 
 ```sh
-cmake --install build --prefix ~/games/manifold   # copies the executable, assets/ and the licenses there
+cmake --install build --prefix ~/games/manifold   # copies the executable, assets/, settings.json and the licenses there
 ~/games/manifold/manifold
 ```
 

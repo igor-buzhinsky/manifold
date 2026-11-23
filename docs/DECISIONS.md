@@ -624,3 +624,37 @@ Drawbacks:
 - Without collision, the player walks through chests.
 - A chest right below a torch gets little light on its front, which faces away from the torch.
 - Golden chests look shiny only by their color: the renderer has no specular highlights.
+
+## 2026-11-23: Full screen at the desktop's resolution, set in layered settings files
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: the game reads its settings from JSON files: its own `settings.json` (in the root of the repo, next to the
+executable in a copy of the game), then the player's `settings.json` in the directory of the save, whose fields replace
+those of the game's file. The first setting is `fullscreen`, which the game's file sets to `true`. Full screen is
+SDL's borderless mode at the desktop's resolution: the screen's mode isn't changed, and the 16:9 picture is scaled to
+the screen with black bars, as in a window. Runs with `--exec` or `--screenshot` always open a window. There is no key
+to switch while playing; in-game settings come later.
+
+Gains:
+
+- No mode switch: the game starts and quits without the screen going black, other windows keep their places, and the
+  picture uses the screen's own pixels, so it isn't blurred by scaling in the monitor.
+- The player changes settings in their own file, which a new copy of the game doesn't replace, while the game's file
+  gives the defaults and can get new settings in later versions.
+- Scripted test runs, as used to check rendering, don't take over the screen, and their screenshots keep the size of
+  the window.
+
+Rejected alternatives:
+
+- **Exclusive full screen with a mode change**, e.g. to a 16:9 mode without black bars: slow to switch, leaves
+  other windows misplaced on some desktops, and the modes on offer differ between screens.
+- **A command-line option** such as `--fullscreen`: has to be given on every start, and doesn't suit settings that
+  the game menu will change later.
+- **One settings file, copied to the user's directory on the first start**: new settings of later versions wouldn't
+  reach a player who already has the file.
+
+Drawbacks:
+
+- The picture is drawn at the screen's full resolution, which is slower than a 1600 x 900 window on large screens.
+- Settings are changed only by editing a file until the game menu gets a settings screen.
