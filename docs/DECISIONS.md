@@ -670,9 +670,14 @@ view, gets the running speed: walking backward and stepping aside stay at walkin
 faster only in its forward part. If a frame of running is pushed back sideways by a wall, a block or a door by more
 than half of its horizontal movement (sin 30°), the frame is moved again at walking speed. So running into something at
 more than 30° from along it, also sliding along it, is no faster than walking, while at a shallower angle the player
-slides along it at running speed. Ramps
-push the player straight up, so running up them stays fast. Running works on the ground, in the air and with noclip,
-but not with Levitate. A running footstep is 1.5 m instead of 1 m. Running costs nothing yet; stamina comes later.
+slides along it at running speed. Ramps push the player straight up, so running up them stays fast. Running works on
+the ground and with noclip, but not with Levitate. A running footstep is 1.5 m instead of 1 m. Running costs nothing
+yet; stamina comes later.
+
+In the air, after a jump or a step off a ledge, without noclip or Levitate, the player keeps the horizontal velocity
+of the last frame on the ground, whatever the keys, and turning only turns the view. The velocity is that of the actual
+movement of each frame, so what stops the player in the air, such as a wall, also removes that part of it. Teleporting,
+noclip and Levitate leave the player at rest, so a fall after them is straight down.
 
 Gains:
 
@@ -681,6 +686,8 @@ Gains:
 - Running only forward keeps strafing and backing away slow, as they are for a real runner.
 - Slowing down at walls keeps running from making the player shoot along walls and into corners, and the check is
   cheap: a second collision pass only in frames that hit something steeply.
+- Momentum in the air is realistic: a running jump goes farther than a walking one, and a jump can't be steered or
+  stopped in the air. It is simple, since only the take-off velocity is kept, and no velocity is kept on the ground.
 - The 30° limit lets the player run along a corridor without holding a heading exactly parallel to its walls, which
   the keys can't do. The check compares the push with the frame's movement, so it doesn't depend on the frame rate.
 
@@ -692,12 +699,17 @@ Rejected alternatives:
 - **Running in every direction**: runners don't run backwards or sideways at full speed.
 - **Clamping the speed of the slide along a wall** instead of moving the frame again: needs changes in the collision
   code, while moving again at walking speed gives the same slide as walking.
+- **Control in the air**, as before: a jump could be steered, stopped or sped up with Shift in mid-air, which a real
+  jump can't.
+- **Momentum on the ground too**, with acceleration and friction: smoother starts and stops, but the player would
+  slide past doors and ledges, and it needs tuning.
 - **Slowing down at any touch of an obstacle**: running along a wall at a heading even a little into it, as when
   hugging a corridor wall, would be at walking speed for as long as the wall is touched.
 
 Drawbacks:
 
 - Walking is a sixth slower than before.
-- There is no momentum: running stops at once when Shift is let go, also in the middle of a jump.
+- On the ground there is no momentum: running stops at once when Shift is let go. In the air, a jump can't be
+  corrected, so a missed jump onto a ledge can't be saved.
 - Running into a wall at about 30° switches between walking and running speed as the angle crosses the limit, and
   a frame that hits a corner steeply moves at walking speed, which can feel like a small stutter.

@@ -5,11 +5,11 @@
 | Key | Action |
 |---|---|
 | W / S | Walk forward / backward, at 2.5 m/s (a brisk walk) |
-| Shift (left or right) + W | Run forward, at 4.5 m/s. Only the forward part of the movement is faster: walking backward and stepping aside stay at walking speed. Running into a wall, a block or a door at more than 30° from along it slows down to walking speed, also when sliding along it; at a shallower angle, the party slides along it at running speed. Running works on the ground, in the air (a running jump goes farther) and with noclip, but not while Levitate is in effect |
+| Shift (left or right) + W | Run forward, at 4.5 m/s. Only the forward part of the movement is faster: walking backward and stepping aside stay at walking speed. Running into a wall, a block or a door at more than 30° from along it slows down to walking speed, also when sliding along it; at a shallower angle, the party slides along it at running speed. Running works on the ground and with noclip, but not while Levitate is in effect. In the air, the party keeps the speed it had when it left the ground, so a running jump goes farther |
 | A / D | Step left / right |
 | Left / Right arrow | Turn left / right |
 | Up / Down arrow | Look up / down (at most 40° each way) |
-| Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. With noclip or Levitate: fly up |
+| Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. In the air, after a jump or a step off a ledge, the party keeps the horizontal speed and direction it had when it left the ground: the keys don't change them, and turning only turns the view. A wall stops only the part of the movement into it. With noclip or Levitate: fly up |
 | Page Down | With noclip or Levitate: fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
 | Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |

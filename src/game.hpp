@@ -53,8 +53,9 @@ struct PlayerInput {
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     /// Whether the player runs: walking forward is at GameConfig::run_speed instead of GameConfig::walk_speed. Only
     /// the forward part of the movement is faster, not walking backward or stepping aside. It has no effect while
-    /// Levitate is in effect, and in a frame where the faster movement would run into something at more than 30 degrees
-    /// from along it, the player moves at walking speed instead.
+    /// Levitate is in effect, nor in the air, where the velocity of the take-off is kept, and in a frame where the
+    /// faster movement would run into something at more than 30 degrees from along it, the player moves at walking
+    /// speed instead.
     bool run = false;
     float strafe = 0.0f;  ///< Positive steps right, negative left.
     /// Positive jumps, or flies up with noclip or levitation. Negative flies down with noclip or levitation. A jump
@@ -117,10 +118,12 @@ public:
     /// Turns the player first, then walks in the new direction. Without noclip, the player falls by the
     /// level's gravity and is stopped by obstacles and level walls. Walking into a ramp goes up it, and a
     /// player who walks down a ramp sticks to it instead of falling in small hops. When `input.rise` becomes
-    /// positive, a player who stands on something jumps. Holding it doesn't jump again. With noclip, the player flies:
+    /// positive, a player who stands on something jumps. Holding it doesn't jump again. In the air, after a jump or a
+    /// step off a ledge, the player keeps the horizontal velocity of the take-off whatever the keys, except for what
+    /// obstacles stop. With noclip, the player flies:
     /// moves up and down by `input.rise`, doesn't fall, and goes through everything. While Levitate is in effect, the
     /// player flies the same way but is stopped by obstacles, walls and doors, makes no footsteps and doesn't stick to
-    /// ramps; when it ends in the air, the player falls from rest.
+    /// ramps; when it ends in the air, the player falls from rest, also horizontally, as after noclip.
     ///
     /// First of all, the party's magic advances, see PartyMagic::advance(), and then the spells of `input.casts` are
     /// cast, see cast(). So a spell cast in this frame lasts its whole duration from the end of the frame, and a
