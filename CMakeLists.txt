@@ -135,6 +135,7 @@ add_library(manifold_core STATIC
     src/util/frame_times.cpp
     src/util/log.cpp
     src/util/random.cpp
+    src/util/text_file.cpp
     src/world/chest.cpp
     src/world/door.cpp
     src/world/geometry.cpp
@@ -169,7 +170,8 @@ target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_
 # tree. The player's settings in the directory of the saves take priority over them.
 target_compile_definitions(manifold PRIVATE MANIFOLD_SETTINGS_FILE="${CMAKE_SOURCE_DIR}/settings.json")
 # `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
-# with the game manual, the game's settings and the licenses of the game and of the libraries built into it. Releases are such copies.
+# with the game manual, the game's settings and the licenses of the game and of the libraries built into it. Releases
+# are such copies.
 # The layout isn't the usual one of /usr/local, so without --prefix the copy goes into the build directory.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
@@ -233,6 +235,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/sound_set_test.cpp
         tests/sound_test.cpp
         tests/spatial_grid_test.cpp
+        tests/text_file_test.cpp
         tests/texture_image_test.cpp
         tests/torch_test.cpp
         tests/viewport_test.cpp

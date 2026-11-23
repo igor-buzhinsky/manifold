@@ -275,7 +275,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   of the game) holds the game's settings, and the player's `settings.json` next to the save replaces what it gives
   (`src/settings/settings.hpp`). `fullscreen`, `true` in the game's file, fills the screen at the desktop's
   resolution without changing the screen's mode, in its pixels also on high-DPI screens. The 16:9 picture is scaled
-  to fit, with black bars, as in a window (`fit_viewport()`). Runs with `--exec` stay in a window.
+  to fit, with black bars, as in a window (`fit_viewport()`). Runs with `--exec` or `--screenshot` stay in a
+  window.
 
 ## Later (unordered)
 

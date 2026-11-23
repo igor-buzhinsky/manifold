@@ -134,9 +134,12 @@ DebugOverlay::DebugOverlay(const Window& window) : window_(window.sdl_window()) 
     io.IniFilename = nullptr;
     ImGui::StyleColorsDark();
     // The scale is read once, so moving the window to a display with another scale keeps the old one.
-    // Without SDL_WINDOW_HIGH_PIXEL_DENSITY, this is the display's content scale, which ImGui's examples use.
+    // ImGui's examples use the display's content scale. A full-screen window has SDL_WINDOW_HIGH_PIXEL_DENSITY, so
+    // its display scale also has the pixel density, which the SDL backend applies already, through
+    // DisplayFramebufferScale. Without the flag, the pixel density is 1.
     const float display_scale = SDL_GetWindowDisplayScale(window_);
-    scale_ = display_scale > 0.0f ? display_scale : 1.0f;
+    const float pixel_density = SDL_GetWindowPixelDensity(window_);
+    scale_ = display_scale > 0.0f && pixel_density > 0.0f ? display_scale / pixel_density : 1.0f;
     ImGuiStyle& style = ImGui::GetStyle();
     style.ScaleAllSizes(scale_);
     style.FontScaleDpi = scale_;
