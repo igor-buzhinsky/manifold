@@ -260,6 +260,20 @@ TEST(MoveAndSlideTest, StopsAtAGapNarrowerThanTheBodyAndStillLands) {
     EXPECT_NEAR(body.base.x, 5.1f, 0.1f);
 }
 
+TEST(MoveAndSlideTest, ABodyThatStartsInAGapNarrowerThanItCanMoveOut) {
+    // Two 4 m long blocks with a gap of 0.5 m between them, narrower than the body's 0.6 m. Put into the gap, as by a
+    // teleport, where it overlaps both blocks, the body walks back out along -x.
+    World world(kBounds);
+    for (const float y : {-1.25f, 1.25f}) {
+        world.add_obstacle({.base_center = {0.0f, y, 0.0f}, .half_size = {2.0f, 1.0f}, .height = 4.0f, .yaw = 0.0f});
+    }
+    VerticalCylinder body = body_at({1.0f, 0.0f, 0.0f});
+    for (int frame = 0; frame < 100; ++frame) {
+        body.base = move_and_slide(world, body, {-0.05f, 0.0f, -0.003f}).position;
+    }
+    EXPECT_LT(body.base.x, -2.0f - kRadius);
+}
+
 TEST(MoveAndSlideTest, WalksOffTheEdgeOfABlock) {
     // On top of a 1 m high block, walking over its edge at x = 1: tiny overlaps that rounding leaves don't stop it.
     World world(kBounds);

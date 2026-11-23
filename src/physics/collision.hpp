@@ -54,8 +54,9 @@ struct SlideResult {
 /// Whenever the body runs into the world geometry, it is pushed back out along the contact normal. This
 /// removes the part of the movement that goes into the surface, so the body slides along walls instead of
 /// stopping. Long movements are split into short steps, so the body can't skip through thin walls. If the pushes of a
-/// step don't get the body free, as in a gap narrower than the body, the step moves only vertically, so the body stops
-/// at the gap instead of getting stuck in it.
+/// step don't get a body that was free before it free again, as in a gap narrower than the body, the step moves only
+/// vertically, so the body stops at the gap instead of getting stuck in it. A body that overlaps something already,
+/// e.g. after a teleport into such a gap, is pushed as usual, so that it can move out.
 ///
 /// \param world        The geometry to collide with.
 /// \param body         The body at its start position.

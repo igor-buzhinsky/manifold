@@ -77,6 +77,14 @@ std::optional<Contact> find_deepest_contact(const World& world, std::span<const 
     return deepest;
 }
 
+/// Whether a body overlaps nothing, or only by less than kLeftOverlap. The parameters are those of
+/// find_deepest_contact().
+bool is_free(const World& world, std::span<const Obstacle> blockers, const VerticalCylinder& body,
+             NearbyIndices& nearby) {
+    const std::optional<Contact> deepest = find_deepest_contact(world, blockers, body, nearby);
+    return !deepest || deepest->depth < kLeftOverlap;
+}
+
 /// Pushes a body out of what it overlaps, the deepest overlap first, at most kMaxResolveIterations times.
 ///
 /// \param world          See find_deepest_contact().
@@ -97,8 +105,7 @@ bool resolve_overlaps(const World& world, std::span<const Obstacle> blockers, Ve
         body.base += contact->normal * contact->depth;
         pushed += contact->normal * contact->depth;
     }
-    const std::optional<Contact> left = find_deepest_contact(world, blockers, body, nearby);
-    return !left || left->depth < kLeftOverlap;
+    return is_free(world, blockers, body, nearby);
 }
 
 /// The horizontal frame of a block rotated around the vertical axis, where its footprint is axis-aligned.
@@ -229,19 +236,23 @@ SlideResult move_and_slide(const World& world, const VerticalCylinder& body, con
     VerticalCylinder moved = body;
     glm::vec3 correction{0.0f};
     NearbyIndices nearby;
+    bool free = is_free(world, blockers, moved, nearby);
     for (int i = 0; i < steps; ++i) {
         const VerticalCylinder before = moved;
         const glm::vec3 correction_before = correction;
         moved.base += step;
-        if (!resolve_overlaps(world, blockers, moved, correction, nearby)) {
+        const bool was_free = free;
+        free = resolve_overlaps(world, blockers, moved, correction, nearby);
+        if (!free && was_free) {
             // The pushes didn't get the body free, as in a gap narrower than the body, where each push out of one side
             // goes into the other. They may also have left out a shallow overlap such as the floor's. The body can't
             // go there, so the horizontal part of the step is taken back, as a correction, and only the vertical part
-            // is made.
+            // is made. A body that overlapped something already, e.g. after a teleport into such a gap, keeps the
+            // pushes instead, so that it can move out.
             moved = before;
             moved.base.z += step.z;
             correction = correction_before - glm::vec3(step.x, step.y, 0.0f);
-            resolve_overlaps(world, blockers, moved, correction, nearby);
+            free = resolve_overlaps(world, blockers, moved, correction, nearby);
         }
     }
     return {.position = moved.base, .correction = correction};
