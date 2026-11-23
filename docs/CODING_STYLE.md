@@ -110,7 +110,7 @@ void rotate(float delta_yaw, float delta_pitch);
 - Write in plain, simple English with short sentences.
 - Prefer concrete words: "in metres", "positive turns left", "returns false if ...".
 - State units, coordinate conventions and ranges explicitly.
-- Refer to code in backticks: `keep_clear`, `GameConfig::move_speed`.
+- Refer to code in backticks: `keep_clear`, `GameConfig::walk_speed`.
 
 ## Python scripts
 

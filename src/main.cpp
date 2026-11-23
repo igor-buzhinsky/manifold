@@ -896,6 +896,7 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
         .turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT),
         .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN),
         .forward = axis(SDL_SCANCODE_W, SDL_SCANCODE_S),
+        .run = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT],
         .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
         .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
         .activate = keys[SDL_SCANCODE_E],
@@ -1141,6 +1142,7 @@ void run(const Options& options) {
                 keys_taken ? manifold::PlayerInput{} : read_input(ui, state.view, game.player());
             if (state.walk_frames > 0) {
                 input.forward = 1.0f;
+                input.run = input.run || state.walk_runs;
                 --state.walk_frames;
             }
             game.update(input, std::min(frame_time, kMaxFrameTime));
