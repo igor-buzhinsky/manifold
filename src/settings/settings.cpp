@@ -53,7 +53,8 @@ Settings parse_settings(std::string_view json, const Settings& base) {
             // A number too large or too small for a float is rejected too, rather than becoming infinite or 0.
             const double sensitivity = value.is_number() ? value.get<double>() : 0.0;
             if (sensitivity < std::numeric_limits<float>::min() || sensitivity > std::numeric_limits<float>::max()) {
-                throw std::runtime_error("invalid mouse_sensitivity: " + value.dump() + " (expected a number > 0)");
+                throw std::runtime_error("invalid mouse_sensitivity: " + value.dump() +
+                                         " (expected a number > 0 that fits a float)");
             }
             settings.mouse_sensitivity = static_cast<float>(sensitivity);
         } else {

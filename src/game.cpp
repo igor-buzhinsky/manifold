@@ -172,6 +172,9 @@ void Game::update(const PlayerInput& input, float dt) {
     if (input.click) {
         activate(input.click);
     }
+    if (input.center_click) {
+        activate();
+    }
     const std::optional<LevelExit>& exit = level_.world.exit();
     if (exit && exit->touches(player_.body())) {
         next_level();

@@ -54,7 +54,8 @@ start menu.
 ## Screen
 
 A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
-shows what a click activates; with mouse look on, it is hidden, and a click activates at the crosshair. The `crosshair` command hides or shows the crosshair.
+shows what a click activates; with mouse look on, it is hidden, and a click activates at the crosshair. The
+`crosshair` command hides or shows the crosshair.
 
 The spells in effect are listed in the top-right corner, each name in a white box, in the order they were first cast.
 A box blinks in the last 10 seconds of its spell. The blue bar in the bottom-right corner shows the party's mana.
@@ -64,7 +65,8 @@ Clicks on them, or between the boxes, don't activate what is behind.
 
 With mouse look on, the mouse turns the view, as the arrow keys do: moving it left or right turns, and moving it up or
 down looks up or down, at most 40° each way. The mouse pointer is hidden and kept in the window, and a left click
-activates what the crosshair points at, as E does. The arrow keys still turn the view too.
+activates what the crosshair points at, as E does. The arrow keys still turn the view too. The click that gives the
+game's window the focus back doesn't activate.
 
 M turns mouse look on or off while playing. It starts as the `mouse_look` setting says (off by default, see Settings
 below), and M doesn't change the setting, so the next start is as the setting says again. Runs with `--exec` or

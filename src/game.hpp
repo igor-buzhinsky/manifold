@@ -71,6 +71,9 @@ struct PlayerInput {
     /// If set, the player clicked on the view in this frame, to activate what is in this direction from the eyes, see
     /// Game::activate(). A unit vector. Unlike `activate`, each click activates, since it is a single event.
     std::optional<glm::vec3> click = std::nullopt;
+    /// Whether the player clicked at the center of the view in this frame, as with mouse look, which activates as a new
+    /// press of `activate` does: along the view after this frame's turn and movement. Like `click`, each activates.
+    bool center_click = false;
     /// The spells the player cast in this frame, in order, see Game::cast(). Like a click, each is a single event.
     // Without the initializer, GCC warns about inputs that leave it out, such as `{.forward = 1.0f}`.
     std::vector<Spell> casts = {};  // NOLINT(readability-redundant-member-init)
