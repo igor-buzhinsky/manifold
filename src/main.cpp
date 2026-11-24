@@ -635,12 +635,18 @@ struct Ui {
     manifold::PixelSize picture;  ///< Size of the picture that the screens were drawn over last.
     /// Where the left button was pressed over the game in this frame while no screen was open, as fractions of the
     /// picture's width and height from its top-left corner, see Camera::ray_direction(). Presses on the black bars
-    /// are left out. While mouse look is active, a press is at the center, as the pointer is hidden.
+    /// are left out. While mouse look is active, presses go to `center_click` instead.
     std::optional<glm::vec2> game_click;
+    /// When the left button was last pressed over the game in this frame while mouse look was active, in nanoseconds
+    /// as SDL gives the times of events. It activates at the center of the view, as E does, unless it is the click
+    /// that gave the window the focus, see manifold::is_focus_click().
+    std::optional<std::uint64_t> center_click;
+    /// When the window last got the focus, in the same nanoseconds, if it did.
+    std::optional<std::uint64_t> focus_time;
     /// Whether the player wants mouse look, from the settings and kMouseLookKey.
     bool mouse_look = false;
-    /// Whether mouse look is active: wanted, and not paused by a screen, the console window or the debug overlay,
-    /// which need the pointer. Relative mouse mode is on exactly then, see update_mouse_look().
+    /// Whether mouse look is active: wanted, and not paused by a screen, a menu asked for, the console window or the
+    /// debug overlay, which need the pointer. Relative mouse mode is on exactly then, see update_mouse_look().
     bool mouse_look_active = false;
     /// How far mouse look turns the view, in degrees per unit of mouse motion, see Settings::mouse_sensitivity.
     float mouse_sensitivity = manifold::Settings{}.mouse_sensitivity;
@@ -787,7 +793,7 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
 /// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
 /// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, the spells in effect or the
 /// bar of mana, see manifold::party_hud_contains() and manifold::spell_hud_contains(). While mouse look is active,
-/// motion is added to `ui.mouse_motion` instead, and a press activates at the center, as E does.
+/// motion is added to `ui.mouse_motion` instead, and a press is kept in `ui.center_click`.
 ///
 /// \param game The game, whose party and magic are shown over it.
 void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, const manifold::Game& game) {
@@ -795,7 +801,7 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
         if (event.type == SDL_EVENT_MOUSE_MOTION) {
             ui.mouse_motion += glm::vec2(event.motion.xrel, event.motion.yrel);
         } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
-            ui.game_click = glm::vec2(0.5f);
+            ui.center_click = event.button.timestamp;
         }
         return;
     }
@@ -848,12 +854,27 @@ bool handle_console_text(const SDL_Event& event, manifold::ConsoleWindow& consol
     return true;
 }
 
+/// Makes mouse look active if the player wants it and nothing needs the mouse pointer: no screen of the interface is
+/// open or asked for, nor the console window or the debug overlay. Turns relative mouse mode on or off when that
+/// changes.
+void update_mouse_look(Ui& ui, const manifold::ConsoleWindow& console_window, const manifold::ConsoleState& state,
+                       manifold::Window& window) {
+    const bool active =
+        ui.mouse_look && ui.screens.empty() && !state.menu && !console_window.is_open() && !state.debug_overlay;
+    if (active != ui.mouse_look_active) {
+        ui.mouse_look_active = active;
+        window.set_relative_mouse_mode(active);
+    }
+}
+
 /// Handles pending window, key and mouse events: quitting, the console window, the debug overlay, the screens of the
-/// interface, loading and casting spells.
+/// interface, loading, casting spells and mouse look, which is updated after each event, see update_mouse_look(), so
+/// that the events after one that pauses it or turns it on are handled in the new way.
 ///
 /// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
 ///
-/// \param window             The window, whose text input is on while the console window is open.
+/// \param window             The window, whose text input is on while the console window is open, and relative mouse
+///                           mode while mouse look is active.
 /// \param console_window     The console window.
 /// \param commands           Where commands run in the console window go.
 /// \param overlay            The debug overlay, which gets the events first and may keep keys from the game.
@@ -868,6 +889,10 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
                    const manifold::Game& game) {
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
+        update_mouse_look(ui, console_window, state, window);
+        if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED) {
+            ui.focus_time = event.window.timestamp;
+        }
         // Like closing the window, the quit shortcut works even while ImGui or the console has the keyboard.
         if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && is_quit_shortcut(event.key))) {
             return false;
@@ -891,6 +916,7 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
             handle_mouse_event(event, window, ui, game);
         }
     }
+    update_mouse_look(ui, console_window, state, window);
     return true;
 }
 
@@ -905,7 +931,7 @@ constexpr float kMaxFrameTime = 0.1f;
 /// \param ui     Where the left button was pressed over the game, see Ui::game_click, the motion of mouse look, see
 ///               Ui::mouse_motion, and the spells cast, see Ui::casts.
 /// \param view   How the game is shown. While a camera put in place shows the picture, clicks are ignored, since they
-///               activate what the player's eyes see at that point of the picture.
+///               activate what the player's eyes see at that point of the picture, or at its center.
 /// \param player The player whose eyes the click activates from.
 manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& view, const manifold::Player& player) {
     const bool* keys = SDL_GetKeyboardState(nullptr);
@@ -926,6 +952,7 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
         .rise = axis(SDL_SCANCODE_PAGEUP, SDL_SCANCODE_PAGEDOWN),
         .activate = keys[SDL_SCANCODE_E],
         .click = click,
+        .center_click = ui.center_click && !view.camera && !manifold::is_focus_click(*ui.center_click, ui.focus_time),
         .casts = ui.casts,
     };
 }
@@ -1012,17 +1039,6 @@ void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRende
             }
             manifold::log_error("screenshot {}: {}", request.path, error.what());
         }
-    }
-}
-
-/// Makes mouse look active if the player wants it and nothing needs the mouse pointer: no screen of the interface, the
-/// console window or the debug overlay is open. Turns relative mouse mode on or off when that changes.
-void update_mouse_look(Ui& ui, const manifold::ConsoleWindow& console_window, const manifold::ConsoleState& state,
-                       manifold::Window& window) {
-    const bool active = ui.mouse_look && ui.screens.empty() && !console_window.is_open() && !state.debug_overlay;
-    if (active != ui.mouse_look_active) {
-        ui.mouse_look_active = active;
-        window.set_relative_mouse_mode(active);
     }
 }
 
@@ -1188,6 +1204,7 @@ void run(const Options& options) {
             game.update(input, std::min(frame_time, kMaxFrameTime));
         }
         ui.game_click.reset();
+        ui.center_click.reset();
         ui.mouse_motion = glm::vec2(0.0f);
         ui.casts.clear();
         // The player reached the exit, or a console command started the next level as if they had.

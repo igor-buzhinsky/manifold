@@ -1113,6 +1113,17 @@ TEST(GameTest, ClickActivatesInItsDirectionWithTheSameReach) {
     EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
 }
 
+TEST(GameTest, CenterClickActivatesAlongTheViewAfterTheTurnOfTheUpdate) {
+    Game game(make_config(), make_door_level());
+    // Facing along +x, with the door to the left, 1.45 m from the eyes.
+    game.teleport({0.0f, -1.5f, 0.0f}, 0.0f);
+    game.update({.center_click = true}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 0.0f);
+    // Mouse look turns the view to the door in the same update as the click.
+    game.update({.mouse_rotation = {kPi / 2.0f, 0.0f}, .center_click = true}, 0.1f);
+    EXPECT_FLOAT_EQ(game.doors()[0].target, 1.0f);
+}
+
 TEST(GameTest, DoorDoesNotCloseOnThePlayer) {
     Game game(make_config(), make_door_level());
     ASSERT_TRUE(game.set_door_open(0, true));
