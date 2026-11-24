@@ -1,8 +1,8 @@
 # The libraries that CMake downloads, with their versions. CMakeLists.txt includes this file and makes them available.
 #
 # CI caches the downloaded sources and keys the cache on this file's hash, so keep here only what decides what is
-# downloaded: a change to this file downloads everything again, and one to how a library is built belongs in
-# CMakeLists.txt.
+# downloaded: any change to this file makes CI download every library again, and one to how a library is built
+# belongs in CMakeLists.txt.
 
 include(FetchContent)
 
