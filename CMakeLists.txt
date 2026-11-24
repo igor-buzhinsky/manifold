@@ -14,32 +14,15 @@ endif()
 
 option(MANIFOLD_BUILD_TESTS "Build the unit tests" ON)
 
-include(FetchContent)
-# SYSTEM hides warnings coming from third-party headers.
-FetchContent_Declare(glm
-    GIT_REPOSITORY https://github.com/g-truc/glm.git
-    GIT_TAG 1.0.1
-    GIT_SHALLOW TRUE
-    SYSTEM
-)
+include(cmake/dependencies.cmake)
 FetchContent_MakeAvailable(glm)
 
 set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 set(SDL_STATIC ON CACHE BOOL "" FORCE)
 set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
-FetchContent_Declare(SDL3
-    GIT_REPOSITORY https://github.com/libsdl-org/SDL.git
-    GIT_TAG release-3.4.16
-    GIT_SHALLOW TRUE
-    SYSTEM
-)
 FetchContent_MakeAvailable(SDL3)
 
-# stb has no CMake support, so it is only downloaded and exposed as an include directory.
-FetchContent_Declare(stb
-    GIT_REPOSITORY https://github.com/nothings/stb.git
-    GIT_TAG 003501f6d7a8668ce8b6d875e34dd97ad0d5d5b5
-)
+# stb has no CMake support, so it is only exposed as an include directory.
 FetchContent_MakeAvailable(stb)
 add_library(stb INTERFACE)
 target_include_directories(stb SYSTEM INTERFACE ${stb_SOURCE_DIR})
@@ -49,23 +32,9 @@ add_library(stb_vorbis STATIC ${stb_SOURCE_DIR}/stb_vorbis.c)
 target_compile_definitions(stb_vorbis PUBLIC STB_VORBIS_NO_PUSHDATA_API)
 target_link_libraries(stb_vorbis PUBLIC stb)
 
-# nlohmann/json reads and writes save files. The release archive has only the headers and the CMake files, which
-# is much smaller than the repository.
-FetchContent_Declare(nlohmann_json
-    URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
-    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
-    SYSTEM
-)
 FetchContent_MakeAvailable(nlohmann_json)
 
-# Dear ImGui draws the debug overlay. It has no CMake support, so its sources, with the backends for SDL3
-# and OpenGL 3+, are built here.
-FetchContent_Declare(imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.93.0
-    GIT_SHALLOW TRUE
-)
+# Dear ImGui has no CMake support, so its sources, with the backends for SDL3 and OpenGL 3+, are built here.
 FetchContent_MakeAvailable(imgui)
 add_library(imgui STATIC
     ${imgui_SOURCE_DIR}/imgui.cpp
@@ -194,12 +163,6 @@ install(FILES external/glad/LICENSE DESTINATION licenses RENAME glad.txt)
 
 if(MANIFOLD_BUILD_TESTS)
     enable_testing()
-    FetchContent_Declare(googletest
-        GIT_REPOSITORY https://github.com/google/googletest.git
-        GIT_TAG v1.17.0
-        GIT_SHALLOW TRUE
-        SYSTEM
-    )
     set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
     set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
