@@ -150,6 +150,8 @@ When the user asks for a PR:
    `path`, `line` and `side` (`RIGHT` for added and unchanged lines, `LEFT` for removed ones). Findings about
    lines outside the diff go into the review's body. If there are no findings, the review says so.
 5. Address the findings as for other changes, with new commits on the branch, then push them and reply to
-   each review comment: fixed in which commit, or rejected and why.
+   each review comment: fixed in which commit, or rejected and why. Match each reply to its comment by the
+   comment's `id` from the response that posted the review, not by path and line, which can change after a push.
+   Check that no reply is empty, and list the replies afterwards to verify.
 6. Don't wait for CI: the local checks are faster. Tell the user the PR's link. The user merges it once CI
    is green (a PR that changes only `.md` files runs no CI); don't merge it yourself.
