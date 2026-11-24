@@ -1,0 +1,111 @@
+# Installs the system packages and configures the build in build/, with two caches that save most of the time these
+# steps take:
+#
+# - The downloaded .deb files, since the Ubuntu mirror is often slow (it took up to 4.5 minutes to download them).
+#   apt still installs them, but skips the download of those in the cache. The key holds the job, the package list
+#   and the runner image's version, which GitHub updates about once a week. When it changes, the cache of the
+#   previous image is restored and apt downloads only the packages that Ubuntu updated since, and the new cache drops
+#   the outdated ones.
+# - The sources that FetchContent downloads (build/_deps/*-src, with the *-subbuild directories that record what was
+#   downloaded). The key holds the hash of cmake/dependencies.cmake and the CMake version, so it changes only when a
+#   library's version or the runner's CMake changes. Only the job that sets save-dependencies, which must download
+#   all the libraries, saves it, so that jobs running at the same time don't race to save the same key.
+#
+# A pull request can restore the caches saved on main, but the caches it saves are only seen by its own later runs.
+name: Prepare the build
+description: Installs the system packages and configures the build, with caches for both.
+
+inputs:
+  packages:
+    description: The apt packages to install.
+    required: true
+  cmake-args:
+    description: Extra arguments of the configuring cmake command.
+    default: ""
+  save-dependencies:
+    description: Whether to save the downloaded libraries to the cache if it had none of them.
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Make cache keys
+      id: keys
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        list=$(echo "$PACKAGES" | tr -s ' \n' '\n' | sort | sha256sum | cut -c1-16)
+        apt_prefix="apt-${{ github.job }}-$ImageOS-$list-"
+        echo "apt-prefix=$apt_prefix" >> "$GITHUB_OUTPUT"
+        echo "apt=$apt_prefix$ImageVersion" >> "$GITHUB_OUTPUT"
+        cmake_version=$(cmake --version | sed -n '1s/^cmake version //p')
+        echo "deps=fetchcontent-$ImageOS-cmake-$cmake_version-${{ hashFiles('cmake/dependencies.cmake') }}" \
+          >> "$GITHUB_OUTPUT"
+
+    - name: Restore downloaded packages
+      id: apt-cache
+      uses: actions/cache/restore@v6
+      with:
+        path: ~/apt-archives
+        key: ${{ steps.keys.outputs.apt }}
+        restore-keys: ${{ steps.keys.outputs.apt-prefix }}
+
+    - name: Install packages
+      shell: bash
+      env:
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        if compgen -G ~/apt-archives/'*.deb' > /dev/null; then
+          sudo cp ~/apt-archives/*.deb /var/cache/apt/archives/
+        fi
+        # Without this file, man-db doesn't rebuild its index after the install, which took 20-40 s.
+        sudo rm -f /var/lib/man-db/auto-update
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends $PACKAGES
+
+    - name: Save downloaded packages
+      if: steps.apt-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        # Drops the packages that newer versions replaced, so that the cache doesn't grow with each image.
+        sudo apt-get autoclean
+        rm -rf ~/apt-archives
+        mkdir ~/apt-archives
+        if compgen -G /var/cache/apt/archives/'*.deb' > /dev/null; then
+          cp /var/cache/apt/archives/*.deb ~/apt-archives/
+        fi
+        du -sh ~/apt-archives
+
+    - name: Save downloaded packages to the cache
+      if: steps.apt-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: ~/apt-archives
+        key: ${{ steps.keys.outputs.apt }}
+
+    - name: Restore downloaded libraries
+      id: deps-cache
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          build/_deps/*-src
+          build/_deps/*-subbuild
+        key: ${{ steps.keys.outputs.deps }}
+
+    # FETCHCONTENT_UPDATES_DISCONNECTED keeps FetchContent from checking restored sources against their remotes. A
+    # changed version in cmake/dependencies.cmake still downloads the library again (and changes the cache key).
+    - name: Configure
+      shell: bash
+      env:
+        CMAKE_ARGS: ${{ inputs.cmake-args }}
+      run: cmake -S . -B build -G Ninja -DFETCHCONTENT_UPDATES_DISCONNECTED=ON $CMAKE_ARGS
+
+    - name: Save downloaded libraries
+      if: inputs.save-dependencies == 'true' && steps.deps-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v6
+      with:
+        path: |
+          build/_deps/*-src
+          build/_deps/*-subbuild
+        key: ${{ steps.keys.outputs.deps }}
