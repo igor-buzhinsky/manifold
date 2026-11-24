@@ -1,12 +1,14 @@
 # Installs the system packages and configures the build in build/, with two caches that save most of the time these
 # steps take:
 #
-# - The downloaded .deb files, since the Ubuntu mirror is often slow (downloading them took 1-4.5 minutes per job).
-#   apt still installs them, but skips the download of those in the cache. The key holds the package list and the
-#   runner image's version, which GitHub updates about once a week; jobs with the same list share the cache, so the
-#   release job, which runs on tags, restores the one saved on main. A cache isn't saved again while its key holds,
-#   so each run downloads the packages that Ubuntu updated since it was saved. When the image changes, the previous
-#   cache is restored, apt downloads only the packages updated since, and the new cache drops the outdated ones.
+# - The downloaded .deb files, since the Ubuntu mirror is often slow (downloading them took 1-4.5 minutes per job). apt
+#   still installs them, but skips the download of those in the cache. The key holds the package list and the date of
+#   the runner image, which GitHub updates about once a week; jobs with the same list share the cache, so the release
+#   job, which runs on tags, restores the one saved on main. The key leaves out the rest of the image's version, since
+#   runners report several builds of the same image at the same time (20261116.133.1 and 20261116.376.1), and each build
+#   would otherwise save its own copy of the same cache. A cache isn't saved again while its key holds, so each run
+#   downloads the packages that Ubuntu updated since it was saved. When the date changes, the previous cache is
+#   restored, apt downloads only the packages updated since, and the new cache drops the outdated ones.
 # - The sources that FetchContent downloads (build/_deps/*-src, with the *-subbuild directories that record what was
 #   downloaded). The key holds the hash of cmake/dependencies.cmake and the CMake version, so it changes only when a
 #   library's version or the runner's CMake changes. Only the job that sets save-dependencies, which must download
@@ -39,7 +41,7 @@ runs:
         list=$(echo "$PACKAGES" | tr -s ' \n' '\n' | sort | sha256sum | cut -c1-16)
         apt_prefix="apt-$ImageOS-$list-"
         echo "apt-prefix=$apt_prefix" >> "$GITHUB_OUTPUT"
-        echo "apt=$apt_prefix$ImageVersion" >> "$GITHUB_OUTPUT"
+        echo "apt=$apt_prefix${ImageVersion%%.*}" >> "$GITHUB_OUTPUT"
         cmake_version=$(cmake --version | sed -n '1s/^cmake version //p')
         echo "deps=fetchcontent-$ImageOS-cmake-$cmake_version-${{ hashFiles('cmake/dependencies.cmake') }}" \
           >> "$GITHUB_OUTPUT"
