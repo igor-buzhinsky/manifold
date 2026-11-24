@@ -58,6 +58,7 @@
 #include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
 #include "ui/game_menus.hpp"
+#include "ui/mouse_look.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/party_hud.hpp"
 #include "ui/screen.hpp"
@@ -604,6 +605,8 @@ constexpr SDL_Keycode kLoadKey = SDLK_F9;
 /// The keys that cast spells. Like the movement keys, they are the keys at the places of C and L on US keyboards.
 constexpr SDL_Scancode kCandlelightKey = SDL_SCANCODE_C;
 constexpr SDL_Scancode kLevitateKey = SDL_SCANCODE_L;
+/// The key that turns mouse look on and off, at the place of M on US keyboards.
+constexpr SDL_Scancode kMouseLookKey = SDL_SCANCODE_M;
 
 /// The spell that `key` casts, if any.
 std::optional<manifold::Spell> spell_key(SDL_Scancode key) {
@@ -632,8 +635,17 @@ struct Ui {
     manifold::PixelSize picture;  ///< Size of the picture that the screens were drawn over last.
     /// Where the left button was pressed over the game in this frame while no screen was open, as fractions of the
     /// picture's width and height from its top-left corner, see Camera::ray_direction(). Presses on the black bars
-    /// are left out.
+    /// are left out. While mouse look is active, a press is at the center, as the pointer is hidden.
     std::optional<glm::vec2> game_click;
+    /// Whether the player wants mouse look, from the settings and kMouseLookKey.
+    bool mouse_look = false;
+    /// Whether mouse look is active: wanted, and not paused by a screen, the console window or the debug overlay,
+    /// which need the pointer. Relative mouse mode is on exactly then, see update_mouse_look().
+    bool mouse_look_active = false;
+    /// How far mouse look turns the view, in degrees per unit of mouse motion, see Settings::mouse_sensitivity.
+    float mouse_sensitivity = manifold::Settings{}.mouse_sensitivity;
+    /// The motion of the mouse in this frame while mouse look was active, x right and y down.
+    glm::vec2 mouse_motion{0.0f};
     /// The spells whose keys were pressed in this frame while no screen was open, in order.
     std::vector<manifold::Spell> casts;
 
@@ -720,8 +732,8 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
 
 /// Handles a key press: the console key; Escape, which closes the console, leaves the screen on top, or asks `state`
 /// for the game menu; the keys of the console window while it is open; those of the screen on top while one is open;
-/// and otherwise the load key, which asks `state` to load the game, and the keys of spells, which are kept in
-/// `ui.casts`.
+/// and otherwise the load key, which asks `state` to load the game, the mouse look key, which turns `ui.mouse_look` on
+/// or off, and the keys of spells, which are kept in `ui.casts`.
 void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
                      manifold::CommandQueue& commands, manifold::ConsoleState& state, Ui& ui) {
     if (key.scancode == kConsoleKey) {
@@ -752,6 +764,9 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     } else if (key.key == kLoadKey) {
         state.load = true;
         state.load_stops_on_error = false;
+    } else if (key.scancode == kMouseLookKey) {
+        ui.mouse_look = !ui.mouse_look;
+        manifold::log_info("Mouse look {}", ui.mouse_look ? "on" : "off");
     } else if (const std::optional<manifold::Spell> spell = spell_key(key.scancode)) {
         ui.casts.push_back(*spell);
     }
@@ -771,10 +786,19 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
 /// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
 /// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, the spells in effect or the
-/// bar of mana, see manifold::party_hud_contains() and manifold::spell_hud_contains().
+/// bar of mana, see manifold::party_hud_contains() and manifold::spell_hud_contains(). While mouse look is active,
+/// motion is added to `ui.mouse_motion` instead, and a press activates at the center, as E does.
 ///
 /// \param game The game, whose party and magic are shown over it.
 void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, const manifold::Game& game) {
+    if (ui.screens.empty() && ui.mouse_look_active) {
+        if (event.type == SDL_EVENT_MOUSE_MOTION) {
+            ui.mouse_motion += glm::vec2(event.motion.xrel, event.motion.yrel);
+        } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
+            ui.game_click = glm::vec2(0.5f);
+        }
+        return;
+    }
     if (ui.screens.empty()) {
         if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN && event.button.button == SDL_BUTTON_LEFT) {
             const glm::vec2 point = picture_point({event.button.x, event.button.y}, window, ui);
@@ -873,13 +897,13 @@ bool handle_events(manifold::Window& window, manifold::ConsoleWindow& console_wi
 /// Frames longer than this, e.g. after the window was dragged, count as this long to avoid jumps.
 constexpr float kMaxFrameTime = 0.1f;
 
-/// Reads the keys that are held down, and the click and the spells cast in this frame over the game.
+/// Reads the keys that are held down, and the click, the mouse look and the spells cast in this frame over the game.
 ///
 /// These are the key bindings, with those of handle_events(). Keep GAME_MANUAL.md up to date when changing
 /// them.
 ///
-/// \param ui     Where the left button was pressed over the game, see Ui::game_click, and the spells cast, see
-///               Ui::casts.
+/// \param ui     Where the left button was pressed over the game, see Ui::game_click, the motion of mouse look, see
+///               Ui::mouse_motion, and the spells cast, see Ui::casts.
 /// \param view   How the game is shown. While a camera put in place shows the picture, clicks are ignored, since they
 ///               activate what the player's eyes see at that point of the picture.
 /// \param player The player whose eyes the click activates from.
@@ -895,6 +919,7 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
     return {
         .turn = axis(SDL_SCANCODE_LEFT, SDL_SCANCODE_RIGHT),
         .look = axis(SDL_SCANCODE_UP, SDL_SCANCODE_DOWN),
+        .mouse_rotation = manifold::mouse_look_rotation(ui.mouse_motion, ui.mouse_sensitivity),
         .forward = axis(SDL_SCANCODE_W, SDL_SCANCODE_S),
         .run = keys[SDL_SCANCODE_LSHIFT] || keys[SDL_SCANCODE_RSHIFT],
         .strafe = axis(SDL_SCANCODE_D, SDL_SCANCODE_A),
@@ -987,6 +1012,17 @@ void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRende
             }
             manifold::log_error("screenshot {}: {}", request.path, error.what());
         }
+    }
+}
+
+/// Makes mouse look active if the player wants it and nothing needs the mouse pointer: no screen of the interface, the
+/// console window or the debug overlay is open. Turns relative mouse mode on or off when that changes.
+void update_mouse_look(Ui& ui, const manifold::ConsoleWindow& console_window, const manifold::ConsoleState& state,
+                       manifold::Window& window) {
+    const bool active = ui.mouse_look && ui.screens.empty() && !console_window.is_open() && !state.debug_overlay;
+    if (active != ui.mouse_look_active) {
+        ui.mouse_look_active = active;
+        window.set_relative_mouse_mode(active);
     }
 }
 
@@ -1091,7 +1127,9 @@ void run(const Options& options) {
     // Scripts of console commands mostly test the game and take screenshots, so they run in a window, which doesn't
     // take over the screen.
     const bool scripted = !options.commands.empty();
-    const bool fullscreen = read_settings(data_dir).fullscreen && !scripted;
+    // Nor do they take the mouse.
+    const manifold::Settings settings = read_settings(data_dir);
+    const bool fullscreen = settings.fullscreen && !scripted;
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height, fullscreen);
     manifold::ConsoleState state;
@@ -1108,6 +1146,8 @@ void run(const Options& options) {
     const bool ask = saving && has_readable_save(save_path);
     LevelSession level(game, state.view, assets, std::move(save_path), saving, ask);
     Ui ui;
+    ui.mouse_look = settings.mouse_look && !scripted;
+    ui.mouse_sensitivity = settings.mouse_sensitivity;
     if (ask) {
         ui.screens.push(manifold::make_start_menu(true));
     }
@@ -1148,6 +1188,7 @@ void run(const Options& options) {
             game.update(input, std::min(frame_time, kMaxFrameTime));
         }
         ui.game_click.reset();
+        ui.mouse_motion = glm::vec2(0.0f);
         ui.casts.clear();
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
@@ -1179,6 +1220,7 @@ void run(const Options& options) {
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
         // overlay gets no events then.
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());
+        update_mouse_look(ui, console_window, state, window);
     } while (handle_events(window, console_window, commands, overlay, state, ui, console_key_held, game));
 }
 

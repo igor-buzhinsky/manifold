@@ -12,7 +12,9 @@
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. In the air, after a jump or a step off a ledge, the party keeps the horizontal speed and direction it had when it left the ground: the keys don't change them, and turning only turns the view. A wall stops only the part of the movement into it. With noclip or Levitate: fly up |
 | Page Down | With noclip or Levitate: fly down |
 | E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
-| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere |
+| Mouse | With mouse look on: turn left / right and look up / down (at most 40° each way, as with the keys), see Mouse look below |
+| Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere. With mouse look on, a click activates what the center of the view points at, as E does |
+| M | Turn mouse look on or off, see Mouse look below |
 | C | Cast Candlelight, see Spells below |
 | L | Cast Levitate, see Spells below |
 | F9 | Load the saved game: start the saved level again from its start, see Saving below |
@@ -52,11 +54,25 @@ start menu.
 ## Screen
 
 A thin white crosshair with a black outline marks the center of the view, which E activates. The mouse pointer
-shows what a click activates. The `crosshair` command hides or shows the crosshair.
+shows what a click activates; with mouse look on, it is hidden, and a click activates at the crosshair. The `crosshair` command hides or shows the crosshair.
 
 The spells in effect are listed in the top-right corner, each name in a white box, in the order they were first cast.
 A box blinks in the last 10 seconds of its spell. The blue bar in the bottom-right corner shows the party's mana.
 Clicks on them, or between the boxes, don't activate what is behind.
+
+## Mouse look
+
+With mouse look on, the mouse turns the view, as the arrow keys do: moving it left or right turns, and moving it up or
+down looks up or down, at most 40° each way. The mouse pointer is hidden and kept in the window, and a left click
+activates what the crosshair points at, as E does. The arrow keys still turn the view too.
+
+M turns mouse look on or off while playing. It starts as the `mouse_look` setting says (off by default, see Settings
+below), and M doesn't change the setting, so the next start is as the setting says again. Runs with `--exec` or
+`--screenshot` (see Console below) start with mouse look off, so they don't take the mouse; M still turns it on.
+
+While a menu, the console or the debug overlay (F3) is open, mouse look pauses: the pointer comes back, to be used
+with them, and the mouse doesn't turn the view. Mouse look goes on again once they are closed. It also lets the
+pointer go while the game's window doesn't have the focus.
 
 ## Settings
 
@@ -69,7 +85,9 @@ The game reads its settings from two JSON files, if they exist:
 
 ```json
 {
-  "fullscreen": true
+  "fullscreen": true,
+  "mouse_look": false,
+  "mouse_sensitivity": 0.1
 }
 ```
 
@@ -77,9 +95,14 @@ The game reads its settings from two JSON files, if they exist:
   keeps its aspect ratio of 16:9 and is scaled to the screen, with black bars above and below, or on the sides,
   where the screen's aspect ratio differs. The game's own file sets `true`; without any file, the game runs in a
   window. Runs with `--exec` or `--screenshot` (see Console below) always open a window.
+- `mouse_look`: `true` starts the game with mouse look on, `false` with it off, as without any file. M turns it on
+  or off while playing, see Mouse look above.
+- `mouse_sensitivity`: how far mouse look turns the view, in degrees per unit of mouse motion, a number greater than
+  0. By default 0.1, so moving the mouse by 900 units turns the view by 90°. The units are those of the mouse, often
+  its counts, so the same setting turns more with a mouse of a higher resolution.
 
 Unknown settings are ignored with a warning in the log. A file that isn't valid JSON or has a setting of a wrong
-type is skipped as a whole, with an error in the log. The settings are read only when the game starts.
+type or value is skipped as a whole, with an error in the log. The settings are read only when the game starts.
 
 ## Party
 

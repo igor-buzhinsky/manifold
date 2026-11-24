@@ -714,3 +714,41 @@ Drawbacks:
   corrected, so a missed jump onto a ledge can't be saved.
 - Running into a wall at about 30° switches between walking and running speed as the angle crosses the limit, and
   a frame that hits a corner steeply moves at walking speed, which can feel like a small stutter.
+
+## 2026-11-24: Mouse look toggled with M, off by default, paused while the pointer is needed
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: the mouse can turn the view, as the arrow keys do, within the same 40° of pitch. M turns mouse look on and
+off while playing, and the `mouse_look` setting, `false` in the game's `settings.json`, says how the game starts; M
+doesn't write the setting. `mouse_sensitivity` gives degrees per unit of mouse motion, 0.1 by default. While mouse look
+is on, SDL's relative mouse mode hides the pointer and keeps it in the window, and a left click activates what the
+center of the view points at, as E does. Menus, the console and the debug overlay pause mouse look, since they are
+used with the pointer, and it goes on again when they close. Runs with `--exec` or `--screenshot` start with it off.
+
+Gains:
+
+- Turning and looking with the mouse is faster and finer than with the arrow keys, as players of first-person games
+  expect, while the keys still work, also together with the mouse.
+- With it off, as by default, the pointer stays free for activating what it points at anywhere in the view, as before.
+- A click with mouse look on does what it would do in most first-person games, at the crosshair, rather than nothing.
+- Pausing rather than turning it off means a quick look at the debug overlay or a menu doesn't need M again.
+- Scripted runs don't take the mouse from the desktop, as they don't take the screen.
+
+Rejected alternatives:
+
+- **Mouse look always on**, or holding a button to look: always on would lose clicking anywhere in the view, and
+  holding a button is tiring for long walks.
+- **Ignoring clicks with mouse look on**, so that only E activates: a click is the usual way to activate at the
+  crosshair, and nothing would be lost by it, since with a hidden pointer a click can't aim elsewhere.
+- **Turning mouse look off when the debug overlay opens**: the player would have to press M after every look at it.
+- **M writing the player's `settings.json`**: settings are written only once the game menu has a settings screen.
+- **A sensitivity scaled by the frame time or smoothed**: a motion of the mouse should turn the view by the same angle
+  at any frame rate, without lag.
+
+Drawbacks:
+
+- The sensitivity is in the mouse's own units, so the same setting turns more with a mouse of a higher resolution,
+  and there is no inverted look yet.
+- The mouse look key is the key at the place of M on US keyboards, which is labelled otherwise on some layouts, as are
+  the other game keys.

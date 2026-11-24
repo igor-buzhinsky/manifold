@@ -60,6 +60,25 @@ TEST(GameTest, LookingChangesPitchUpToLimit) {
     EXPECT_FLOAT_EQ(game.player().pitch(), -Player::kMaxPitch);
 }
 
+TEST(GameTest, MouseRotationTurnsTheViewWhateverTheFrameTimeWithinThePitchLimit) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.mouse_rotation = {0.5f, 0.25f}}, 0.0f);
+    EXPECT_NEAR(game.player().yaw(), 0.5f, 1e-6f);
+    EXPECT_NEAR(game.player().pitch(), 0.25f, 1e-6f);
+    game.update({.mouse_rotation = {-1.0f, 2.0f}}, 0.25f);
+    EXPECT_NEAR(game.player().yaw(), (2.0f * kPi) - 0.5f, 1e-5f);
+    EXPECT_FLOAT_EQ(game.player().pitch(), Player::kMaxPitch);
+    game.update({.mouse_rotation = {0.0f, -4.0f}}, 0.25f);
+    EXPECT_FLOAT_EQ(game.player().pitch(), -Player::kMaxPitch);
+}
+
+TEST(GameTest, MouseRotationAddsToTheKeys) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.update({.turn = 1.0f, .look = 1.0f, .mouse_rotation = {0.25f, -0.125f}}, 0.25f);
+    EXPECT_NEAR(game.player().yaw(), (kPi / 8.0f) + 0.25f, 1e-6f);
+    EXPECT_NEAR(game.player().pitch(), (kPi / 12.0f) - 0.125f, 1e-6f);
+}
+
 TEST(GameTest, TimeIsSumOfFrameDurations) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     EXPECT_DOUBLE_EQ(game.time(), 0.0);

@@ -1,6 +1,7 @@
 #include "settings/settings.hpp"
 
 #include <filesystem>
+#include <limits>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -15,6 +16,20 @@
 #include "util/text_file.hpp"
 
 namespace manifold {
+
+namespace {
+
+/// The value of the boolean field `name`.
+///
+/// \throws std::runtime_error if `value` isn't a boolean.
+bool read_bool(const std::string& name, const nlohmann::json& value) {
+    if (!value.is_boolean()) {
+        throw std::runtime_error("invalid " + name + ": " + value.dump() + " (expected true or false)");
+    }
+    return value.get<bool>();
+}
+
+}  // namespace
 
 Settings parse_settings(std::string_view json, const Settings& base) {
     nlohmann::json object;
@@ -31,10 +46,16 @@ Settings parse_settings(std::string_view json, const Settings& base) {
     std::vector<std::string> unknown;
     for (const auto& [name, value] : object.items()) {
         if (name == "fullscreen") {
-            if (!value.is_boolean()) {
-                throw std::runtime_error("invalid fullscreen: " + value.dump() + " (expected true or false)");
+            settings.fullscreen = read_bool(name, value);
+        } else if (name == "mouse_look") {
+            settings.mouse_look = read_bool(name, value);
+        } else if (name == "mouse_sensitivity") {
+            // A number too large or too small for a float is rejected too, rather than becoming infinite or 0.
+            const double sensitivity = value.is_number() ? value.get<double>() : 0.0;
+            if (sensitivity < std::numeric_limits<float>::min() || sensitivity > std::numeric_limits<float>::max()) {
+                throw std::runtime_error("invalid mouse_sensitivity: " + value.dump() + " (expected a number > 0)");
             }
-            settings.fullscreen = value.get<bool>();
+            settings.mouse_sensitivity = static_cast<float>(sensitivity);
         } else {
             unknown.push_back(name);
         }

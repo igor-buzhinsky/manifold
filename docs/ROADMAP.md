@@ -302,6 +302,12 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   running. It catches the collision bug of narrow gaps fixed above on the old code. `scripts/scratch_build.py` builds
   throwaway programs against `manifold_core`. The `player_info` console command shows the player's position, view,
   velocity, whether they stand on the ground, noclip and Levitate; `level_info` no longer shows the player.
+- **Mouse look** (see [DECISIONS.md](DECISIONS.md)): M turns it on and off while playing, and the `mouse_look`
+  setting, `false` in the game's `settings.json`, says how the game starts; `mouse_sensitivity` is in degrees per
+  unit of mouse motion. While it is on, SDL's relative mouse mode hides the pointer and keeps it in the window, mouse
+  motion turns the view (`mouse_look_rotation()`, `PlayerInput::mouse_rotation`) within the same 40° of pitch, and a
+  left click activates at the center, as E does. Menus, the console and the debug overlay pause it, since they need
+  the pointer. Runs with `--exec` or `--screenshot` start with it off.
 
 ## Later (unordered)
 
@@ -315,7 +321,6 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Fewer shadow maps per frame**: a limit on how many shadow maps are drawn in one frame, so that many torches at
   once don't cause a stutter. While a door moves, only the cube faces that can see it could be drawn again.
 - **More 3D level structure**: stairs (?), pits and bridges in generated levels.
-- Mouse look.
 - **In-game settings**: a screen in the game menu to change the settings of `settings.json`, such as full-screen
   mode, which writes them to the player's `settings.json`.
 - Spells chosen from a spell book or a quick bar instead of a key each, and a sign when a cast fails.
