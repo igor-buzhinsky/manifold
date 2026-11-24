@@ -222,7 +222,8 @@ std::vector<Obstacle> Game::door_blockers() const {
 void Game::move_player(const PlayerInput& input, float dt, std::span<const Obstacle> blockers) {
     const bool rise_pressed = input.rise > 0.0f && !rise_held_;
     rise_held_ = input.rise > 0.0f;
-    player_.rotate(input.turn * turn_speed_ * dt, input.look * look_speed_ * dt);
+    player_.rotate((input.turn * turn_speed_ * dt) + input.mouse_rotation.x,
+                   (input.look * look_speed_ * dt) + input.mouse_rotation.y);
     if (dt <= 0.0f) {
         // Nothing moves, and the player stays on the ground or in the air, with the same velocity.
         return;

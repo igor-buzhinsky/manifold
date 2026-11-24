@@ -16,9 +16,31 @@ TEST(ParseSettingsTest, ReadsFullscreen) {
     EXPECT_FALSE(parse_settings(R"({"fullscreen": false})", {.fullscreen = true}).fullscreen);
 }
 
+TEST(ParseSettingsTest, ReadsMouseLook) {
+    EXPECT_FALSE(Settings{}.mouse_look);
+    EXPECT_TRUE(parse_settings(R"({"mouse_look": true})", {}).mouse_look);
+    EXPECT_FALSE(parse_settings(R"({"mouse_look": false})", {.mouse_look = true}).mouse_look);
+}
+
+TEST(ParseSettingsTest, ReadsMouseSensitivityAsAnyPositiveNumber) {
+    EXPECT_FLOAT_EQ(parse_settings(R"({"mouse_sensitivity": 0.25})", {}).mouse_sensitivity, 0.25f);
+    EXPECT_FLOAT_EQ(parse_settings(R"({"mouse_sensitivity": 2})", {}).mouse_sensitivity, 2.0f);
+}
+
+TEST(ParseSettingsTest, RejectsAMouseSensitivityThatIsNotAPositiveFloat) {
+    for (const char* json :
+         {R"({"mouse_sensitivity": 0})", R"({"mouse_sensitivity": -0.1})", R"({"mouse_sensitivity": 1e100})",
+          R"({"mouse_sensitivity": 1e-100})", R"({"mouse_sensitivity": "0.1"})", R"({"mouse_sensitivity": null})"}) {
+        EXPECT_THROW(parse_settings(json, {}), std::runtime_error) << json;
+    }
+}
+
 TEST(ParseSettingsTest, KeepsMissingFieldsOfTheBase) {
     EXPECT_TRUE(parse_settings("{}", {.fullscreen = true}).fullscreen);
     EXPECT_FALSE(parse_settings("{}", {}).fullscreen);
+    const Settings base{.mouse_look = true, .mouse_sensitivity = 0.5f};
+    EXPECT_EQ(parse_settings(R"({"fullscreen": true})", base),
+              (Settings{.fullscreen = true, .mouse_look = true, .mouse_sensitivity = 0.5f}));
 }
 
 TEST(ParseSettingsTest, IgnoresUnknownFields) {
@@ -39,6 +61,7 @@ TEST(ParseSettingsTest, RejectsAFieldOfAWrongType) {
     EXPECT_THROW(parse_settings(R"({"fullscreen": 1})", {}), std::runtime_error);
     EXPECT_THROW(parse_settings(R"({"fullscreen": "true"})", {}), std::runtime_error);
     EXPECT_THROW(parse_settings(R"({"fullscreen": null})", {}), std::runtime_error);
+    EXPECT_THROW(parse_settings(R"({"mouse_look": 1})", {}), std::runtime_error);
 }
 
 /// Creates an empty directory for one test and removes it afterwards.

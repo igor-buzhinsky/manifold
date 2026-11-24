@@ -95,6 +95,7 @@ add_library(manifold_core STATIC
     src/ui/crosshair.cpp
     src/ui/game_menus.cpp
     src/ui/menu_screen.cpp
+    src/ui/mouse_look.cpp
     src/ui/overlay_mesh.cpp
     src/ui/party_hud.cpp
     src/ui/screen_stack.cpp
@@ -188,6 +189,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/log_test.cpp
         tests/marker_test.cpp
         tests/menu_screen_test.cpp
+        tests/mouse_look_test.cpp
         tests/movement_sim_test.cpp
         tests/overlay_mesh_test.cpp
         tests/party_hud_test.cpp

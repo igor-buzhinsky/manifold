@@ -15,6 +15,11 @@ struct Settings {
     /// Whether the game fills the screen at the screen's own resolution, with black bars where the screen's aspect
     /// ratio differs from the picture's. Otherwise it runs in a window.
     bool fullscreen = false;
+    /// Whether the mouse turns the view when the game starts, see mouse_look_rotation(). M turns it on and off while
+    /// the game runs.
+    bool mouse_look = false;
+    /// How far the view turns with mouse look, in degrees per unit of mouse motion. Greater than 0.
+    float mouse_sensitivity = 0.1f;
 
     bool operator==(const Settings&) const = default;
 };
@@ -22,9 +27,10 @@ struct Settings {
 /// Reads the settings of a JSON object over `base`: the fields that `json` has replace those of `base`, the others
 /// stay.
 ///
-/// The fields are `fullscreen` (a boolean). Unknown fields are ignored with a warning, so a misspelled one is noticed.
+/// The fields are `fullscreen` and `mouse_look` (booleans), and `mouse_sensitivity` (a number greater than 0). Unknown
+/// fields are ignored with a warning, so a misspelled one is noticed.
 ///
-/// \throws std::runtime_error if `json` is not a valid JSON object or a field has a wrong type.
+/// \throws std::runtime_error if `json` is not a valid JSON object or a field has a wrong type or value.
 Settings parse_settings(std::string_view json, const Settings& base);
 
 /// Reads settings files in order, each over the ones before it, see parse_settings(), so the last one has priority.

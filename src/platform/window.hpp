@@ -51,6 +51,12 @@ public:
     /// methods applied, e.g. for the console. Some platforms show an on-screen keyboard then.
     void set_text_input(bool on);
 
+    /// Turns relative mouse mode on or off, for mouse look.
+    ///
+    /// While it is on, the mouse pointer is hidden and kept in the window, and mouse motion still arrives, also at the
+    /// edges of the screen. SDL lets the pointer go while the window doesn't have the focus.
+    void set_relative_mouse_mode(bool on);
+
     /// Shows the frame drawn since the last call. Waits for vsync.
     void swap_buffers();
 

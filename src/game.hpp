@@ -8,6 +8,7 @@
 #include <utility>
 #include <vector>
 
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
 #include "level/layout_factory.hpp"
@@ -48,8 +49,12 @@ struct GameConfig {
 ///
 /// Rates are in [-1, 1], where 1 means full speed.
 struct PlayerInput {
-    float turn = 0.0f;     ///< Positive turns left.
-    float look = 0.0f;     ///< Positive looks up.
+    float turn = 0.0f;  ///< Positive turns left.
+    float look = 0.0f;  ///< Positive looks up.
+    /// How far mouse look turns the view in this frame, besides `turn` and `look`: the change of yaw and of pitch in
+    /// radians, see Player::rotate(), which keeps the pitch within its limit. Unlike the rates, it doesn't depend on
+    /// the frame time.
+    glm::vec2 mouse_rotation{0.0f};
     float forward = 0.0f;  ///< Positive walks forward, negative backward.
     /// Whether the player runs: walking forward is at GameConfig::run_speed instead of GameConfig::walk_speed. Only
     /// the forward part of the movement is faster, not walking backward or stepping aside. It has no effect while

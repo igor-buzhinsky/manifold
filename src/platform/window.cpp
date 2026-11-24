@@ -7,6 +7,7 @@
 #include <SDL3/SDL_error.h>
 #include <SDL3/SDL_init.h>
 #include <SDL3/SDL_keyboard.h>
+#include <SDL3/SDL_mouse.h>
 #include <SDL3/SDL_video.h>
 #include <glad/gl.h>
 
@@ -95,6 +96,12 @@ void Window::set_text_input(bool on) {
         SDL_StartTextInput(window_);
     } else {
         SDL_StopTextInput(window_);
+    }
+}
+
+void Window::set_relative_mouse_mode(bool on) {
+    if (!SDL_SetWindowRelativeMouseMode(window_, on)) {
+        log_warning("Can't turn relative mouse mode {}: {}", on ? "on" : "off", SDL_GetError());
     }
 }
 
