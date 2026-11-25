@@ -23,7 +23,8 @@ std::string_view chest_look_name(ChestLook look);
 /// A small chest that stands on the floor, its back to a wall and a little away from it.
 ///
 /// For now it is a box with a lid of another color on top, and nearly only decoration: it doesn't collide with
-/// anything, and activating it only plays its sound, see Game::activate(). A chest is not part of the wall it stands
+/// anything, and activating it only plays its sound, see
+/// Game::take_chest_activations(). A chest is not part of the wall it stands
 /// at: it keeps its place if the wall goes.
 ///
 /// In its own frame, x runs along its width and y from its back to its front.

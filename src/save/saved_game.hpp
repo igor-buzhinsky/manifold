@@ -53,8 +53,8 @@ std::string save_to_json(const SavedGame& save);
 ///
 /// \throws std::runtime_error if `json` is not valid JSON, has another version, or lacks a field or has a wrong one,
 ///         such as a negative level number or an unknown layout. A party must have at least one character, and each
-///         a positive `max_hp`, an `hp` from 0 to it, and a portrait of a portrait key with a non-negative index, which
-///         may be beyond the files of the key, see AssetMapping::path(). `max_mana`
+///         a positive `max_hp`, an `hp` from 0 to it, and a portrait that is null or of a portrait key with a
+///         non-negative index, which may be beyond the files of the key, see AssetMapping::path(). `max_mana`
 ///         must be positive and `mana` from 0 to it. Each spell must be known, appear at most once, and have a
 ///         `remaining` time above 0 and at most its spell_duration(). Unknown fields are ignored.
 SavedGame parse_saved_game(std::string_view json);
