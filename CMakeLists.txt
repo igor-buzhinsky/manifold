@@ -147,15 +147,15 @@ target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_
 # tree. The player's settings in the directory of the saves take priority over them.
 target_compile_definitions(manifold PRIVATE MANIFOLD_SETTINGS_FILE="${CMAKE_SOURCE_DIR}/settings.json")
 # `cmake --install build --prefix DIR` makes a copy of the game that runs from anywhere: DIR/manifold and DIR/assets,
-# with the game manual, the game's settings and the licenses of the game and of the libraries built into it. Releases
-# are such copies.
+# with the game manual, DEBUGGING.md, the game's settings and the licenses of the game and of the libraries built into
+# it. Releases are such copies.
 # The layout isn't the usual one of /usr/local, so without --prefix the copy goes into the build directory.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
     set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH "Where `cmake --install` puts the game" FORCE)
 endif()
 install(TARGETS manifold RUNTIME DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
-install(FILES LICENSE GAME_MANUAL.md settings.json DESTINATION .)
+install(FILES LICENSE GAME_MANUAL.md DEBUGGING.md settings.json DESTINATION .)
 install(FILES ${sdl3_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME SDL3.txt)
 install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
 install(FILES ${stb_SOURCE_DIR}/LICENSE DESTINATION licenses RENAME stb.txt)

@@ -79,7 +79,7 @@ struct ConsoleState {
 /// Largest width and height of a screenshot, in pixels.
 inline constexpr int kMaxScreenshotSize = 8192;
 
-/// Adds the commands that inspect and show the game, see GAME_MANUAL.md for the list.
+/// Adds the commands that inspect and show the game, see DEBUGGING.md for the list.
 ///
 /// Angles in commands are in degrees, which are easier to type.
 ///
