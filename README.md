@@ -115,13 +115,13 @@ cmake --build build
 
 The game reads its textures, sounds and portraits from the `assets/` directory next to the executable, if there is one,
 and otherwise from `assets/` in the source tree, whose path is built into the executable. `assets/asset_mapping.json`
-says which files it uses for what, see [GAME_MANUAL.md](GAME_MANUAL.md#assets). It reads its settings, such as
+says which files it uses for what, see [DEBUGGING.md](DEBUGGING.md#assets). It reads its settings, such as
 full-screen mode and mouse look, from `settings.json` in the same way, and then from the player's own `settings.json`,
 which takes priority, see [GAME_MANUAL.md](GAME_MANUAL.md#settings). To make a copy of the game that runs from
 anywhere, without the checkout:
 
 ```sh
-cmake --install build --prefix ~/games/manifold   # copies the executable, assets/, settings.json and the licenses there
+cmake --install build --prefix ~/games/manifold   # copies the executable, assets/, the manuals, settings.json and the licenses there
 ~/games/manifold/manifold
 ```
 
@@ -130,8 +130,8 @@ has `-DCMAKE_BUILD_TYPE=Release`, which makes the game faster.
 
 If a level's texture can't be used, its surfaces are plain grey. Without an audio output device, the game runs without sound.
 
-Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Escape opens the game menu, from
-which the game can be left. Ctrl+Q or closing the window quits at once.
+Controls are described in [GAME_MANUAL.md](GAME_MANUAL.md), and console commands in [DEBUGGING.md](DEBUGGING.md).
+Escape opens the game menu, from which the game can be left. Ctrl+Q or closing the window quits at once.
 
 ## Tests
 

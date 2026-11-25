@@ -113,7 +113,7 @@ and tools for inspecting the game. Done:
 - **OpenGL 4.1**: the renderer moved from 3.3 core to 4.1 core, which is as far as macOS goes, and loads OpenGL
   with glad instead of libepoxy, which helps Windows and macOS support (see [DECISIONS.md](DECISIONS.md)).
 - **Console**: commands that inspect the game, for testing levels by hand and for scripted checks, see
-  [GAME_MANUAL.md](../GAME_MANUAL.md). They are typed into the in-game console window (the `/~ key), into
+  [DEBUGGING.md](../DEBUGGING.md). They are typed into the in-game console window (the `/~ key), into
   the terminal the game was started from, or given with `--exec`; `--screenshot` is short for a script.
   Commands: `help`, `level_info` (its text depends on the layout), `camera`, `teleport`, `next_level`,
   `noclip` (no longer a key of its own), `cutaway` (leaves out everything above a height, to look into a layer

@@ -2,8 +2,9 @@
 
 Manifold is a hobby first-person fantasy game in C++20, built with CMake. See [README.md](README.md) for
 building and running, [docs/ROADMAP.md](docs/ROADMAP.md) for plans and technical decisions,
-[docs/DECISIONS.md](docs/DECISIONS.md) for important decisions with their reasons, and
-[GAME_MANUAL.md](GAME_MANUAL.md) for controls.
+[docs/DECISIONS.md](docs/DECISIONS.md) for important decisions with their reasons,
+[GAME_MANUAL.md](GAME_MANUAL.md) for controls, and [DEBUGGING.md](DEBUGGING.md) for the asset mapping, the console
+and the debug overlay.
 
 ## Conventions
 
@@ -72,21 +73,22 @@ seeds or longer is worth it for a change that touches collision itself.
   `scripts/scratch_build.py FILE.cpp [--run ARGS...]`. Don't commit such programs; turn what they check into a test
   or into the movement simulation if it should be kept.
 - When a change alters a constant, a behavior or a name, search the docs (`docs/`, `README.md`, `GAME_MANUAL.md`,
-  `AGENTS.md`) and the comments for its old value and name, e.g. `grep -rn "3 m/s"`, and update what no longer
+  `DEBUGGING.md`, `AGENTS.md`) and the comments for its old value and name, e.g. `grep -rn "3 m/s"`, and update what no longer
   holds, also in older entries of `docs/DECISIONS.md` (with a note in their Status line).
-- When changing key bindings or cheats, update [GAME_MANUAL.md](GAME_MANUAL.md).
+- When changing key bindings, update [GAME_MANUAL.md](GAME_MANUAL.md), and when changing cheats,
+  [DEBUGGING.md](DEBUGGING.md).
 - If a new system package is needed, add it to the install command in [README.md](README.md) and to
   `APT_PACKAGES` in [.github/workflows/ci.yml](.github/workflows/ci.yml).
 - To check rendering or levels, run the game with console commands (see the Console section of
-  [GAME_MANUAL.md](GAME_MANUAL.md)) and look at the screenshots, e.g.
+  [DEBUGGING.md](DEBUGGING.md)) and look at the screenshots, e.g.
   `./build/manifold SEED --exec "level_info; arrow on; cutaway HEIGHT; camera X Y 40 90 -90; screenshot FILE.png 800 450; quit"`.
   Small screenshots (800 x 450) are usually enough. For room levels, `level_info` tells how tiles map to
   world coordinates and the `cutaway` height of each layer, and `player_info` tells where the player is and how
   they move. `--screenshot FILE.png` saves the first frame. Runs with `--exec` always use a window and never
   save; to check a normal run, e.g. in full screen, pipe the commands into it instead, see the Console section of
-  GAME_MANUAL.md.
+  DEBUGGING.md.
   Add console commands rather than command-line options for new ways to inspect the game.
-- When adding or changing console commands, update [GAME_MANUAL.md](GAME_MANUAL.md).
+- When adding or changing console commands, update [DEBUGGING.md](DEBUGGING.md).
 
 ## Review after nontrivial changes
 
