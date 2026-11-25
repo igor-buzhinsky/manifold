@@ -84,8 +84,8 @@ between platforms.
 
 ## Building (Linux)
 
-Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.25+, optionally Ninja, and a GPU with OpenGL 4.1
-or newer (any GPU from about 2012 on).
+Requirements: a C++20 compiler (GCC 15+ or Clang 21+, which CI builds with), CMake 3.25+, optionally Ninja, and a GPU
+with OpenGL 4.1 or newer (any GPU from about 2012 on).
 On Ubuntu 26.04, everything needed to build and lint the project is installed with:
 
 ```sh
