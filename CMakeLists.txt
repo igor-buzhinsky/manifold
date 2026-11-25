@@ -70,6 +70,9 @@ add_library(manifold_core STATIC
     src/console/console_window.cpp
     src/console/game_commands.cpp
     src/game.cpp
+    src/items/inventory.cpp
+    src/items/item_catalog.cpp
+    src/items/loot.cpp
     src/level/debug_layout.cpp
     src/level/layout_factory.cpp
     src/level/level.cpp
@@ -94,6 +97,8 @@ add_library(manifold_core STATIC
     src/ui/button_list.cpp
     src/ui/crosshair.cpp
     src/ui/game_menus.cpp
+    src/ui/inventory_screen.cpp
+    src/ui/item_grid.cpp
     src/ui/menu_screen.cpp
     src/ui/mouse_look.cpp
     src/ui/overlay_mesh.cpp
@@ -182,6 +187,9 @@ if(MANIFOLD_BUILD_TESTS)
         tests/door_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp
+        tests/inventory_screen_test.cpp
+        tests/inventory_test.cpp
+        tests/item_catalog_test.cpp
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
         tests/frame_times_test.cpp
@@ -189,6 +197,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/level_test.cpp
         tests/lighting_test.cpp
         tests/log_test.cpp
+        tests/loot_test.cpp
         tests/marker_test.cpp
         tests/menu_screen_test.cpp
         tests/mouse_look_test.cpp

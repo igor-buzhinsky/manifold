@@ -43,8 +43,16 @@ TEST(SavedGameTest, JsonRoundTripKeepsAllFields) {
                          .layout = LayoutKind::kDebug,
                          .time = 12.25,
                          .party = make_party(),
-                         .magic = make_magic()};
+                         .magic = make_magic(),
+                         .inventory = {"SMALL_RUBY", "LARGE_DIAMOND", "SMALL_RUBY"}};
     EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
+    EXPECT_NE(save_to_json(save).find(R"("inventory": [
+    "SMALL_RUBY",
+    "LARGE_DIAMOND",
+    "SMALL_RUBY"
+  ])"),
+              std::string::npos)
+        << save_to_json(save);
     const SavedGame without_layout{
         .seed = 7, .level_number = 0, .layout = std::nullopt, .time = 0.0, .party = make_party(), .magic = {}};
     EXPECT_EQ(parse_saved_game(save_to_json(without_layout)), without_layout);
@@ -96,6 +104,21 @@ TEST(SavedGameTest, ParsingIgnoresUnknownFields) {
                                .time = 1.0,
                                .party = {{.portrait = std::nullopt, .gender = Gender::kMale, .hp = 1, .max_hp = 2}},
                                .magic = {}}));
+}
+
+TEST(SavedGameTest, SavesWithoutAnInventoryHaveNoItems) {
+    EXPECT_TRUE(
+        parse_saved_game(with_party(R"("version": 5, "seed": 9, "level_number": 2, "time": 1)")).inventory.empty());
+    EXPECT_EQ(
+        parse_saved_game(with_party(R"("version": 5, "seed": 9, "level_number": 2, "time": 1, "inventory": ["A"])"))
+            .inventory,
+        std::vector<std::string>{"A"});
+    for (const char* inventory : {R"("inventory": "A")", R"("inventory": [1])", R"("inventory": [null])"}) {
+        EXPECT_THROW(parse_saved_game(with_party(
+                         std::string(R"("version": 5, "seed": 9, "level_number": 2, "time": 1, )") + inventory)),
+                     std::runtime_error)
+            << inventory;
+    }
 }
 
 TEST(SavedGameTest, ParsingRejectsInvalidSaves) {

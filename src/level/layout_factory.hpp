@@ -5,6 +5,7 @@
 #include <optional>
 #include <string_view>
 
+#include "items/item_catalog.hpp"
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
@@ -21,6 +22,9 @@ struct LevelConfig {
     /// generate_level(), and the portraits of a new party, see Game::new_game(). None unless set, so that every asset
     /// index is 0 and parties have no portraits.
     AssetCounts assets;
+    /// The items that containers, such as chests, are filled with, see generate_level(). None unless set, so that
+    /// containers are empty.
+    ItemCatalog items;
     DebugLayoutConfig debug;
     float debug_probability = 0.0f;  ///< Only for testing, so it is never chosen at random.
     RoomLayoutConfig rooms;
@@ -61,7 +65,8 @@ std::uint64_t next_level_seed(std::uint64_t seed);
 ///
 /// The assets of the level are chosen last, each kind from its own random numbers, among the files of their keys in
 /// `config.assets`, see choose_asset(), so the rest of the level doesn't depend on them: the sounds of the doors, of
-/// the chests and of the exit, and the texture, see choose_level_texture().
+/// the chests and of the exit, and the texture, see choose_level_texture(). So are the items of the chests, from
+/// `config.items`, see fill_chest().
 /// \throws std::invalid_argument if `layout` is not given and the layout probabilities are invalid.
 /// \throws std::runtime_error if the level can't be generated.
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed,

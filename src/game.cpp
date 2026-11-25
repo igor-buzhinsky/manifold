@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -13,6 +14,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "items/inventory.hpp"
+#include "items/item_catalog.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "party/party.hpp"
@@ -20,6 +23,8 @@
 #include "physics/collision.hpp"
 #include "physics/raycast.hpp"
 #include "save/saved_game.hpp"
+#include "util/log.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
@@ -55,6 +60,16 @@ Level generate_game_level(const LevelConfig& config, std::optional<LayoutKind> l
     return generate_level(config, layout, clearance, seed, level_number == 0);
 }
 
+/// What the chests of `level` hold at its start, see Game::chest_inventories().
+std::vector<Inventory> level_chest_inventories(const Level& level) {
+    std::vector<Inventory> inventories;
+    inventories.reserve(level.world.chests().size());
+    for (const Chest& chest : level.world.chests()) {
+        inventories.emplace_back(chest.items);
+    }
+    return inventories;
+}
+
 /// Mixed into the seed of a game's first level for its party, which keeps the party independent of the random numbers
 /// used by level generation.
 constexpr std::uint64_t kPartySeedSalt = 0x8bb84b93962eacc9ULL;
@@ -81,6 +96,7 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       player_(at_start(config.player, level_)),
       party_(make_new_party(seed)),
       level_start_party_(party_),
+      chest_inventories_(level_chest_inventories(level_)),
       doors_(level_.world.doors().size()) {}
 
 std::vector<Character> Game::make_new_party(std::uint64_t seed) const {
@@ -115,6 +131,7 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
     time_ = 0.0;
     party_ = make_new_party(seed);
     magic_ = PartyMagic{};
+    inventory_ = Inventory{};
     start_level(std::move(level), seed, 0, layout);
 }
 
@@ -123,16 +140,30 @@ void Game::load(const SavedGame& save) {
     time_ = save.time;
     party_ = save.party;
     magic_ = save.magic;
+    inventory_ = Inventory{};
+    for (const std::string& key : save.inventory) {
+        if (const std::optional<ItemId> item = level_config_.items.find(key)) {
+            inventory_.add(*item);
+        } else {
+            log_warning("The saved item {} is unknown, so the party loses it", key);
+        }
+    }
     start_level(std::move(level), save.seed, save.level_number, save.layout);
 }
 
 SavedGame Game::save_point() const {
+    std::vector<std::string> items;
+    items.reserve(level_start_inventory_.size());
+    for (const ItemId item : level_start_inventory_.items()) {
+        items.push_back(level_config_.items.at(item).key);
+    }
     return {.seed = seed_,
             .level_number = level_number_,
             .layout = given_layout_,
             .time = level_start_time_,
             .party = level_start_party_,
-            .magic = level_start_magic_};
+            .magic = level_start_magic_,
+            .inventory = std::move(items)};
 }
 
 void Game::start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout) {
@@ -144,6 +175,8 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     level_start_time_ = time_;
     level_start_party_ = party_;
     level_start_magic_ = magic_;
+    level_start_inventory_ = inventory_;
+    chest_inventories_ = level_chest_inventories(level_);
     player_ = at_start(player_params_, level_);
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();

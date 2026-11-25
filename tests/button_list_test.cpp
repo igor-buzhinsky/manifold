@@ -100,6 +100,16 @@ TEST(ButtonListTest, ClickOnADisabledButtonDoesNothing) {
     EXPECT_EQ(list.focus(), 0U);
 }
 
+TEST(ButtonListTest, KeysOfOtherScreensAndTheWheelDoNothing) {
+    ButtonList list = make_list();
+    for (const UiEvent event :
+         {UiEvent(NavKey::kLeft), UiEvent(NavKey::kRight), UiEvent(NavKey::kInventory), UiEvent(NavKey::kTakeAll),
+          UiEvent(ScrollEvent{.steps = 1.0f, .position = center(list, 2)})}) {
+        EXPECT_EQ(list.handle(event, kPlacement), std::nullopt);
+        EXPECT_EQ(list.focus(), 0U);
+    }
+}
+
 TEST(ButtonListTest, DrawsEachButtonWithItsLabelAndABorderForTheFocus) {
     const ButtonList list = make_list();
     OverlayMesh mesh;

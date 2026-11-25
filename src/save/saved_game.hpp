@@ -30,6 +30,10 @@ struct SavedGame {
     std::vector<Character> party;
     /// The party's mana and the spells in effect at the start of the level, see Game::magic().
     PartyMagic magic;
+    /// The keys of the items that the party carried at the start of the level, in order, see Game::inventory() and
+    /// ItemType::key. Keys, unlike ItemId, stay right when items are added to the item file.
+    // Without the initializer, GCC warns about saves that leave it out.
+    std::vector<std::string> inventory = {};  // NOLINT(readability-redundant-member-init)
 
     bool operator==(const SavedGame&) const = default;
 };
@@ -41,12 +45,14 @@ struct SavedGame {
 inline constexpr int kSaveFormatVersion = 5;
 
 /// Writes a save as JSON: an object with `version` (kSaveFormatVersion), `seed`, `level_number`, `time`, `party`,
-/// `mana`, `max_mana`, `spells` and, only if the layout was given, `layout` with its name, see layout_name().
+/// `mana`, `max_mana`, `spells`, `inventory` and, only if the layout was given, `layout` with its name, see
+/// layout_name().
 ///
 /// `party` is an array with an object for each character: `portrait` (null for none, otherwise an object with the
 /// `key` of the portrait, see asset_key_name(), and its `index` among the files of the key), `gender` (see
 /// gender_name()), `hp` and `max_hp`. `spells` is an array with an object for each spell in effect, in the order of
-/// PartyMagic::spells: `spell` (see spell_name()) and `remaining` (seconds).
+/// PartyMagic::spells: `spell` (see spell_name()) and `remaining` (seconds). `inventory` is an array of the keys of
+/// the party's items, see SavedGame::inventory.
 std::string save_to_json(const SavedGame& save);
 
 /// Reads a save written by save_to_json().
@@ -56,7 +62,8 @@ std::string save_to_json(const SavedGame& save);
 ///         a positive `max_hp`, an `hp` from 0 to it, and a portrait that is null or of a portrait key with a
 ///         non-negative index, which may be beyond the files of the key, see AssetMapping::path(). `max_mana`
 ///         must be positive and `mana` from 0 to it. Each spell must be known, appear at most once, and have a
-///         `remaining` time above 0 and at most its spell_duration(). Unknown fields are ignored.
+///         `remaining` time above 0 and at most its spell_duration(). `inventory` must be an array of strings; a save
+///         without it, made before the party had items, has none. Unknown fields are ignored.
 SavedGame parse_saved_game(std::string_view json);
 
 /// Writes a save file, replacing the old one.

@@ -1,9 +1,11 @@
 #include "ui/screen_stack.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <memory>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "render/viewport.hpp"
 #include "ui/overlay_mesh.hpp"
@@ -33,6 +35,19 @@ OverlayMesh ScreenStack::build_mesh(const PixelSize& picture) const {
         screen->add_to(mesh, picture);
     }
     return mesh;
+}
+
+std::vector<ScreenLayer> ScreenStack::build_layers(const PixelSize& picture) const {
+    std::vector<ScreenLayer> layers(screens_.size());
+    for (std::size_t i = 0; i < screens_.size(); ++i) {
+        screens_[i]->add_to(layers[i].mesh, picture);
+        screens_[i]->add_icons(layers[i].icons, picture);
+    }
+    return layers;
+}
+
+void ScreenStack::close_level_screens() {
+    std::erase_if(screens_, [](const std::unique_ptr<Screen>& screen) { return screen->shows_level(); });
 }
 
 bool ScreenStack::hides_game() const {

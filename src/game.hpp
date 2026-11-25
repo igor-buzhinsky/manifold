@@ -11,6 +11,8 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 
+#include "items/inventory.hpp"
+#include "items/item_catalog.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
@@ -85,7 +87,7 @@ enum class Activation : std::uint8_t {
     kOpened,   ///< A door started to open.
     kClosed,   ///< A door started to close.
     kRefused,  ///< The player looks at a door that can't start moving now, see Game::set_door_open().
-    kChest,    ///< A chest was activated, see Game::take_chest_activations(). For now nothing else happens.
+    kChest,    ///< A chest was activated, see Game::take_chest_activations(), e.g. to show what it holds.
 };
 
 /// A door that started to open or to close, see Game::take_door_moves().
@@ -165,7 +167,7 @@ public:
     ///
     /// The level number and the game time start again from 0. Noclip stays as it is. A new party is made with
     /// make_party(), from the portraits of LevelConfig::assets and a seed derived from `seed`, so the
-    /// same seed gives the same party. It has full mana and no spells in effect.
+    /// same seed gives the same party. It has full mana, no spells in effect and no items.
     ///
     /// \param seed   Seed for level generation and the party.
     /// \param layout The layout of the first level, or nothing to choose it at random.
@@ -175,13 +177,14 @@ public:
     /// Starts the saved level again from its start, as next_level() starts a level.
     ///
     /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
-    /// the game time, the party and its magic become the saved ones. Noclip stays as it is.
+    /// the game time, the party, its magic and its items become the saved ones. Noclip stays as it is. Saved items
+    /// whose keys LevelConfig::items doesn't have are left out, after a warning.
     ///
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void load(const SavedGame& save);
 
-    /// What a save of this level holds, to start it again with load(): the level, the party and its magic as they
-    /// were at its start.
+    /// What a save of this level holds, to start it again with load(): the level, the party, its magic and its items
+    /// as they were at its start.
     ///
     /// A level that was not generated, but given to the constructor, is saved with its seed, so loading it gives the
     /// level generated from that seed instead.
@@ -191,8 +194,8 @@ public:
     /// kActivationReach of the eyes.
     ///
     /// Aiming at a door that is not passable opens it, and aiming at a frame of a door opens or closes it, see
-    /// set_door_open(). Aiming at a chest adds it to take_chest_activations(), each time, and does nothing else for
-    /// now. Walls, slabs and doors in front stop the view.
+    /// set_door_open(). Aiming at a chest adds it to take_chest_activations(), each time, so that the main loop shows
+    /// what it holds. Walls, slabs and doors in front stop the view.
     ///
     /// \param direction Unit vector from the eyes, e.g. through the point of the view that the player clicked, or none
     ///                  for the center of the view, see Player::view_direction(). The reach is the same either way.
@@ -258,6 +261,20 @@ public:
     std::span<const Character> party() const { return party_; }
     /// The party's shared mana, and the spells in effect.
     const PartyMagic& magic() const { return magic_; }
+    /// All kinds of items, which the inventories refer to, see LevelConfig::items.
+    const ItemCatalog& items() const { return level_config_.items; }
+    /// The items that the party carries, which all its characters share. It has no limit of weight. It is kept from
+    /// level to level, and saved.
+    const Inventory& inventory() const { return inventory_; }
+    Inventory& inventory() { return inventory_; }
+    /// What each chest of World::chests() holds, in the same order. At the start of a level, what the chest holds then,
+    /// see Chest::items; the party can take items out and put items in. Not saved: a level that starts again, e.g.
+    /// after loading, has its chests full again.
+    std::span<const Inventory> chest_inventories() const { return chest_inventories_; }
+    /// What chest `index` of World::chests() holds, see chest_inventories().
+    ///
+    /// \throws std::out_of_range if there is no such chest.
+    Inventory& chest_inventory(std::size_t index) { return chest_inventories_.at(index); }
     /// Whether Levitate is in effect, so that the player flies, see update().
     bool levitating() const { return magic_.active(Spell::kLevitate); }
     /// The state of each door of World::doors(), in the same order.
@@ -346,6 +363,9 @@ private:
     std::vector<Character> level_start_party_;    ///< The party when the level started, see save_point().
     PartyMagic magic_;                            ///< See magic().
     PartyMagic level_start_magic_;                ///< The party's magic when the level started, see save_point().
+    Inventory inventory_;                         ///< See inventory().
+    Inventory level_start_inventory_;             ///< The party's items when the level started, see save_point().
+    std::vector<Inventory> chest_inventories_;    ///< See chest_inventories().
     std::vector<DoorState> doors_;                ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;            ///< See take_door_moves().
     std::vector<std::size_t> chest_activations_;  ///< See take_chest_activations().

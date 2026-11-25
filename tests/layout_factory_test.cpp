@@ -12,8 +12,11 @@
 #include <glm/geometric.hpp>
 #include <gtest/gtest.h>
 
+#include "items/inventory.hpp"
+#include "items/loot.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "test_items.hpp"
 #include "util/asset_index.hpp"
 #include "util/asset_mapping.hpp"
 #include "world/chest.hpp"
@@ -210,6 +213,37 @@ TEST(LayoutFactoryTest, AssetsDontChangeTheRestOfTheLevel) {
             EXPECT_EQ(without.texture, LevelTexture{});
         }
     }
+}
+
+TEST(LayoutFactoryTest, ChestsHoldItemsWithinTheirValuesThatDependOnlyOnTheSeed) {
+    LevelConfig config;
+    config.items = make_test_items();
+    std::size_t chests = 0;
+    std::size_t items = 0;
+    for (const LayoutKind layout : {LayoutKind::kRooms, LayoutKind::kDebug}) {
+        for (std::uint64_t seed = 1; seed <= 6; ++seed) {
+            const Level level = generate_level(config, layout, 0.3f, seed);
+            const Level again = generate_level(config, layout, 0.3f, seed);
+            const Level without = generate_level(LevelConfig{}, layout, 0.3f, seed);
+            // The items don't change the rest of the level.
+            EXPECT_EQ(level.info, without.info);
+            ASSERT_EQ(level.world.chests().size(), without.world.chests().size());
+            for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
+                const Chest& chest = level.world.chests()[i];
+                EXPECT_EQ(chest.items, again.world.chests()[i].items);
+                EXPECT_EQ(chest.look, without.world.chests()[i].look);
+                EXPECT_EQ(chest.open_sound, without.world.chests()[i].open_sound);
+                EXPECT_TRUE(without.world.chests()[i].items.empty());
+                EXPECT_LE(chest.items.size(), kMaxChestItems);
+                EXPECT_LE(Inventory(chest.items).value(config.items), chest_value_range(chest.look).max);
+                items += chest.items.size();
+            }
+            chests += level.world.chests().size();
+        }
+    }
+    ASSERT_GT(chests, 2U);
+    // Each chest is worth at least 500, so it holds at least one pebble.
+    EXPECT_GE(items, chests);
 }
 
 TEST(LayoutFactoryTest, LevelTextureIsAmongTheFilesOfAllKindsAndReachesEach) {

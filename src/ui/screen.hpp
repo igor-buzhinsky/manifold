@@ -2,9 +2,12 @@
 
 #include <cstdint>
 #include <optional>
+#include <vector>
 
+#include "items/item_catalog.hpp"
 #include "render/viewport.hpp"
 #include "ui/overlay_mesh.hpp"
+#include "ui/rect.hpp"
 #include "ui/ui_event.hpp"
 
 namespace manifold {
@@ -15,6 +18,15 @@ enum class UiCommand : std::uint8_t {
     kNewGame,  ///< Start a new game, which replaces the save.
     kLoad,     ///< Load the saved game.
     kExit,     ///< Quit the game.
+};
+
+/// The icon of an item that a screen shows, see Screen::add_icons(). The main loop draws it over the shapes of the
+/// screen, since they are drawn separately from images.
+struct IconPlacement {
+    ItemId item = 0;  ///< Which item's icon, see AssetMapping::item_icon().
+    Rect area;        ///< Where it is drawn, stretched to fit.
+
+    bool operator==(const IconPlacement&) const = default;
 };
 
 /// A screen of the game's interface, such as a menu, shown over the game or instead of it, see ScreenStack.
@@ -41,6 +53,14 @@ public:
 
     /// Whether the game is hidden behind the screen, so it needn't be drawn. Otherwise the game is seen behind it.
     virtual bool hides_game() const = 0;
+
+    /// Adds the icons of items that the screen shows, laid out over a picture of `picture` size, to `icons`. None by
+    /// default.
+    virtual void add_icons(std::vector<IconPlacement>& /*icons*/, const PixelSize& /*picture*/) const {}
+
+    /// Whether the screen shows something of the current level, such as what a chest holds, so that it must be closed
+    /// when another level starts, see ScreenStack::close_level_screens(). False by default.
+    virtual bool shows_level() const { return false; }
 };
 
 }  // namespace manifold
