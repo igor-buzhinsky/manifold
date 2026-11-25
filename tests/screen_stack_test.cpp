@@ -46,7 +46,7 @@ TEST(ScreenStackTest, EmptyStackHandlesNothing) {
     EXPECT_TRUE(stack.empty());
     EXPECT_FALSE(stack.hides_game());
     EXPECT_EQ(stack.handle(NavKey::kConfirm, kPicture), std::nullopt);
-    EXPECT_TRUE(stack.build_mesh(kPicture).vertices().empty());
+    EXPECT_TRUE(stack.build_layers(kPicture).empty());
     stack.pop();  // Does nothing.
     EXPECT_TRUE(stack.empty());
 }
@@ -58,10 +58,10 @@ TEST(ScreenStackTest, TopScreenGetsEventsAndAllAreDrawnBottomFirst) {
     EXPECT_EQ(stack.size(), 2U);
     EXPECT_TRUE(stack.hides_game());
     EXPECT_EQ(stack.handle(NavKey::kConfirm, kPicture), UiCommand::kExit);
-    const OverlayMesh mesh = stack.build_mesh(kPicture);
-    ASSERT_EQ(mesh.vertices().size(), 12U);
-    EXPECT_EQ(mesh.vertices()[0].color.r, static_cast<float>(UiCommand::kLoad));
-    EXPECT_EQ(mesh.vertices()[6].color.r, static_cast<float>(UiCommand::kExit));
+    const std::vector<ScreenLayer> layers = stack.build_layers(kPicture);
+    ASSERT_EQ(layers.size(), 2U);
+    EXPECT_EQ(layers[0].mesh.vertices()[0].color.r, static_cast<float>(UiCommand::kLoad));
+    EXPECT_EQ(layers[1].mesh.vertices()[0].color.r, static_cast<float>(UiCommand::kExit));
 
     stack.pop();
     EXPECT_EQ(stack.handle(NavKey::kConfirm, kPicture), UiCommand::kLoad);

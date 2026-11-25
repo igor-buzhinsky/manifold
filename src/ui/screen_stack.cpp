@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "render/viewport.hpp"
-#include "ui/overlay_mesh.hpp"
 #include "ui/screen.hpp"
 #include "ui/ui_event.hpp"
 
@@ -27,14 +26,6 @@ std::optional<UiCommand> ScreenStack::handle(const UiEvent& event, const PixelSi
         return std::nullopt;
     }
     return screens_.back()->handle(event, picture);
-}
-
-OverlayMesh ScreenStack::build_mesh(const PixelSize& picture) const {
-    OverlayMesh mesh;
-    for (const std::unique_ptr<Screen>& screen : screens_) {
-        screen->add_to(mesh, picture);
-    }
-    return mesh;
 }
 
 std::vector<ScreenLayer> ScreenStack::build_layers(const PixelSize& picture) const {

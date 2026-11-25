@@ -435,7 +435,8 @@ TEST(GameCommandsTest, GiveAddsItemsToTheParty) {
     fixture.run("give PEBBLE");
     fixture.run("give GOLD_BAR 2");
     EXPECT_EQ(fixture.game.inventory(), Inventory({kPebble, kGoldBar, kGoldBar}));
-    for (const char* command : {"give", "give UNICORN", "give PEBBLE 0", "give PEBBLE x", "give PEBBLE 1 2"}) {
+    for (const char* command :
+         {"give", "give UNICORN", "give PEBBLE 0", "give PEBBLE 1001", "give PEBBLE x", "give PEBBLE 1 2"}) {
         fixture.expect_error(command);
     }
     EXPECT_EQ(fixture.game.inventory().size(), 3U);
@@ -452,7 +453,7 @@ TEST(GameCommandsTest, ItemsInventoryAndChestsAreListed) {
     const std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("3 kinds of items\nPEBBLE (Pebble), weight 0.250, value 100, chance 1"), std::string::npos)
         << log;
-    EXPECT_NE(log.find("The party carries 1 items, weight 1.500, value 200\n0: CROWN (Crown), weight 1.500, value 200"),
+    EXPECT_NE(log.find("The party carries 1 item, weight 1.500, value 200\n0: CROWN (Crown), weight 1.500, value 200"),
               std::string::npos)
         << log;
     EXPECT_NE(log.find(std::format("{} chests\nChest 0: ", fixture.game.world().chests().size())), std::string::npos)

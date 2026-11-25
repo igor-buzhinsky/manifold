@@ -853,8 +853,9 @@ Rejected alternatives:
 
 Drawbacks:
 
-- With the gems so far, a wooden chest worth less than 625 holds only amethysts, and the cheapest item decides how
-  much of a chest's value is left unused: up to 124.
+- With the gems so far, a wooden chest worth less than 625 holds only amethysts. When filling stops because nothing
+  fits, the cheapest item decides how much of a chest's value is left unused: up to 124. When it stops at 8 items,
+  much more can be: a wooden chest worth 1500 that gets eight small amethysts leaves 500.
 - An item can only be put at the end of a grid; there is no way to put it into a cell in between.
 - Without stacking, many small items fill the grid quickly, and it must be scrolled.
 - What a chest holds depends on the order and number of the items in the file, so changing them changes the chests of

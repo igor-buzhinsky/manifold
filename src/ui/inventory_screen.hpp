@@ -72,7 +72,9 @@ public:
     void add_to(OverlayMesh& mesh, const PixelSize& picture) const override;
     void add_icons(std::vector<IconPlacement>& icons, const PixelSize& picture) const override;
     bool hides_game() const override { return false; }
-    /// True: it shows the inventories of the level's containers, which another level replaces.
+    /// True, also for the party alone: the inventories of the level's containers are replaced by another level, and
+    /// opening an inventory closes the one that is open (see ScreenStack::close_level_screens()) rather than stacking
+    /// another over it.
     bool shows_level() const override { return true; }
 
     /// How many grids there are: 1 for the party alone, 2 with a container, which is then side 0 and the party side 1.
