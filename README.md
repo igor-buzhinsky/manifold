@@ -79,7 +79,8 @@ between platforms.
 ## Download
 
 [Releases](https://github.com/igor-buzhinsky/manifold/releases) have a build for Linux x86_64, made on Ubuntu 26.04
-(it needs glibc 2.43 or newer and a GPU with OpenGL 4.1). Unpack the archive and run `manifold` in its directory.
+(it needs glibc 2.43 and the libstdc++ of GCC 15 or newer, and a GPU with OpenGL 4.1). Unpack the archive and run
+`manifold` in its directory.
 
 ## Building (Linux)
 

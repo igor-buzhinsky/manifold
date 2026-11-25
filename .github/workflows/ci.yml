@@ -50,8 +50,8 @@ jobs:
             cc: clang-21
             cxx: clang++-21
             extra_packages: clang-21
-            # Clang takes the newest GCC's libstdc++ that it finds, and the runner has several GCCs. This keeps it on
-            # GCC 15's, which a plain Ubuntu 26.04 has.
+            # Clang takes the newest GCC's libstdc++ that it finds. GCC 15 is the newest on the runner now, but a later
+            # image may add a newer one; this keeps Clang on GCC 15's, which a plain Ubuntu 26.04 has.
             flags: --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/15
     env:
       CC: ${{ matrix.cc }}
@@ -173,8 +173,8 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           ARCHIVE: ${{ steps.package.outputs.archive }}
           NOTES: >-
-            A build for Linux x86_64, made on Ubuntu 26.04: it needs glibc 2.43 or newer and a GPU with OpenGL 4.1.
-            Unpack it and run `manifold` in its directory. The controls are in GAME_MANUAL.md.
+            A build for Linux x86_64, made on Ubuntu 26.04: it needs glibc 2.43 and the libstdc++ of GCC 15 or newer,
+            and a GPU with OpenGL 4.1. Unpack it and run `manifold` in its directory. The controls are in GAME_MANUAL.md.
         run: |
           gh release create "$TAG" "$ARCHIVE" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \
             --title "Manifold $VERSION" --notes "$NOTES" --generate-notes

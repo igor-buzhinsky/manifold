@@ -157,7 +157,7 @@ TEST(DebugLayoutTest, RampsGoUpInAllDirections) {
         }
     }
     EXPECT_LT(min_yaw, 0.5f);
-    EXPECT_GT(max_yaw, (2.0f * std::numbers::pi_v<float>)-0.5f);
+    EXPECT_GT(max_yaw + 0.5f, 2.0f * std::numbers::pi_v<float>);
 }
 
 /// Checks whether the box around a footprint lies inside the level.
