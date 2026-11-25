@@ -271,5 +271,17 @@
   ],
   "PORTRAITS_ANY": [
     "portraits/any/rijksmuseum-nl/RP-F-00-1017-huth-human-skeleton.png"
-  ]
+  ],
+  "ITEM_ICONS": {
+    "SMALL_DIAMOND": "inventory/gems/opengameart-org-six-grades-of-gems/diamond-small.png",
+    "LARGE_DIAMOND": "inventory/gems/opengameart-org-six-grades-of-gems/diamond-large.png",
+    "SMALL_RUBY": "inventory/gems/opengameart-org-six-grades-of-gems/ruby-small.png",
+    "LARGE_RUBY": "inventory/gems/opengameart-org-six-grades-of-gems/ruby-large.png",
+    "SMALL_EMERALD": "inventory/gems/opengameart-org-six-grades-of-gems/emerald-small.png",
+    "LARGE_EMERALD": "inventory/gems/opengameart-org-six-grades-of-gems/emerald-large.png",
+    "SMALL_SAPPHIRE": "inventory/gems/opengameart-org-six-grades-of-gems/sapphire-small.png",
+    "LARGE_SAPPHIRE": "inventory/gems/opengameart-org-six-grades-of-gems/sapphire-large.png",
+    "SMALL_AMETHYST": "inventory/gems/opengameart-org-six-grades-of-gems/amethyst-small.png",
+    "LARGE_AMETHYST": "inventory/gems/opengameart-org-six-grades-of-gems/amethyst-large.png"
+  }
 }

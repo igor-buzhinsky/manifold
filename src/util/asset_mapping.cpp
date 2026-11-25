@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
+#include <map>
 #include <optional>
 #include <span>
 #include <stdexcept>
@@ -126,6 +128,28 @@ AssetIndex choose_asset(Rng& rng, const AssetCounts& counts, AssetKey key) {
     return static_cast<AssetIndex>(random_index(rng, count));
 }
 
+namespace {
+
+/// Reads the icons of items from the value of `ITEM_ICONS` into `icons`, see AssetMapping::parse().
+void parse_item_icons(const nlohmann::json& value, const std::filesystem::path& assets_dir, std::string_view source,
+                      std::map<std::string, std::filesystem::path, std::less<>>& icons) {
+    if (!value.is_object()) {
+        log_warning("Asset mapping {}: {} is {}, not an object, so items have no icons", source, kItemIconsKey,
+                    value.dump());
+        return;
+    }
+    for (const auto& [item, path] : value.items()) {
+        if (path.is_string()) {
+            icons.emplace(item, assets_dir / path.get<std::string>());
+        } else {
+            log_warning("Asset mapping {}: {} has an icon {} for {} that is not a path, so it has none", source,
+                        kItemIconsKey, path.dump(), item);
+        }
+    }
+}
+
+}  // namespace
+
 AssetMapping AssetMapping::parse(std::string_view json, const std::filesystem::path& assets_dir,
                                  std::string_view source) {
     AssetMapping mapping;
@@ -141,6 +165,10 @@ AssetMapping AssetMapping::parse(std::string_view json, const std::filesystem::p
         return mapping;
     }
     for (const auto& [name, value] : object.items()) {
+        if (name == kItemIconsKey) {
+            parse_item_icons(value, assets_dir, source, mapping.item_icons_);
+            continue;
+        }
         const std::optional<AssetKey> key = parse_asset_key_name(name);
         if (!key) {
             log_warning("Asset mapping {} has an unknown key {}, which is ignored", source, name);
@@ -186,7 +214,8 @@ AssetMapping AssetMapping::load(const std::filesystem::path& assets_dir) {
     for (const std::vector<std::filesystem::path>& paths : mapping.paths_) {
         count += paths.size();
     }
-    log_info("Asset mapping {}: {} files for {} keys", file.string(), count, kAssetKeys.size());
+    log_info("Asset mapping {}: {} files for {} keys, and {} item icons", file.string(), count, kAssetKeys.size(),
+             mapping.item_icons_.size());
     return mapping;
 }
 
@@ -197,6 +226,14 @@ std::optional<std::filesystem::path> AssetMapping::path(AssetKey key, AssetIndex
         return std::nullopt;
     }
     return files[index];
+}
+
+std::optional<std::filesystem::path> AssetMapping::item_icon(std::string_view item_key) const {
+    const auto found = item_icons_.find(item_key);
+    if (found == item_icons_.end()) {
+        return std::nullopt;
+    }
+    return found->second;
 }
 
 AssetCounts AssetMapping::counts() const {
