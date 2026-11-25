@@ -8,17 +8,12 @@
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
-#include <span>
-#include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
 #include <stb_image.h>
 
-#include "level/texture_kind.hpp"
-#include "util/asset_files.hpp"
 #include "util/log.hpp"
-#include "util/random.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -45,50 +40,19 @@ std::optional<Image> load_image(const std::filesystem::path& path) {
     return image;
 }
 
-std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root) {
-    return find_asset_files(root, ".png");
-}
-
-std::vector<TextureFile> find_level_textures(const std::filesystem::path& root) {
-    std::vector<TextureFile> files;
-    for (const TextureKind kind : kTextureKinds) {
-        const std::filesystem::path directory = root / texture_kind_name(kind);
-        const std::vector<std::filesystem::path> paths = find_textures(directory);
-        if (paths.empty()) {
-            log_warning("No {} textures found in {}", texture_kind_name(kind), directory.string());
-        }
-        for (const std::filesystem::path& path : paths) {
-            files.push_back({.path = path, .kind = kind});
-        }
+std::optional<Image> load_level_texture(const std::filesystem::path& path) {
+    // Reading only the header first avoids decoding a large image just to refuse it. Files whose header can't be read
+    // are left to load_image(), which logs why.
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    if (stbi_info(path.string().c_str(), &width, &height, &channels) != 0 &&
+        (width > kMaxTextureSize || height > kMaxTextureSize)) {
+        log_warning("Texture {} is {}x{}, larger than {}x{}", path.string(), width, height, kMaxTextureSize,
+                    kMaxTextureSize);
+        return std::nullopt;
     }
-    std::ranges::sort(files, {}, &TextureFile::path);
-    return files;
-}
-
-std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed) {
-    std::vector<std::filesystem::path> order(candidates.begin(), candidates.end());
-    Rng random(seed);
-    random_shuffle(random, order);
-    for (const std::filesystem::path& path : order) {
-        // Reading only the header first avoids decoding a large image just to skip it. Files whose header
-        // can't be read are left to load_image(), which logs why.
-        int width = 0;
-        int height = 0;
-        int channels = 0;
-        if (stbi_info(path.string().c_str(), &width, &height, &channels) != 0 &&
-            (width > kMaxTextureSize || height > kMaxTextureSize)) {
-            log_warning("Texture {} is {}x{}, larger than {}x{}, trying another one", path.string(), width, height,
-                        kMaxTextureSize, kMaxTextureSize);
-            continue;
-        }
-        std::optional<Image> image = load_image(path);
-        if (!image) {
-            continue;
-        }
-        log_info("Texture: {} ({}x{})", path.string(), image->width, image->height);
-        return PickedTexture{.path = path, .image = std::move(*image)};
-    }
-    return std::nullopt;
+    return load_image(path);
 }
 
 glm::vec3 mean_linear_color(const Image& image) {

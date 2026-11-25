@@ -11,7 +11,9 @@
 #include <glm/common.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vector_relational.hpp>
 
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
@@ -43,6 +45,28 @@ Box2 ray_box(const Ray& ray, float max_distance) {
         }
     }
     return {.min = glm::min(start, end), .max = glm::max(start, end)};
+}
+
+/// Keeps the first hit of a ray on a chest in `nearest`, if it is nearer than what is there.
+///
+/// Levels have few chests, so they aren't in a grid: each is tested whose footprint's bounding box overlaps `box`, the
+/// box around the ray, see ray_box().
+void cast_ray_at_chests(const World& world, const Ray& ray, const Box2& box, float max_distance,
+                        std::optional<RayHit>& nearest) {
+    const std::span<const Chest> chests = world.chests();
+    for (std::size_t i = 0; i < chests.size(); ++i) {
+        const RotatedRectangle footprint = chests[i].footprint();
+        const glm::vec2 half_size = bounding_half_size(footprint);
+        if (glm::any(glm::greaterThan(footprint.center - half_size, box.max)) ||
+            glm::any(glm::lessThan(footprint.center + half_size, box.min))) {
+            continue;
+        }
+        for (const Obstacle& part : {chests[i].body(), chests[i].lid()}) {
+            if (const std::optional<float> distance = cast_ray(ray, part, max_distance)) {
+                keep_nearest(nearest, {.distance = *distance, .target = RayTarget::kChest, .chest = i});
+            }
+        }
+    }
 }
 
 }  // namespace
@@ -104,6 +128,7 @@ std::optional<RayHit> cast_ray(const World& world, std::span<const DoorState> do
             }
         }
     }
+    cast_ray_at_chests(world, ray, box, max_distance, nearest);
     world.find_obstacles_near(box, nearby);
     for (const std::size_t index : nearby) {
         const Obstacle& obstacle = world.obstacles()[index];

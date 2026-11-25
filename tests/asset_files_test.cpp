@@ -1,10 +1,7 @@
 #include "util/asset_files.hpp"
 
-#include <cstdint>
 #include <filesystem>
 #include <fstream>
-#include <optional>
-#include <set>
 #include <string>
 #include <vector>
 
@@ -70,20 +67,6 @@ TEST_F(AssetFilesTest, WithoutAssetsNextToTheExecutableTheFallbackIsUsed) {
     // Nor does a missing executable directory, or an unknown one.
     EXPECT_EQ(find_assets_dir(dir() / "missing", dir() / "source"), dir() / "source");
     EXPECT_EQ(find_assets_dir({}, dir() / "source"), dir() / "source");
-}
-
-TEST(AssetFilesPickTest, NoCandidatesGiveNothing) { EXPECT_FALSE(pick_asset_file({}, 1).has_value()); }
-
-TEST(AssetFilesPickTest, PickDependsOnlyOnSeedAndReachesEveryCandidate) {
-    const std::vector<std::filesystem::path> candidates{"a.ogg", "b.ogg", "c.ogg", "d.ogg", "e.ogg"};
-    std::set<std::filesystem::path> picked;
-    for (std::uint64_t seed = 0; seed < 100; ++seed) {
-        const std::optional<std::filesystem::path> path = pick_asset_file(candidates, seed);
-        ASSERT_TRUE(path.has_value());
-        EXPECT_EQ(path, pick_asset_file(candidates, seed));
-        picked.insert(*path);
-    }
-    EXPECT_EQ(picked, std::set<std::filesystem::path>(candidates.begin(), candidates.end()));
 }
 
 }  // namespace

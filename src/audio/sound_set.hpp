@@ -3,42 +3,52 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
+#include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "audio/sound.hpp"
+#include "util/asset_mapping.hpp"
 
 namespace manifold {
 
-/// The sounds of one kind, e.g. of doors that start to open: all OGG files under a directory, loaded.
+/// The sounds of one key of the asset mapping, e.g. of doors that start to open, loaded, see AssetMapping.
 class SoundSet {
 public:
     /// An empty set.
     SoundSet() = default;
 
-    /// Loads all OGG files under `root`, at any depth, in the order of find_asset_files().
+    /// Loads each of `paths`, in order: sound i is loaded from `paths[i]`.
     ///
-    /// Files that can't be loaded are left out, after load_sound() logged a warning. How many sounds were loaded is
-    /// logged as info, with `name` (e.g. "door open"). A missing `root` gives an empty set, with a warning.
-    SoundSet(const std::filesystem::path& root, std::string_view name);
+    /// A file that can't be loaded keeps its place but has no sound, after load_sound() logged a warning. How many
+    /// sounds were loaded is logged as info, with `name` (e.g. "DOOR_OPEN_SOUNDS"). No paths give an empty set.
+    SoundSet(std::span<const std::filesystem::path> paths, std::string_view name);
 
+    /// Loads the files of `key`, see the other constructor, with the key's name.
+    SoundSet(const AssetMapping& mapping, AssetKey key);
+
+    /// How many sounds the set has, also those whose files couldn't be loaded.
     std::size_t size() const { return sounds_.size(); }
 
-    /// The sound with the number `number`, counting round: sound `number` modulo size(), e.g. for DoorSounds.
+    /// Sound `index`.
     ///
-    /// \return The sound, or null if the set is empty. It lives as long as the set.
-    const Sound* get(std::uint32_t number) const;
+    /// \return The sound, or null if its file couldn't be loaded, or if there is no such sound (after logging a
+    ///         warning, unless the set is empty). It lives as long as the set.
+    const Sound* get(AssetIndex index) const;
 
-    /// A random sound number for get(), other than `previous` when the set has more than one sound, e.g. so that two
+    /// A random sound index for get(), other than `previous` when the set has more than one sound, e.g. so that two
     /// footsteps in a row don't sound the same.
     ///
-    /// \param previous The number of the sound before, or any number if there was none.
+    /// \param previous The index of the sound before, or any number if there was none.
     /// \param random   A random number, which picks among the other sounds.
-    /// \return A number in [0, size()), or 0 for an empty set.
-    std::uint32_t pick_other(std::uint32_t previous, std::uint64_t random) const;
+    /// \return An index in [0, size()), or 0 for an empty set.
+    AssetIndex pick_other(AssetIndex previous, std::uint64_t random) const;
 
 private:
-    std::vector<Sound> sounds_;
+    std::string name_;  ///< For warnings, see the constructor.
+    std::vector<std::optional<Sound>> sounds_;
 };
 
 }  // namespace manifold

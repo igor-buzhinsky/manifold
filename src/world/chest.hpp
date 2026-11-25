@@ -5,6 +5,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "util/asset_index.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
 
@@ -21,8 +22,9 @@ std::string_view chest_look_name(ChestLook look);
 
 /// A small chest that stands on the floor, its back to a wall and a little away from it.
 ///
-/// For now it is a box with a lid of another color on top, and only decoration: it doesn't collide with anything, and
-/// activating it does nothing. A chest is not part of the wall it stands at: it keeps its place if the wall goes.
+/// For now it is a box with a lid of another color on top, and nearly only decoration: it doesn't collide with
+/// anything, and activating it only plays its sound, see Game::activate(). A chest is not part of the wall it stands
+/// at: it keeps its place if the wall goes.
 ///
 /// In its own frame, x runs along its width and y from its back to its front.
 struct Chest {
@@ -38,6 +40,8 @@ struct Chest {
     glm::vec3 base_center{0.0f};        ///< Center of the bottom, on the floor.
     float yaw = 0.0f;                   ///< Direction the front faces: radians counter-clockwise from +x.
     ChestLook look = ChestLook::kWood;  ///< What the chest is made of.
+    /// The sound it makes when activated: which file of AssetKey::kChestOpenSounds, see generate_level().
+    AssetIndex open_sound = 0;
 
     /// A chest that stands at a wall, centered on a point, with kWallGap between its back and the wall.
     ///

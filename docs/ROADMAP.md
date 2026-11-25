@@ -164,8 +164,8 @@ and tools for inspecting the game. Done:
   hardware comparison with 2 × 2 linear filtering. Torch handles and the player cast no shadows (see "Later
   (unordered, low priority, might not be done)").
 - **Textures**: each level uses one random texture (chosen from the level seed) for walls, floor and ceiling,
-  instead of the checker pattern, from the PNG files under `assets/textures/`, at most 128 × 128 pixels, with
-  nearest-neighbour filtering.
+  instead of the checker pattern, from the PNG files under `assets/textures/` (since v0.4, those of the asset
+  mapping), at most 128 × 128 pixels, with nearest-neighbour filtering.
 - **Dear ImGui debug overlay**: F3 or `imgui [on|off]` shows a window with the frame times, what the renderer
   drew, the player's state, the view switches, and sliders for the lights and the shadow bias. The lights are a
   `LightSettings` in `ViewSettings`, so screenshots use them too. A shadow map is drawn again when the range of its
@@ -186,7 +186,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Audio: footsteps, entering portals, doors**. Portals: each level picks its exit sound among the OGG files in
   `assets/sounds/portal/` from the level seed, and plays it when the player enters the exit (SDL3 audio, decoded with stb_vorbis). Doors: level generation gives each door a random open and close sound, from `assets/sounds/door_open/`
   and `assets/sounds/door_close/`, played when the door starts to move. Footsteps: the directory of the level's texture (grass, wood, metal or stone) gives the level's texture kind, and walking plays a random footstep of that kind every
-  metre (every 1.5 m running, since v0.4).
+  metre (every 1.5 m running, since v0.4). Since v0.4, the files of each use are listed in the asset mapping, and the
+  texture's key there gives its kind.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
   returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
@@ -207,7 +208,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
 - **Basic party implementation** (see [DECISIONS.md](DECISIONS.md)): a new game makes a party of 3 characters, which
   moves as one body, the player. Each gets another portrait, chosen at random from the game's seed among the PNG files
   in `assets/portraits/male/`, `female/` and `any/`, and the gender of its directory, or a random one in `any/`. If
-  there are too few portraits, a warning is logged and the last characters get none. Each character has current and
+  there are too few portraits, a warning is logged and the last characters get none. (Since v0.4, the portraits are
+  the files of keys of the asset mapping, and the save holds their keys and indices.) Each character has current and
   maximum hit points (100), which nothing lowers yet. The portraits are drawn scaled down in the bottom-left corner of
   the screen, side by side with small gaps (`layout_party_hud()`, textured by `ImageRenderer`), with a thin red bar of
   hit points below each, or an empty dark place for a missing portrait. The save holds the party at the start of the
@@ -266,8 +268,15 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   wall side of a tile that isn't part of a hole or a ramp, isn't next to an opening and isn't the exit's tile. The
   debug layout puts one below every third torch, unless an obstacle, a ramp or the exit is in the way. 20% of
   chests are golden, the others wooden. A chest is an object of its own in the world, not a part of a wall or a floor
-  tile, so it stays if a wall goes. Activating a chest does nothing yet. Chests are drawn with the world and cast
-  shadows.
+  tile, so it stays if a wall goes. Activating a chest does nothing yet (since the asset mapping below, it plays the
+  chest's sound). Chests are drawn with the world and cast shadows.
+- **Asset mapping** (see [DECISIONS.md](DECISIONS.md)): `assets/asset_mapping.json` lists the files of each use,
+  by keys such as `DOOR_OPEN_SOUNDS`, `CHEST_OPEN_SOUNDS` and `LEVEL_TEXTURES_GRASS` (`AssetMapping`), so assets can
+  be remapped without building the game again, and one file can serve several uses. Game objects keep the index of
+  their file among those of its key, not its name: doors, chests and exits their sounds, levels their texture, and
+  characters their portrait, also in the save (format version 5). Level generation chooses them, each from its own
+  random numbers. A file that can't be used gives no sound, a plain grey texture or an empty portrait, after a
+  warning. Activating a chest, which ray casts now hit, plays its sound, one of the door opening sounds for now.
 - **Looking up and down by 40°** instead of 30°, so that E reaches a chest on the floor more easily.
 - **Screenshots wait a frame**: the commands after `screenshot` run in the next frame. A screenshot is drawn after
   the commands of its frame, so a `teleport` right after it used to show in the picture.

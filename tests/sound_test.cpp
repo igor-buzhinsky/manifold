@@ -16,7 +16,7 @@ namespace {
 
 /// A sound of the game, in the source tree.
 const std::filesystem::path kPortalSound =
-    std::filesystem::path(MANIFOLD_SOUNDS_DIR) / "portal" / "kenney-digital-audio" / "spaceTrash1.ogg";
+    std::filesystem::path(MANIFOLD_ASSETS_DIR) / "sounds" / "portal" / "kenney-digital-audio" / "spaceTrash1.ogg";
 
 TEST(SoundTest, DecodesOggVorbis) {
     const std::optional<Sound> sound = load_sound(kPortalSound);

@@ -113,8 +113,9 @@ cmake --build build
 ./build/manifold 42 --exec "lighting off; screenshot flat.png 800 450; quit"   # run console commands
 ```
 
-The game reads its textures and sounds from the `assets/` directory next to the executable, if there is one, and
-otherwise from `assets/` in the source tree, whose path is built into the executable. It reads its settings, such as
+The game reads its textures, sounds and portraits from the `assets/` directory next to the executable, if there is one,
+and otherwise from `assets/` in the source tree, whose path is built into the executable. `assets/asset_mapping.json`
+says which files it uses for what, see [GAME_MANUAL.md](GAME_MANUAL.md#assets). It reads its settings, such as
 full-screen mode and mouse look, from `settings.json` in the same way, and then from the player's own `settings.json`,
 which takes priority, see [GAME_MANUAL.md](GAME_MANUAL.md#settings). To make a copy of the game that runs from
 anywhere, without the checkout:
@@ -127,7 +128,7 @@ cmake --install build --prefix ~/games/manifold   # copies the executable, asset
 Without `--prefix`, the copy goes into `build/install/`. The build is a Debug one unless the first `cmake` command
 has `-DCMAKE_BUILD_TYPE=Release`, which makes the game faster.
 
-If no texture is found, surfaces are plain grey. Without an audio output device, the game runs without sound.
+If a level's texture can't be used, its surfaces are plain grey. Without an audio output device, the game runs without sound.
 
 Controls and console commands are described in [GAME_MANUAL.md](GAME_MANUAL.md). Escape opens the game menu, from
 which the game can be left. Ctrl+Q or closing the window quits at once.
@@ -185,8 +186,8 @@ See [docs/CODING_STYLE.md](docs/CODING_STYLE.md) for all conventions, including 
 
 ## Credits
 
-Third-party assets in `assets/`. Each pack's directory has a `README.md` with its source, license, the files
-taken and how they were processed. A pack whose files are in several groups, such as `assets/textures/stone/` and
+Third-party assets in `assets/`, each listed in `assets/asset_mapping.json`. Each pack's directory has a `README.md`
+with its source, license, the files taken and how they were processed. A pack whose files are in several groups, such as `assets/textures/stone/` and
 `assets/textures/wood/`, has a directory in each.
 
 - Textures: [Tiny Texture Pack 1](https://screamingbrainstudios.com/sbs_-_tiny_texture_pack_1_-_128x128/) and

@@ -9,9 +9,12 @@
 #include <string_view>
 #include <vector>
 
+#include "util/asset_index.hpp"
+#include "util/asset_mapping.hpp"
+
 namespace manifold {
 
-/// The gender of a character, which chooses the portraits it can have, see find_portraits().
+/// The gender of a character, which chooses the portraits it can have, see make_party().
 enum class Gender : std::uint8_t {
     kMale,
     kFemale,
@@ -23,11 +26,22 @@ const char* gender_name(Gender gender);
 /// The gender named by gender_name(), or nothing if `name` names none.
 std::optional<Gender> parse_gender_name(std::string_view name);
 
+/// A portrait of a character: one of the files of a portrait key in the asset mapping.
+struct Portrait {
+    /// AssetKey::kMalePortraits, AssetKey::kFemalePortraits or AssetKey::kAnyPortraits.
+    AssetKey key = AssetKey::kAnyPortraits;
+    AssetIndex index = 0;  ///< Which file of the key.
+
+    bool operator==(const Portrait&) const = default;
+};
+
+/// Whether `key` is one of portraits: AssetKey::kMalePortraits, AssetKey::kFemalePortraits or AssetKey::kAnyPortraits.
+bool is_portrait_key(AssetKey key);
+
 /// A member of the party.
 struct Character {
-    /// The portrait's file, relative to the directory of portraits with `/` between directories, as
-    /// PortraitFile::path, or empty if the character has none, see make_party().
-    std::string portrait;
+    /// The portrait, or nothing if the character has none, see make_party().
+    std::optional<Portrait> portrait;
     Gender gender = Gender::kMale;
     int hp = 0;      ///< Current hit points, from 0 to `max_hp`.
     int max_hp = 0;  ///< Hit points when unhurt, positive.
@@ -38,44 +52,22 @@ struct Character {
     bool operator==(const Character&) const = default;
 };
 
-/// A portrait that characters can have.
-struct PortraitFile {
-    /// The file, relative to the directory of portraits with `/` between directories, e.g.
-    /// `male/metmuseum-org/11058-healy-portrait-of-the-artist.png`.
-    std::string path;
-    /// The gender of the characters it is for, or nothing for any gender, e.g. for a skeleton.
-    std::optional<Gender> gender;
-
-    bool operator==(const PortraitFile&) const = default;
-};
-
 /// Settings for a new party.
 struct PartyConfig {
     std::size_t size = 3;  ///< How many characters it has.
     int max_hp = 100;      ///< Hit points of each character, positive.
 };
 
-/// Names of the directories of portraits for each group: men, women and anyone.
-inline constexpr std::string_view kMalePortraitsDir = "male";
-inline constexpr std::string_view kFemalePortraitsDir = "female";
-inline constexpr std::string_view kAnyPortraitsDir = "any";
-
-/// Finds the portraits: the PNG files in `root/male`, `root/female` and `root/any`, at any depth, see
-/// find_asset_files(). Files elsewhere under `root` are not used.
+/// Makes a party of new, unhurt characters, each with another portrait chosen at random among the files of the
+/// portrait keys of the asset mapping.
 ///
-/// \return The portraits, sorted by path, so that the same files always give the same order. Empty if there are none.
-std::vector<PortraitFile> find_portraits(const std::filesystem::path& root);
-
-/// Makes a party of new, unhurt characters, each with another portrait chosen at random.
+/// The choice depends only on `seed` and how many files the portrait keys have. Each character gets the gender of its
+/// portrait's key, or a random one for AssetKey::kAnyPortraits. If there are fewer portraits than characters, a warning
+/// is logged, and the last characters get no portrait and a random gender.
 ///
-/// The choice depends only on `seed` and the portraits. Each character gets the gender of its portrait, or a random one
-/// for a portrait of any gender. If there are fewer portraits than characters, a warning is logged, and the last
-/// characters get no portrait and a random gender.
-///
-/// \param portraits The portraits to choose from, e.g. from find_portraits().
+/// \param portraits How many files each key has, see AssetMapping::counts(). Only the portrait keys are used.
 /// \param config    How many characters to make, and their hit points.
 /// \param seed      Seed of the random choices.
-std::vector<Character> make_party(std::span<const PortraitFile> portraits, const PartyConfig& config,
-                                  std::uint64_t seed);
+std::vector<Character> make_party(const AssetCounts& portraits, const PartyConfig& config, std::uint64_t seed);
 
 }  // namespace manifold

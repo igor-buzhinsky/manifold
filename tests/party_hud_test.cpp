@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include <glm/vec2.hpp>
@@ -12,6 +13,7 @@
 #include "ui/overlay_mesh.hpp"
 #include "ui/rect.hpp"
 #include "ui/ui_style.hpp"
+#include "util/asset_mapping.hpp"
 
 namespace manifold {
 namespace {
@@ -66,9 +68,16 @@ constexpr std::size_t kRectangleVertices = 6;
 TEST(PartyHudTest, BarsAreFilledAsFarAsTheHpGo) {
     const PixelSize picture{.width = 800, .height = 450};
     const std::vector<CharacterPlacement> placements = layout_party_hud(picture, 3);
-    const std::vector<Character> party = {{.portrait = "a.png", .gender = Gender::kMale, .hp = 100, .max_hp = 100},
-                                          {.portrait = "", .gender = Gender::kFemale, .hp = 25, .max_hp = 100},
-                                          {.portrait = "b.png", .gender = Gender::kMale, .hp = 0, .max_hp = 100}};
+    const std::vector<Character> party = {
+        {.portrait = Portrait{.key = AssetKey::kMalePortraits, .index = 0},
+         .gender = Gender::kMale,
+         .hp = 100,
+         .max_hp = 100},
+        {.portrait = std::nullopt, .gender = Gender::kFemale, .hp = 25, .max_hp = 100},
+        {.portrait = Portrait{.key = AssetKey::kMalePortraits, .index = 1},
+         .gender = Gender::kMale,
+         .hp = 0,
+         .max_hp = 100}};
     OverlayMesh mesh;
     add_party_hud(mesh, placements, party);
     // A place for each portrait and a bar for each, and a red part for those with hit points.
@@ -87,7 +96,7 @@ TEST(PartyHudTest, AnyHpLeftShowsAtLeastOnePixel) {
     const std::vector<CharacterPlacement> placements = layout_party_hud({.width = 800, .height = 450}, 1);
     OverlayMesh mesh;
     add_party_hud(mesh, placements,
-                  std::vector<Character>{{.portrait = "", .gender = Gender::kMale, .hp = 1, .max_hp = 1000}});
+                  std::vector<Character>{{.portrait = std::nullopt, .gender = Gender::kMale, .hp = 1, .max_hp = 1000}});
     ASSERT_EQ(mesh.vertices().size(), 3 * kRectangleVertices);
     float right = 0.0f;
     for (std::size_t i = 2 * kRectangleVertices; i < 3 * kRectangleVertices; ++i) {

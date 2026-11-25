@@ -33,25 +33,27 @@ enum class RayTarget : std::uint8_t {
     kWorld,      ///< An obstacle of the world that is not a door frame, e.g. a wall or a slab.
     kDoor,       ///< A door that is not passable, see Door::blocker().
     kDoorFrame,  ///< A frame of a door, see Door::frame().
+    kChest,      ///< A chest: its body or its lid, see Chest::body() and Chest::lid().
 };
 
 /// The first thing that a ray hit.
 struct RayHit {
     float distance = 0.0f;  ///< From the origin of the ray to the hit, in metres.
     RayTarget target = RayTarget::kWorld;
-    std::size_t door = 0;  ///< Index of the door in World::doors(), for kDoor and kDoorFrame.
+    std::size_t door = 0;   ///< Index of the door in World::doors(), for kDoor and kDoorFrame.
+    std::size_t chest = 0;  ///< Index of the chest in World::chests(), for kChest.
 };
 
-/// Finds the first thing a ray hits in a level: an obstacle, a door that is not passable, or a door frame.
+/// Finds the first thing a ray hits in a level: an obstacle, a door that is not passable, a door frame or a chest.
 ///
 /// Ramps and the level boundaries are not tested. A door counts as its blocker, see Door::blocker(), while it is not
 /// passable, see DoorState::passable(). Frames are also obstacles of the world, so a hit on a frame is reported as
 /// kDoorFrame, not as kWorld.
 ///
-/// Tests only the obstacles and doors in the grid cells under the box around the first `max_distance` metres of the
-/// ray, see World::find_obstacles_near(). That box is small for short rays and for rays along x or y, but long
-/// diagonal rays test a large part of the level, so they are meant for single events, such as a key press, not for
-/// every frame.
+/// Tests only the chests near the ray and the obstacles and doors in the grid cells under the box around the first
+/// `max_distance` metres of the ray, see World::find_obstacles_near(). That box is small for short rays and for rays
+/// along x or y, but long diagonal rays test a large part of the level, so they are meant for single events, such as a
+/// key press, not for every frame.
 ///
 /// \param world        The level.
 /// \param doors        The state of each door of `world.doors()`, in the same order. Doors without a state count as

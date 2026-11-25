@@ -17,10 +17,12 @@
 #include "console/console.hpp"
 #include "game.hpp"
 #include "level/layout_factory.hpp"
+#include "level/level.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
 #include "render/camera.hpp"
 #include "render/viewport.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"
 #include "world/player.hpp"
@@ -116,13 +118,16 @@ std::string describe_player(const Game& game) {
 /// walk, run, next_level, load and noclip.
 void add_player_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     add_walk_commands(console, state);
-    console.add("level_info", "level_info", "Describes the level, depending on its layout, and its ambient light.",
-                [&game, &state](std::span<const std::string> arguments) {
-                    expect_count(arguments, 0, "level_info");
-                    const glm::vec3& ambient = state.view.level_ambient;
-                    log_info("Level seed {}, layout {}:\n{}Ambient light ({:.3f}, {:.3f}, {:.3f})", game.seed(),
-                             layout_name(game.level().layout), game.level().info, ambient.r, ambient.g, ambient.b);
-                });
+    console.add(
+        "level_info", "level_info", "Describes the level, depending on its layout, its texture and its ambient light.",
+        [&game, &state](std::span<const std::string> arguments) {
+            expect_count(arguments, 0, "level_info");
+            const glm::vec3& ambient = state.view.level_ambient;
+            const LevelTexture& texture = game.level().texture;
+            log_info("Level seed {}, layout {}:\n{}Texture {} {}\nAmbient light ({:.3f}, {:.3f}, {:.3f})", game.seed(),
+                     layout_name(game.level().layout), game.level().info,
+                     asset_key_name(level_textures_key(texture.kind)), texture.index, ambient.r, ambient.g, ambient.b);
+        });
     console.add("player_info", "player_info",
                 "Describes the player: position, view, velocity, whether on the ground, noclip and Levitate.",
                 [&game](std::span<const std::string> arguments) {
@@ -282,9 +287,11 @@ void add_party_commands(Console& console, Game& game) {
                     std::string list;
                     for (std::size_t i = 0; i < party.size(); ++i) {
                         const Character& character = party[i];
-                        list += std::format("\nCharacter {}: {}, {}/{} HP, portrait {}", i,
-                                            gender_name(character.gender), character.hp, character.max_hp,
-                                            character.portrait.empty() ? "none" : character.portrait);
+                        const std::optional<Portrait>& portrait = character.portrait;
+                        list += std::format(
+                            "\nCharacter {}: {}, {}/{} HP, portrait {}", i, gender_name(character.gender), character.hp,
+                            character.max_hp,
+                            portrait ? std::format("{} {}", asset_key_name(portrait->key), portrait->index) : "none");
                     }
                     log_info("Party of {}, {}{}", party.size(), describe_magic(game.magic()), list);
                 });
@@ -348,6 +355,9 @@ void log_activation(Activation activation) {
             break;
         case Activation::kRefused:
             log_info("The door can't move now");
+            break;
+        case Activation::kChest:
+            log_info("A chest is activated");
             break;
     }
 }

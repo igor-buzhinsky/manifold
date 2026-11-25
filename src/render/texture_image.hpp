@@ -3,12 +3,10 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
-#include <span>
 #include <vector>
 
 #include <glm/vec3.hpp>
 
-#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -24,42 +22,15 @@ struct Image {
     std::vector<std::uint8_t> pixels;
 };
 
-/// A texture picked for a level, see pick_texture().
-struct PickedTexture {
-    std::filesystem::path path;  ///< The file it was loaded from.
-    Image image;
-};
-
 /// Loads a PNG file and converts it to RGBA.
 ///
 /// \return The image, or an empty optional (after logging a warning) if the file can't be read or decoded.
 std::optional<Image> load_image(const std::filesystem::path& path);
 
-/// Finds all PNG files under `root`, at any depth, see find_asset_files().
-std::vector<std::filesystem::path> find_textures(const std::filesystem::path& root);
-
-/// A texture file for levels, with the kind of surface it shows.
-struct TextureFile {
-    std::filesystem::path path;
-    TextureKind kind = TextureKind::kStone;  ///< The kind whose directory the file is in.
-};
-
-/// Finds the textures for levels: the PNG files in the directory of each texture kind under `root`, such as
-/// `root/grass`, at any depth, see find_textures(). Files elsewhere under `root` are not used.
+/// Loads the texture of a level: a PNG file of at most kMaxTextureSize pixels in each dimension.
 ///
-/// A warning is logged for each kind that has no textures.
-///
-/// \return The files, sorted by path like find_textures(), so the same files always give the same order.
-std::vector<TextureFile> find_level_textures(const std::filesystem::path& root);
-
-/// Picks a random texture among `candidates` and loads it.
-///
-/// Candidates are tried in a random order that depends only on `seed`. A file that can't be loaded, or that
-/// is larger than kMaxTextureSize in either dimension, is skipped with a warning, and the next one is tried.
-/// The texture that is used is logged as info.
-///
-/// \return The first texture that loads and is small enough, or an empty optional if there is none.
-std::optional<PickedTexture> pick_texture(std::span<const std::filesystem::path> candidates, std::uint64_t seed);
+/// \return The image, or an empty optional (after logging a warning) if the file can't be loaded or is too large.
+std::optional<Image> load_level_texture(const std::filesystem::path& path);
 
 /// The mean color of the pixels of `image`, in linear RGB, each component in [0, 1].
 ///

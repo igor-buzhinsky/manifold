@@ -2,17 +2,13 @@
 
 #include <algorithm>
 #include <cctype>
-#include <cstdint>
 #include <filesystem>
-#include <optional>
-#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
 #include <vector>
 
 #include "util/log.hpp"
-#include "util/random.hpp"
 
 namespace manifold {
 
@@ -60,15 +56,6 @@ std::vector<std::filesystem::path> find_asset_files(const std::filesystem::path&
     }
     std::ranges::sort(paths);
     return paths;
-}
-
-std::optional<std::filesystem::path> pick_asset_file(std::span<const std::filesystem::path> candidates,
-                                                     std::uint64_t seed) {
-    if (candidates.empty()) {
-        return std::nullopt;
-    }
-    Rng random(seed);
-    return candidates[random_index(random, candidates.size())];
 }
 
 }  // namespace manifold

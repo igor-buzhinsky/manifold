@@ -7,11 +7,17 @@
 #include <optional>
 #include <set>
 #include <stdexcept>
+#include <utility>
 
 #include <glm/geometric.hpp>
 #include <gtest/gtest.h>
 
 #include "level/level.hpp"
+#include "level/texture_kind.hpp"
+#include "util/asset_index.hpp"
+#include "util/asset_mapping.hpp"
+#include "world/chest.hpp"
+#include "world/door.hpp"
 #include "world/torch.hpp"
 
 namespace manifold {
@@ -133,23 +139,91 @@ TEST(LayoutFactoryTest, StartTorchIsAddedOnTheNearestFreeWallOnlyIfAsked) {
               generate_level(config, LayoutKind::kDebug, 0.3f, 4).world.torches().size());
 }
 
-TEST(LayoutFactoryTest, DoorSoundsDependOnlyOnTheSeedAndDiffer) {
-    const LevelConfig config;
-    std::set<std::uint32_t> open_sounds;
+/// Asset counts with a few files for each key, and no metal textures.
+AssetCounts make_asset_counts() {
+    AssetCounts counts;
+    for (const AssetKey key : kAssetKeys) {
+        counts.set(key, 3);
+    }
+    counts.set(AssetKey::kDoorOpenSounds, 4);
+    counts.set(AssetKey::kMetalLevelTextures, 0);
+    return counts;
+}
+
+TEST(LayoutFactoryTest, AssetsOfObjectsAreAmongTheirFilesAndDependOnlyOnTheSeed) {
+    LevelConfig config;
+    config.assets = make_asset_counts();
+    std::set<AssetIndex> open_sounds;
+    std::set<AssetIndex> chest_sounds;
     std::size_t doors = 0;
-    for (std::uint64_t seed = 1; seed <= 5; ++seed) {
+    std::size_t chests = 0;
+    for (std::uint64_t seed = 1; seed <= 8; ++seed) {
         const Level level = generate_level(config, LayoutKind::kRooms, 0.3f, seed);
         const Level again = generate_level(config, LayoutKind::kRooms, 0.3f, seed);
         ASSERT_EQ(level.world.doors().size(), again.world.doors().size());
         for (std::size_t i = 0; i < level.world.doors().size(); ++i) {
-            EXPECT_EQ(level.world.doors()[i].sounds.open, again.world.doors()[i].sounds.open);
-            EXPECT_EQ(level.world.doors()[i].sounds.close, again.world.doors()[i].sounds.close);
-            open_sounds.insert(level.world.doors()[i].sounds.open);
+            const DoorSounds& sounds = level.world.doors()[i].sounds;
+            EXPECT_EQ(sounds.open, again.world.doors()[i].sounds.open);
+            EXPECT_EQ(sounds.close, again.world.doors()[i].sounds.close);
+            EXPECT_LT(sounds.open, 4U);
+            EXPECT_LT(sounds.close, 3U);
+            open_sounds.insert(sounds.open);
         }
+        ASSERT_EQ(level.world.chests().size(), again.world.chests().size());
+        for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
+            EXPECT_EQ(level.world.chests()[i].open_sound, again.world.chests()[i].open_sound);
+            EXPECT_LT(level.world.chests()[i].open_sound, 3U);
+            chest_sounds.insert(level.world.chests()[i].open_sound);
+        }
+        ASSERT_TRUE(level.world.exit().has_value());
+        EXPECT_EQ(level.world.exit()->sound, again.world.exit()->sound);
+        EXPECT_LT(level.world.exit()->sound, 3U);
+        EXPECT_EQ(level.texture, choose_level_texture(config.assets, seed));
         doors += level.world.doors().size();
+        chests += level.world.chests().size();
     }
-    ASSERT_GT(doors, 2U);
+    ASSERT_GT(doors, 4U);
+    ASSERT_GT(chests, 2U);
     EXPECT_GT(open_sounds.size(), 1U);
+    EXPECT_GT(chest_sounds.size(), 1U);
+}
+
+TEST(LayoutFactoryTest, AssetsDontChangeTheRestOfTheLevel) {
+    LevelConfig with_assets;
+    with_assets.assets = make_asset_counts();
+    for (const LayoutKind layout : {LayoutKind::kRooms, LayoutKind::kDebug}) {
+        for (std::uint64_t seed = 1; seed <= 4; ++seed) {
+            const Level level = generate_level(with_assets, layout, 0.3f, seed);
+            const Level without = generate_level(LevelConfig{}, layout, 0.3f, seed);
+            EXPECT_EQ(level.info, without.info);
+            EXPECT_EQ(level.player_start, without.player_start);
+            EXPECT_EQ(level.world.obstacles().size(), without.world.obstacles().size());
+            EXPECT_EQ(level.world.chests().size(), without.world.chests().size());
+            // Without files, every asset is the first.
+            for (const Door& door : without.world.doors()) {
+                EXPECT_EQ(door.sounds.open, 0U);
+                EXPECT_EQ(door.sounds.close, 0U);
+            }
+            for (const Chest& chest : without.world.chests()) {
+                EXPECT_EQ(chest.open_sound, 0U);
+            }
+            EXPECT_EQ(without.texture, LevelTexture{});
+        }
+    }
+}
+
+TEST(LayoutFactoryTest, LevelTextureIsAmongTheFilesOfAllKindsAndReachesEach) {
+    const AssetCounts counts = make_asset_counts();
+    std::set<std::pair<TextureKind, AssetIndex>> chosen;
+    for (std::uint64_t seed = 0; seed < 300; ++seed) {
+        const LevelTexture texture = choose_level_texture(counts, seed);
+        EXPECT_EQ(texture, choose_level_texture(counts, seed));
+        EXPECT_LT(texture.index, counts.of(level_textures_key(texture.kind)));
+        chosen.insert({texture.kind, texture.index});
+    }
+    // Three files for each kind but metal, which has none.
+    EXPECT_EQ(chosen.size(), 9U);
+    EXPECT_EQ(choose_level_texture(AssetCounts{}, 7), LevelTexture{});
 }
 
 }  // namespace

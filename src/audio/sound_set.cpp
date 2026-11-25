@@ -4,44 +4,49 @@
 #include <cstdint>
 #include <filesystem>
 #include <optional>
+#include <span>
 #include <string_view>
-#include <utility>
 
 #include "audio/sound.hpp"
-#include "util/asset_files.hpp"
+#include "util/asset_index.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/log.hpp"
 
 namespace manifold {
 
-SoundSet::SoundSet(const std::filesystem::path& root, std::string_view name) {
-    for (const std::filesystem::path& path : find_asset_files(root, ".ogg")) {
-        std::optional<Sound> sound = load_sound(path);
-        if (sound) {
-            sounds_.push_back(std::move(*sound));
+SoundSet::SoundSet(std::span<const std::filesystem::path> paths, std::string_view name) : name_(name) {
+    std::size_t loaded = 0;
+    sounds_.reserve(paths.size());
+    for (const std::filesystem::path& path : paths) {
+        sounds_.push_back(load_sound(path));
+        if (sounds_.back()) {
+            ++loaded;
         }
     }
-    if (sounds_.empty()) {
-        log_warning("No {} sounds found in {}", name, root.string());
-    } else {
-        log_info("{} {} sounds from {}", sounds_.size(), name, root.string());
-    }
+    log_info("{} of {} {} loaded", loaded, sounds_.size(), name);
 }
 
-const Sound* SoundSet::get(std::uint32_t number) const {
-    if (sounds_.empty()) {
+SoundSet::SoundSet(const AssetMapping& mapping, AssetKey key) : SoundSet(mapping.paths(key), asset_key_name(key)) {}
+
+const Sound* SoundSet::get(AssetIndex index) const {
+    if (index >= sounds_.size()) {
+        if (!sounds_.empty()) {
+            log_warning("{} has no sound {}: it has {}", name_, index, sounds_.size());
+        }
         return nullptr;
     }
-    return &sounds_[number % sounds_.size()];
+    const std::optional<Sound>& sound = sounds_[index];
+    return sound ? &*sound : nullptr;
 }
 
-std::uint32_t SoundSet::pick_other(std::uint32_t previous, std::uint64_t random) const {
+AssetIndex SoundSet::pick_other(AssetIndex previous, std::uint64_t random) const {
     const std::size_t count = sounds_.size();
     if (count <= 1) {
         return 0;
     }
     // One of the count - 1 others: counting on from `previous`, skipping it.
     const std::size_t skip = 1 + (random % (count - 1));
-    return static_cast<std::uint32_t>(((previous % count) + skip) % count);
+    return static_cast<AssetIndex>(((previous % count) + skip) % count);
 }
 
 }  // namespace manifold

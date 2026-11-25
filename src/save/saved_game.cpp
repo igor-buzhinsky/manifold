@@ -1,6 +1,5 @@
 #include "save/saved_game.hpp"
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
@@ -21,6 +20,8 @@
 #include "level/layout_factory.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
+#include "util/asset_index.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/text_file.hpp"
 
 namespace manifold {
@@ -60,13 +61,28 @@ bool is_int_in(const nlohmann::json& value, std::int64_t min, std::int64_t max) 
     return number >= min && number <= max;
 }
 
-/// Whether `path` can be the portrait of a character: a relative path that doesn't leave the directory of portraits.
-bool is_portrait_path(const std::string& path) {
-    const std::filesystem::path portrait(path);
-    if (portrait.has_root_name() || portrait.has_root_directory()) {
-        return false;
+/// Reads the portrait of a character of a save: null for none, or an object with a portrait `key` and an `index`.
+///
+/// \throws std::runtime_error if it is something else.
+std::optional<Portrait> parse_portrait(const nlohmann::json& value) {
+    if (value.is_null()) {
+        return std::nullopt;
     }
-    return std::ranges::none_of(portrait, [](const std::filesystem::path& part) { return part == ".."; });
+    constexpr const char* kExpected = "null or an object with a portrait key and an index";
+    if (!value.is_object()) {
+        throw_invalid("portrait", value, kExpected);
+    }
+    const auto key_field = value.find("key");
+    const auto index_field = value.find("index");
+    if (key_field == value.end() || !key_field->is_string() || index_field == value.end() ||
+        !is_int_in(*index_field, 0, std::numeric_limits<AssetIndex>::max())) {
+        throw_invalid("portrait", value, kExpected);
+    }
+    const std::optional<AssetKey> key = parse_asset_key_name(key_field->get<std::string>());
+    if (!key || !is_portrait_key(*key)) {
+        throw_invalid("portrait", value, kExpected);
+    }
+    return Portrait{.key = *key, .index = index_field->get<AssetIndex>()};
 }
 
 /// Reads a character of the party of a save.
@@ -77,11 +93,7 @@ Character parse_character(const nlohmann::json& object) {
         throw_invalid("character", object, "an object");
     }
     Character character;
-    const nlohmann::json& portrait = field(object, "portrait");
-    if (!portrait.is_string() || !is_portrait_path(portrait.get<std::string>())) {
-        throw_invalid("portrait", portrait, "a relative path without .., or an empty string");
-    }
-    character.portrait = portrait.get<std::string>();
+    character.portrait = parse_portrait(field(object, "portrait"));
 
     const nlohmann::json& gender = field(object, "gender");
     const std::optional<Gender> parsed =
@@ -171,8 +183,13 @@ std::string save_to_json(const SavedGame& save) {
     };
     nlohmann::ordered_json party = nlohmann::ordered_json::array();
     for (const Character& character : save.party) {
+        nlohmann::ordered_json portrait = nullptr;
+        if (character.portrait) {
+            portrait = {{"key", std::string(asset_key_name(character.portrait->key))},
+                        {"index", character.portrait->index}};
+        }
         party.push_back({
-            {"portrait", character.portrait},
+            {"portrait", std::move(portrait)},
             {"gender", gender_name(character.gender)},
             {"hp", character.hp},
             {"max_hp", character.max_hp},

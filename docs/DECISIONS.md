@@ -330,7 +330,10 @@ Drawbacks:
 ## 2026-11-17: Footsteps by distance walked, with sounds chosen by the directory of the level texture
 
 Status: **ACCEPTED**. Done in v0.3. Since running was added (see below), walking is 2.5 m/s, a footstep is 1 m
-walking and 1.5 m running, and the first one comes a quarter of a step after starting from standing.
+walking and 1.5 m running, and the first one comes a quarter of a step after starting from standing. Since the asset
+mapping (see below), the kind is the key of the texture in `assets/asset_mapping.json` (`LEVEL_TEXTURES_GRASS`, ...)
+rather than its directory, and the footsteps are the files of `FOOTSTEP_SOUNDS_GRASS`, ...; level generation chooses
+the texture, and `Game::set_texture_kind()` is gone.
 
 Decision:
 
@@ -452,7 +455,9 @@ Drawbacks:
 
 ## 2026-11-19: A party of three characters with random portraits, kept in the save
 
-Status: **ACCEPTED**. Done in v0.3.
+Status: **ACCEPTED**. Done in v0.3. Since the asset mapping (see below), the portraits are the files of the keys
+`PORTRAITS_MALE`, `PORTRAITS_FEMALE` and `PORTRAITS_ANY` of `assets/asset_mapping.json`, and the save holds each
+portrait as its key and index instead of its path, so a remapping changes the portraits of saved parties.
 
 Decision: the player is a party of three characters that moves as one body: the player's cylinder, as before. A new
 game chooses each character's portrait at random, without repeats, from the game's seed, among those in
@@ -596,7 +601,8 @@ Drawbacks:
 
 ## 2026-11-21: Small chests as objects of their own, placed at walls
 
-Status: **ACCEPTED**. Done in v0.4.
+Status: **ACCEPTED**. Done in v0.4. Since the asset mapping (see below), activating a chest plays its sound, and
+ray casts hit chests.
 
 Decision: a small chest is an object of its own in the world (`World::chests()`), with a position on the floor, the
 direction it faces and its look, not a decoration of a wall or of a floor tile. Level generation puts it at a wall, 5 cm
@@ -752,3 +758,50 @@ Drawbacks:
   and there is no inverted look yet.
 - The mouse look key is the key at the place of M on US keyboards, which is labelled otherwise on some layouts, as are
   the other game keys.
+
+## 2026-11-25: Assets referred to by keys of a mapping file, and by indices in game objects
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: `assets/asset_mapping.json` says which files the game uses for what. Each of its keys, such as
+`DOOR_OPEN_SOUNDS`, `CHEST_OPEN_SOUNDS`, `LEVEL_TEXTURES_GRASS` or `PORTRAITS_MALE`, has a path or a list of paths,
+relative to `assets/`, and one file may serve several keys: chests use the files of door opening for now. The keys and
+the type of file each needs (OGG sound, PNG texture of at most 128 × 128, PNG portrait) are fixed in code
+(`AssetKey`). The file lists every file explicitly, not directories. Game objects keep the index of their asset among
+the files of its key (`AssetIndex`), not a file name: doors, chests and exits their sounds, levels their texture, and
+characters their portrait, also in saves. Level generation chooses each index uniformly among the files that the key
+has (`choose_asset()`), with random numbers of its own, so the rest of a level doesn't depend on the assets. A file
+that is missing, can't be read or isn't of the right type keeps its index but gives no sound, the plain grey texture or
+an empty portrait, after a warning; so does an index beyond the files of its key, e.g. in a save made with another
+mapping. A test checks that every key of the game's mapping has files, that each can be used, and that every OGG and
+PNG file under `assets/` is mapped.
+
+Gains:
+
+- Assets can be remapped, and new files added, without building the game again, also in a copy of the game.
+- One file can serve several purposes, such as doors and chests, without copies or a directory tree that spells out
+  every use.
+- Indices stay valid when files are moved or renamed, and are small and stable to store in saves, which mid-level
+  saves and asset choices made after level generation will need.
+- A broken or missing file costs one asset, with a warning, instead of stopping the game or shifting the others.
+
+Rejected alternatives:
+
+- **Directories as the mapping** (the state before): each use needs a directory of its own, so a file used twice
+  must be copied, and renaming a directory needs a change of code.
+- **Directories as values in the mapping**: shorter, but which files and in which order an index means would depend
+  on what is on disk; explicit files make each index mean one file.
+- **A mapping file for each type of asset** (sounds, textures, portraits): three files to keep in sync, and a key
+  could be put in the wrong one.
+- **File names in game objects and saves**: break when a file moves, and tie objects to the file tree.
+- **Raw random numbers taken modulo the number of files** (as doors had): level generation wouldn't depend on the
+  mapping, but an index wouldn't name a file, and a remapping would silently change every choice.
+
+Drawbacks:
+
+- The mapping must be edited to add a file: a new file is unused until it is listed. The test of the game's mapping
+  names files that are listed nowhere.
+- How many files a key has decides the random choices, so a remapping that adds or removes files changes the assets
+  that seeds give, and a save shows other portraits or a mapping with fewer files shows none.
+- The mapping is long: about 240 files, most of them textures of stone.
+- Old saves (format version 4) are refused, since they store portraits as paths.

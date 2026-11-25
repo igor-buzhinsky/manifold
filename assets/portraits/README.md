@@ -1,7 +1,8 @@
 # Portraits
 
-Portraits of characters, 240 x 320 PNG (3:4), showing the head and chest. They are grouped by who they may be used
-for:
+Portraits of characters, 240 x 320 PNG (3:4), showing the head and chest. The game uses those listed under the keys
+`PORTRAITS_MALE`, `PORTRAITS_FEMALE` and `PORTRAITS_ANY` of `assets/asset_mapping.json`. They are grouped by who they
+may be used for, as are those keys:
 
 - `male/`: men.
 - `female/`: women.

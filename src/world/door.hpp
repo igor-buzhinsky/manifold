@@ -5,6 +5,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "util/asset_index.hpp"
 #include "world/obstacle.hpp"
 
 namespace manifold {
@@ -24,13 +25,10 @@ enum class DoorSide : std::uint8_t {
     kPositive,  ///< Towards +u.
 };
 
-/// Which sounds a door makes, as numbers chosen at random when the level is generated, see generate_level().
-///
-/// The game has a few sound files of each kind. Number n stands for file n modulo how many there are, so the numbers
-/// don't depend on the files, and a level is generated the same way whatever files there are.
+/// Which sounds a door makes, chosen at random when the level is generated, see generate_level().
 struct DoorSounds {
-    std::uint32_t open = 0;   ///< The sound of starting to open.
-    std::uint32_t close = 0;  ///< The sound of starting to close.
+    AssetIndex open = 0;   ///< The sound of starting to open: which file of AssetKey::kDoorOpenSounds.
+    AssetIndex close = 0;  ///< The sound of starting to close: which file of AssetKey::kDoorCloseSounds.
 };
 
 /// A sliding door in an opening between two rooms: two halves that slide apart into the walls on both sides.
