@@ -18,7 +18,7 @@ one file can be listed under several keys:
 | `FOOTSTEP_SOUNDS_GRASS`, `_WOOD`, `_METAL`, `_STONE` | OGG footsteps in levels of each texture kind |
 | `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
 | `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
-| `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one shows an empty cell |
+| `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one is drawn without an icon, after a warning in the log |
 
 Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives
@@ -115,7 +115,7 @@ it types can't be typed.
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
 | `items` | List all kinds of items: their keys, names, weights, values and chances, see [Items](#items) |
 | `inventory` | List the party's items, each with its index, key, name, weight and value, and their total weight and value |
-| `give ITEM [COUNT]` | Give the party COUNT items (by default one) of the key ITEM, see `items`. A cheat, e.g. to fill the inventory |
+| `give ITEM [COUNT]` | Give the party COUNT items (by default one, at most 1000) of the key ITEM, see `items`. A cheat, e.g. to fill the inventory |
 | `chests` | List the chests of the level: their numbers, what they are made of, where they stand, and the items they hold now with their total value |
 | `open inventory\|chest N` | Show the party's inventory, as I does, or chest N (see `chests`) with the party's items, as activating it does, instead of an inventory that is open. The commands after it run in the next frame, when it is open, so that a screenshot shows it. `menu close` closes it |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |

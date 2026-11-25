@@ -12,16 +12,16 @@
 
 namespace manifold {
 
-/// The screens of the interface that are open, e.g. a menu, and later a dialog opened from it.
-///
-/// Only the screen on top gets events, and all are drawn, bottom first. The game is paused while any screen is
-/// open, which the main loop sees from empty().
 /// What one screen draws: its shapes, and the icons of items over them.
 struct ScreenLayer {
     OverlayMesh mesh;
     std::vector<IconPlacement> icons;
 };
 
+/// The screens of the interface that are open, e.g. a menu, and later a dialog opened from it.
+///
+/// Only the screen on top gets events, and all are drawn, bottom first. The game is paused while any screen is
+/// open, which the main loop sees from empty().
 class ScreenStack {
 public:
     /// Opens `screen` on top of the others.
@@ -38,9 +38,6 @@ public:
     ///
     /// \return What the screen asks for, or nothing, also when no screen is open.
     std::optional<UiCommand> handle(const UiEvent& event, const PixelSize& picture);
-
-    /// All screens laid out over a picture of `picture` size, bottom first, so that the top one is drawn last.
-    OverlayMesh build_mesh(const PixelSize& picture) const;
 
     /// What each screen draws, laid out over a picture of `picture` size, bottom first, see Screen::add_to() and
     /// Screen::add_icons(). Each layer, the shapes and then the icons, is drawn before the next.

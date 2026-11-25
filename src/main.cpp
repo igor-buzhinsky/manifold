@@ -608,10 +608,11 @@ private:
 constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
 /// The key that shows and hides the debug overlay.
 constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
-/// The key that opens and closes the party's inventory.
-constexpr SDL_Keycode kInventoryKey = SDLK_I;
-/// The key that takes all items of an open chest.
-constexpr SDL_Keycode kTakeAllKey = SDLK_T;
+/// The key that opens and closes the party's inventory. Like the movement keys, it is the key at the place of I on US
+/// keyboards.
+constexpr SDL_Scancode kInventoryKey = SDL_SCANCODE_I;
+/// The key that takes all items of an open chest, at the place of T on US keyboards.
+constexpr SDL_Scancode kTakeAllKey = SDL_SCANCODE_T;
 /// The key that loads the saved game.
 constexpr SDL_Keycode kLoadKey = SDLK_F9;
 /// The keys that cast spells. Like the movement keys, they are the keys at the places of C and L on US keyboards.
@@ -678,8 +679,14 @@ struct Ui {
 };
 
 /// The key of the interface's screens that `key` is, if any, besides Escape, which is handled on its own.
-std::optional<manifold::NavKey> nav_key(SDL_Keycode key) {
-    switch (key) {
+std::optional<manifold::NavKey> nav_key(const SDL_KeyboardEvent& key) {
+    if (key.scancode == kInventoryKey) {
+        return manifold::NavKey::kInventory;
+    }
+    if (key.scancode == kTakeAllKey) {
+        return manifold::NavKey::kTakeAll;
+    }
+    switch (key.key) {
         case SDLK_UP:
             return manifold::NavKey::kUp;
         case SDLK_DOWN:
@@ -692,10 +699,6 @@ std::optional<manifold::NavKey> nav_key(SDL_Keycode key) {
         case SDLK_KP_ENTER:
         case SDLK_SPACE:
             return manifold::NavKey::kConfirm;
-        case kInventoryKey:
-            return manifold::NavKey::kInventory;
-        case kTakeAllKey:
-            return manifold::NavKey::kTakeAll;
         default:
             return std::nullopt;
     }
@@ -784,7 +787,7 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
         handle_console_key(key, console_window, commands);
     } else if (!ui.screens.empty()) {
         // Holding an arrow key moves on, but holding Enter doesn't choose again, nor do the keys of the inventory.
-        const std::optional<manifold::NavKey> nav = nav_key(key.key);
+        const std::optional<manifold::NavKey> nav = nav_key(key);
         const bool moves = nav == manifold::NavKey::kUp || nav == manifold::NavKey::kDown ||
                            nav == manifold::NavKey::kLeft || nav == manifold::NavKey::kRight;
         if (nav && (!key.repeat || moves)) {
@@ -795,7 +798,7 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     } else if (key.key == kLoadKey) {
         state.load = true;
         state.load_stops_on_error = false;
-    } else if (key.key == kInventoryKey) {
+    } else if (key.scancode == kInventoryKey) {
         state.inventory = manifold::InventoryRequest{};
     } else if (key.scancode == kMouseLookKey) {
         ui.mouse_look = !ui.mouse_look;

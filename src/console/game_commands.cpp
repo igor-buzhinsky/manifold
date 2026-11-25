@@ -500,6 +500,12 @@ std::size_t parse_chest(const std::string& text, const Game& game) {
     return static_cast<std::size_t>(index);
 }
 
+/// The most items that one `give` gives, so that a mistyped count doesn't fill the memory.
+constexpr int kMaxGiveCount = 1000;
+
+/// "1 item" or "N items".
+std::string item_count(std::size_t count) { return std::format("{} item{}", count, count == 1 ? "" : "s"); }
+
 /// Adds the commands that inspect and change items: items, inventory, give, chests and open.
 void add_item_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
     console.add("items", "items", "Lists all kinds of items: their keys, names, weights, values and chances.",
@@ -516,7 +522,7 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                 [&game](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "inventory");
                     const Inventory& inventory = game.inventory();
-                    log_info("The party carries {} items, weight {}, value {}{}", inventory.size(),
+                    log_info("The party carries {}, weight {}, value {}{}", item_count(inventory.size()),
                              format_weight(inventory.weight(game.items())), inventory.value(game.items()),
                              describe_items(inventory, game.items()));
                 });
@@ -532,8 +538,8 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                         throw CommandError("no such item: " + arguments[0]);
                     }
                     const int count = arguments.size() == 2 ? parse_int_argument(arguments[1]) : 1;
-                    if (count < 1) {
-                        throw CommandError("count must be positive: " + arguments[1]);
+                    if (count < 1 || count > kMaxGiveCount) {
+                        throw CommandError(std::format("count must be from 1 to {}: {}", kMaxGiveCount, arguments[1]));
                     }
                     for (int i = 0; i < count; ++i) {
                         game.inventory().add(*item);
@@ -551,10 +557,10 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                     for (std::size_t i = 0; i < chests.size(); ++i) {
                         const Chest& chest = chests[i];
                         const Inventory& inventory = game.chest_inventories()[i];
-                        list += std::format("\nChest {}: {} at ({:.2f}, {:.2f}, {:.2f}), {} items, value {}{}", i,
+                        list += std::format("\nChest {}: {} at ({:.2f}, {:.2f}, {:.2f}), {}, value {}{}", i,
                                             chest_look_name(chest.look), chest.base_center.x, chest.base_center.y,
-                                            chest.base_center.z, inventory.size(), inventory.value(game.items()),
-                                            describe_items(inventory, game.items()));
+                                            chest.base_center.z, item_count(inventory.size()),
+                                            inventory.value(game.items()), describe_items(inventory, game.items()));
                     }
                     log_info("{} chests{}", chests.size(), list);
                 });
