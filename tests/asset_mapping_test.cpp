@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <optional>
 #include <set>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -74,17 +75,17 @@ AssetMapping parse(std::string_view json, std::string& log) {
 }
 
 TEST(AssetMappingTest, ParsesPathsAndListsOfPathsRelativeToTheAssets) {
-    std::string log;
-    const AssetMapping mapping = parse(R"({
+    constexpr const char* kJson = R"({
         "DOOR_OPEN_SOUNDS": ["sounds/a.ogg", "sounds/b.ogg"],
         "CHEST_OPEN_SOUNDS": ["sounds/b.ogg"],
         "EXIT_SOUNDS": "/elsewhere/c.ogg",
         "PORTRAITS_ANY": []
-    })",
-                                       log);
-    EXPECT_EQ(
-        std::vector(mapping.paths(AssetKey::kDoorOpenSounds).begin(), mapping.paths(AssetKey::kDoorOpenSounds).end()),
-        (std::vector<std::filesystem::path>{"/assets/sounds/a.ogg", "/assets/sounds/b.ogg"}));
+    })";
+    std::string log;
+    const AssetMapping mapping = parse(kJson, log);
+    const std::span<const std::filesystem::path> door_open = mapping.paths(AssetKey::kDoorOpenSounds);
+    EXPECT_EQ(std::vector(door_open.begin(), door_open.end()),
+              (std::vector<std::filesystem::path>{"/assets/sounds/a.ogg", "/assets/sounds/b.ogg"}));
     EXPECT_EQ(mapping.path(AssetKey::kChestOpenSounds, 0), std::filesystem::path("/assets/sounds/b.ogg"));
     EXPECT_EQ(mapping.path(AssetKey::kExitSounds, 0), std::filesystem::path("/elsewhere/c.ogg"));
     EXPECT_TRUE(mapping.paths(AssetKey::kAnyPortraits).empty());
@@ -98,13 +99,13 @@ TEST(AssetMappingTest, ParsesPathsAndListsOfPathsRelativeToTheAssets) {
 }
 
 TEST(AssetMappingTest, WrongEntriesKeepThePositionsOfTheOthers) {
-    std::string log;
-    const AssetMapping mapping = parse(R"({
+    constexpr const char* kJson = R"({
         "DOOR_OPEN_SOUNDS": [1, "b.ogg", null],
         "DOOR_CLOSE_SOUNDS": 5,
         "DOOR_SOUNDS": ["c.ogg"]
-    })",
-                                       log);
+    })";
+    std::string log;
+    const AssetMapping mapping = parse(kJson, log);
     EXPECT_EQ(mapping.counts().of(AssetKey::kDoorOpenSounds), 3U);
     EXPECT_EQ(mapping.path(AssetKey::kDoorOpenSounds, 0), std::filesystem::path());
     EXPECT_EQ(mapping.path(AssetKey::kDoorOpenSounds, 1), std::filesystem::path("/assets/b.ogg"));
