@@ -827,7 +827,8 @@ void update_mouse_look(Ui& ui, const manifold::ConsoleWindow& console_window, co
 /// interface, loading, casting spells and mouse look, which is updated after each event, see update_mouse_look(), so
 /// that the events after one that pauses it or turns it on are handled in the new way.
 ///
-/// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them.
+/// These are key bindings, like those of read_input(). Keep GAME_MANUAL.md up to date when changing them, and
+/// DEBUGGING.md for the keys of the console window.
 ///
 /// \param window             The window, whose text input is on while the console window is open, and relative mouse
 ///                           mode while mouse look is active.

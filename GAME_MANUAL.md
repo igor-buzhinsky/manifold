@@ -70,7 +70,8 @@ game's window the focus back doesn't activate.
 
 M turns mouse look on or off while playing. It starts as the `mouse_look` setting says (off by default, see Settings
 below), and M doesn't change the setting, so the next start is as the setting says again. Runs with `--exec` or
-`--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) start with mouse look off, so they don't take the mouse; M still turns it on.
+`--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) start with mouse look off, so they
+don't take the mouse; M still turns it on.
 
 While a menu, the console or the debug overlay (F3) is open, mouse look pauses: the pointer comes back, to be used
 with them, and the mouse doesn't turn the view. Mouse look goes on again once they are closed. It also lets the
@@ -96,7 +97,8 @@ The game reads its settings from two JSON files, if they exist:
 - `fullscreen`: `true` fills the screen at its current resolution, `false` opens a window of 1600 x 900. The picture
   keeps its aspect ratio of 16:9 and is scaled to the screen, with black bars above and below, or on the sides,
   where the screen's aspect ratio differs. The game's own file sets `true`; without any file, the game runs in a
-  window. Runs with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) always open a window.
+  window. Runs with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console))
+  always open a window.
 - `mouse_look`: `true` starts the game with mouse look on, `false` with it off, as without any file. M turns it on
   or off while playing, see Mouse look above.
 - `mouse_sensitivity`: how far mouse look turns the view, in degrees per unit of mouse motion, a number greater than
@@ -131,7 +133,7 @@ one of the walls nearest to where the party starts, also if the room has other t
 already has one. The debug layout (`--layout debug`) has no rooms, and gets no such torch.
 
 Mana and the spells in effect stay as they are in the next level. The `cast` and `mana` commands of the console cast
-spells and set the mana, see [DEBUGGING.md](DEBUGGING.md#console).
+spells and set the mana, see the Console section of [DEBUGGING.md](DEBUGGING.md#console).
 
 ## Levels
 
@@ -167,11 +169,11 @@ also replaces it.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
 `~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
-party as it was then (each character's portrait, as its key and index in the asset mapping, gender and hit points, the party's mana and the spells in effect
+party as it was then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets), gender and hit points, the party's mana and the spells in effect
 with the time left of each), and the layout if it was given with
 `--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
 
-A run with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) never saves, not even the levels reached after its commands, so that
-test runs don't replace the player's save. They can still load it. They also don't ask whether to continue the save,
+A run with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) never saves,
+not even the levels reached after its commands, so that test runs don't replace the player's save. They can still load it. They also don't ask whether to continue the save,
 but start a new game.

@@ -121,7 +121,7 @@ which takes priority, see [GAME_MANUAL.md](GAME_MANUAL.md#settings). To make a c
 anywhere, without the checkout:
 
 ```sh
-cmake --install build --prefix ~/games/manifold   # copies the executable, assets/, the manuals, settings.json and the licenses there
+cmake --install build --prefix ~/games/manifold   # copies the executable, assets/, the manual, DEBUGGING.md, settings.json and the licenses there
 ~/games/manifold/manifold
 ```
 

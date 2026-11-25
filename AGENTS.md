@@ -73,8 +73,8 @@ seeds or longer is worth it for a change that touches collision itself.
   `scripts/scratch_build.py FILE.cpp [--run ARGS...]`. Don't commit such programs; turn what they check into a test
   or into the movement simulation if it should be kept.
 - When a change alters a constant, a behavior or a name, search the docs (`docs/`, `README.md`, `GAME_MANUAL.md`,
-  `DEBUGGING.md`, `AGENTS.md`) and the comments for its old value and name, e.g. `grep -rn "3 m/s"`, and update what no longer
-  holds, also in older entries of `docs/DECISIONS.md` (with a note in their Status line).
+  `DEBUGGING.md`, `AGENTS.md`) and the comments for its old value and name, e.g. `grep -rn "3 m/s"`, and update what
+  no longer holds, also in older entries of `docs/DECISIONS.md` (with a note in their Status line).
 - When changing key bindings, update [GAME_MANUAL.md](GAME_MANUAL.md), and when changing cheats,
   [DEBUGGING.md](DEBUGGING.md).
 - If a new system package is needed, add it to the install command in [README.md](README.md) and to
