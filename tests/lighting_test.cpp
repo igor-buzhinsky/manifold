@@ -210,6 +210,7 @@ TEST(LightingTest, IntensitiesChangeSmoothlyWhenLightsSwap) {
     // Lights on both sides of a corridor. Walking along it, lights behind the viewer are replaced by lights
     // ahead of it, one at a time.
     std::vector<PointLight> lights;
+    lights.reserve(20);
     for (std::uint32_t i = 0; i < 20; ++i) {
         lights.push_back({.position = {static_cast<float>(i) * 3.0f, (i % 2 == 0) ? 2.0f : -2.0f, 0.0f},
                           .intensity = 1.0f,

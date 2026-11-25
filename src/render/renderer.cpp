@@ -662,8 +662,8 @@ std::vector<std::optional<std::size_t>> Renderer::update_shadow_maps(std::span<c
     std::vector<std::uint32_t> ids;
     std::vector<std::size_t> owners;
     for (std::size_t i = 0; i < count; ++i) {
-        if (lights[i].shadow_id) {
-            ids.push_back(*lights[i].shadow_id);
+        if (const std::optional<std::uint32_t>& shadow_id = lights[i].shadow_id) {
+            ids.push_back(*shadow_id);
             owners.push_back(i);
         }
     }

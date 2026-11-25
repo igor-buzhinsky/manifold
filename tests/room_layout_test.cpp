@@ -388,7 +388,7 @@ TEST(LayeredPlanTest, StartIsOnFloorTileWithoutHoleFacingNoWallOrHole) {
         const auto is_any_hole = [&](int x, int y) {
             return plan.is_hole(plan.start_layer, x, y) || plan.is_hole(plan.start_layer - 1, x, y);
         };
-        if (std::any_of(kSteps.begin(), kSteps.end(), [&](const std::pair<int, int>& step) {
+        if (std::ranges::any_of(kSteps, [&](const std::pair<int, int>& step) {
                 return is_any_hole(plan.start_x + step.first, plan.start_y + step.second);
             })) {
             ++starts_next_to_hole;
@@ -515,7 +515,7 @@ TEST(LayeredPlanTest, DrawingShowsAllLayersWithStartExitAndHoles) {
     const std::size_t exit = text.find('E');
     EXPECT_GT(exit, text.find("Layer " + std::to_string(plan.exit_layer) + ":\n"));
     EXPECT_LT(exit, text.find("Layer " + std::to_string(plan.exit_layer + 1) + ":\n"));
-    for (int layer = 0; layer < static_cast<int>(plan.layers.size()); ++layer) {
+    for (int layer = 0; std::cmp_less(layer, plan.layers.size()); ++layer) {
         EXPECT_NE(text.find("Layer " + std::to_string(layer) + ":\n"), std::string::npos);
     }
     // Every hole shows in the layer below and the layer above. The start is never on a hole.

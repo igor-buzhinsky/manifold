@@ -78,14 +78,14 @@ between platforms.
 
 ## Download
 
-[Releases](https://github.com/igor-buzhinsky/manifold/releases) have a build for Linux x86_64, made on Ubuntu 24.04
-(it needs glibc 2.39 or newer and a GPU with OpenGL 4.1). Unpack the archive and run `manifold` in its directory.
+[Releases](https://github.com/igor-buzhinsky/manifold/releases) have a build for Linux x86_64, made on Ubuntu 26.04
+(it needs glibc 2.43 or newer and a GPU with OpenGL 4.1). Unpack the archive and run `manifold` in its directory.
 
 ## Building (Linux)
 
 Requirements: a C++20 compiler (GCC 13+ or Clang 16+), CMake 3.25+, optionally Ninja, and a GPU with OpenGL 4.1
 or newer (any GPU from about 2012 on).
-On Ubuntu 24.04, everything needed to build and lint the project is installed with:
+On Ubuntu 26.04, everything needed to build and lint the project is installed with:
 
 ```sh
 sudo apt install build-essential cmake ninja-build git clang-format clang-tidy pkg-config \

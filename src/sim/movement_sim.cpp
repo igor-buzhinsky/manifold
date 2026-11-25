@@ -128,7 +128,7 @@ public:
     void add(MovementViolation violation, const Game& game, int frame, std::string detail) {
         int& count = report_->counts.at(static_cast<std::size_t>(violation));
         ++count;
-        if (static_cast<std::size_t>(count) <= examples_) {
+        if (std::cmp_less_equal(count, examples_)) {
             report_->examples.push_back({.violation = violation,
                                          .layout = game.level().layout,
                                          .seed = seed_,

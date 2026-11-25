@@ -62,11 +62,11 @@ Placement MenuScreen::buttons_placement(const PixelSize& picture) const {
     width = std::ceil(width / scale) * scale;
     const float height = ButtonList::height(buttons_.buttons().size(), scale);
     const float panel_width = width + (2.0f * kPadding * scale);
-    const float panel_height = (kTextLineHeight + kTitleGap + (2.0f * kPadding)) * scale + height;
+    const float panel_height = ((kTextLineHeight + kTitleGap + (2.0f * kPadding)) * scale) + height;
     // The panel is centered, at whole interface pixels.
     const float left =
-        std::floor((static_cast<float>(picture.width) - panel_width) / 2.0f / scale) * scale + (kPadding * scale);
-    const float top = std::floor((static_cast<float>(picture.height) - panel_height) / 2.0f / scale) * scale +
+        (std::floor((static_cast<float>(picture.width) - panel_width) / 2.0f / scale) * scale) + (kPadding * scale);
+    const float top = (std::floor((static_cast<float>(picture.height) - panel_height) / 2.0f / scale) * scale) +
                       ((kPadding + kTextLineHeight + kTitleGap) * scale);
     return {.area = {.top_left = {left, top}, .size = {width, height}}, .scale = scale};
 }
@@ -100,8 +100,8 @@ void MenuScreen::add_to(OverlayMesh& mesh, const PixelSize& picture) const {
     // A border of one interface pixel, as a larger rectangle behind the panel.
     mesh.add_rectangle(frame.top_left - glm::vec2(scale), frame.size + glm::vec2(2.0f * scale), kUiBorderColor);
     mesh.add_rectangle(frame.top_left, frame.size, kUiPanelColor);
-    const float title_x =
-        buttons.area.top_left.x + std::floor((buttons.area.size.x - text_width(title_, scale)) / 2.0f / scale) * scale;
+    const float title_x = buttons.area.top_left.x +
+                          (std::floor((buttons.area.size.x - text_width(title_, scale)) / 2.0f / scale) * scale);
     mesh.add_text({title_x, frame.top_left.y + (kPadding * scale)}, title_, scale, kUiTitleColor);
     buttons_.add_to(mesh, buttons);
 }

@@ -35,9 +35,9 @@ env:
 jobs:
   build-and-test:
     name: Build and test (${{ matrix.compiler }})
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
-    # The two compilers that README.md names, each in the version that Ubuntu 24.04 ships.
+    # The two compilers that README.md names, each in the version that Ubuntu 26.04 ships.
     strategy:
       fail-fast: false
       matrix:
@@ -47,12 +47,12 @@ jobs:
             cxx: g++
             extra_packages: ""
           - compiler: clang
-            cc: clang-18
-            cxx: clang++-18
-            extra_packages: clang-18
-            # Clang takes the newest GCC's libstdc++ that it finds, and the runner has GCC 14 too. This keeps it on
-            # GCC 13's, which a plain Ubuntu 24.04 has.
-            flags: --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/13
+            cc: clang-21
+            cxx: clang++-21
+            extra_packages: clang-21
+            # Clang takes the newest GCC's libstdc++ that it finds, and the runner has several GCCs. This keeps it on
+            # GCC 15's, which a plain Ubuntu 26.04 has.
+            flags: --gcc-install-dir=/usr/lib/gcc/x86_64-linux-gnu/15
     env:
       CC: ${{ matrix.cc }}
       CXX: ${{ matrix.cxx }}
@@ -74,7 +74,7 @@ jobs:
 
   lint:
     name: Lint (clang-format, clang-tidy)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -83,17 +83,22 @@ jobs:
       # Configuring is enough for clang-tidy: it needs only compile_commands.json and the downloaded headers. If a
       # generated header is ever added, build it here before linting. One job is enough to save the downloaded
       # libraries to the cache, and this one downloads all of them.
+      # The runner has several versions of clang-format and clang-tidy, so the lint target is given those of Ubuntu
+      # 26.04, which README.md documents, rather than whichever the unversioned names lead to.
       - name: Install packages and configure
         uses: ./.github/actions/prepare
         with:
           packages: ${{ env.APT_PACKAGES }}
           save-dependencies: "true"
+          cmake-args: >-
+            -DCLANG_FORMAT_EXE=/usr/bin/clang-format-21 -DCLANG_TIDY_EXE=/usr/bin/clang-tidy-21
+            -DRUN_CLANG_TIDY_EXE=/usr/bin/run-clang-tidy-21
       - name: Lint
         run: cmake --build build --target lint
 
   python:
     name: Python scripts (black, ruff, pyrefly)
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 10
     defaults:
       run:
@@ -120,7 +125,7 @@ jobs:
     name: Release (Linux x86_64)
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [build-and-test, lint, python]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     permissions:
       contents: write  # To create the release.
@@ -168,7 +173,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           ARCHIVE: ${{ steps.package.outputs.archive }}
           NOTES: >-
-            A build for Linux x86_64, made on Ubuntu 24.04: it needs glibc 2.39 or newer and a GPU with OpenGL 4.1.
+            A build for Linux x86_64, made on Ubuntu 26.04: it needs glibc 2.43 or newer and a GPU with OpenGL 4.1.
             Unpack it and run `manifold` in its directory. The controls are in GAME_MANUAL.md.
         run: |
           gh release create "$TAG" "$ARCHIVE" --repo "$GITHUB_REPOSITORY" --verify-tag --draft \

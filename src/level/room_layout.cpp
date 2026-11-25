@@ -343,7 +343,7 @@ bool add_ramps(LayeredPlan& plan, int lower, const RoomLayoutConfig& config, Lev
             }
         }
     }
-    if (static_cast<int>(candidates.size()) < config.min_ramps) {
+    if (std::cmp_less(candidates.size(), config.min_ramps)) {
         return false;
     }
     random_shuffle(rng, candidates);
@@ -432,7 +432,7 @@ std::optional<LayeredPlan> try_plan_layers(const RoomLayoutConfig& config, Level
     // the ceiling (where a ramp may block the view). If all four neighbors are such tiles, any direction will do.
     const RoomPlan& start_plan = plan.layers.at(static_cast<std::size_t>(start_layer));
     std::vector<int> directions;
-    for (int direction = 0; direction < static_cast<int>(kNeighborSteps.size()); ++direction) {
+    for (int direction = 0; std::cmp_less(direction, kNeighborSteps.size()); ++direction) {
         const TilePosition& step = kNeighborSteps.at(static_cast<std::size_t>(direction));
         const int x = start.x + step.x;
         const int y = start.y + step.y;
@@ -459,8 +459,8 @@ RoomPlan::RoomPlan(int width, int height)
       room_of_tile(tiles.size(), -1) {}
 
 std::optional<Hole> LayeredPlan::hole_at(int layer, int x, int y) const {
-    const auto found = std::find_if(holes.begin(), holes.end(),
-                                    [&](const Hole& hole) { return hole.layer == layer && hole.contains(x, y); });
+    const auto found =
+        std::ranges::find_if(holes, [&](const Hole& hole) { return hole.layer == layer && hole.contains(x, y); });
     return found == holes.end() ? std::nullopt : std::optional<Hole>(*found);
 }
 
@@ -777,7 +777,7 @@ std::vector<PlacedChest> add_chests(World& world, const LayeredPlan& plan, const
         const auto layer_number = static_cast<int>(index);
         for (std::size_t room_index = 0; room_index < layer.rooms.size(); ++room_index) {
             const GridRoom& room = layer.rooms[room_index];
-            const bool is_start_room = layer_number == plan.start_layer && static_cast<int>(room_index) == start_room;
+            const bool is_start_room = layer_number == plan.start_layer && std::cmp_equal(room_index, start_room);
             // A room 1 tile wide is a corridor, where a chest would stand in the way.
             if (room.width < 2 || room.height < 2 || is_start_room || !random_chance(rng, config.chest_chance)) {
                 continue;
