@@ -195,7 +195,9 @@ Doors, chests, exits, levels and characters keep the position of their file in t
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives
 no sound, a plain grey level or an empty portrait, and a warning in the console; the files after it keep their
 positions. The number of files of each key decides the random choices, so adding or removing files changes the sounds
-and textures of seeds, and the portraits of saved parties.
+and textures of seeds and the portraits of new parties. Saved parties keep the positions of their portraits, so
+inserting, removing or reordering portraits before a saved one shows another portrait, while adding one at the end
+changes nothing.
 
 ## Console
 

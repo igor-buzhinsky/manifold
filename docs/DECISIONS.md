@@ -333,7 +333,8 @@ Status: **ACCEPTED**. Done in v0.3. Since running was added (see below), walking
 walking and 1.5 m running, and the first one comes a quarter of a step after starting from standing. Since the asset
 mapping (see below), the kind is the key of the texture in `assets/asset_mapping.json` (`LEVEL_TEXTURES_GRASS`, ...)
 rather than its directory, and the footsteps are the files of `FOOTSTEP_SOUNDS_GRASS`, ...; level generation chooses
-the texture, and `Game::set_texture_kind()` is gone.
+the texture, and `Game::set_texture_kind()` is gone. A file must be listed in the mapping, wherever it is, rather than
+put in a directory, and a kind without textures in the mapping is left out of the choice when levels are generated.
 
 Decision:
 
@@ -802,6 +803,8 @@ Drawbacks:
 - The mapping must be edited to add a file: a new file is unused until it is listed. The test of the game's mapping
   names files that are listed nowhere.
 - How many files a key has decides the random choices, so a remapping that adds or removes files changes the assets
-  that seeds give, and a save shows other portraits or a mapping with fewer files shows none.
+  that seeds give and the portraits of new parties.
+- The order of the files decides what a saved index shows: a save shows another portrait if portraits are inserted,
+  removed or reordered before its own, and none if the key has fewer files than its index.
 - The mapping is long: about 240 files, most of them textures of stone.
 - Old saves (format version 4) are refused, since they store portraits as paths.
