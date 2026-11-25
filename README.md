@@ -202,6 +202,8 @@ with its source, license, the files taken and how they were processed. A pack wh
   [Metropolitan Museum of Art](https://www.metmuseum.org/hubs/open-access) (Open Access, CC0 1.0) and the
   [Rijksmuseum](https://www.rijksmuseum.nl/) (public domain), cropped. The artist and title of each are in the
   README next to it, under `assets/portraits/`.
+- Gem icons: [Six grades of gems](https://opengameart.org/content/six-grades-of-gems) by
+  [Hansjörg Malthaner](http://opengameart.org/users/varkalandar), CC-BY 3.0, recolored and scaled.
 
 ## License
 

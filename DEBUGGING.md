@@ -6,7 +6,7 @@ commands for inspecting and testing levels, and the debug overlay. Playing the g
 
 ## Assets
 
-`assets/asset_mapping.json` says which sound, texture and portrait files the game uses for what, so they can be
+`assets/asset_mapping.json` says which sound, texture, portrait and icon files the game uses for what, so they can be
 changed without building the game again. Each of its keys has a path, relative to `assets/`, or a list of paths, and
 one file can be listed under several keys:
 
@@ -18,6 +18,7 @@ one file can be listed under several keys:
 | `FOOTSTEP_SOUNDS_GRASS`, `_WOOD`, `_METAL`, `_STONE` | OGG footsteps in levels of each texture kind |
 | `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
 | `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
+| `ITEM_ICONS` | Not a list but an object from the key of each item to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one shows an empty cell |
 
 Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives

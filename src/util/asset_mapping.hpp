@@ -4,8 +4,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
+#include <map>
 #include <optional>
 #include <span>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -86,6 +89,10 @@ private:
 ///         AssetMapping::path(). Without files, no random number is used.
 AssetIndex choose_asset(Rng& rng, const AssetCounts& counts, AssetKey key);
 
+/// The key of the asset mapping whose value is an object from item keys to their icons, see
+/// AssetMapping::item_icon(). Unlike the keys of AssetKey, it names one file per item rather than a list.
+inline constexpr std::string_view kItemIconsKey = "ITEM_ICONS";
+
 /// Name of the file of the asset mapping, in the directory of the assets.
 inline constexpr std::string_view kAssetMappingFileName = "asset_mapping.json";
 
@@ -98,6 +105,10 @@ inline constexpr std::string_view kAssetMappingFileName = "asset_mapping.json";
 ///
 /// The order of the files counts: an AssetIndex is a position in the list of its key. A file that is missing, can't be
 /// read or isn't of the key's AssetType keeps its position, but gives no sound or a default texture, after a warning.
+///
+/// Besides these, the field kItemIconsKey (`ITEM_ICONS`) is an object from the keys of items, see ItemCatalog, to the
+/// paths of their icons: PNG files with a transparent background, e.g.
+/// `{"ITEM_ICONS": {"SMALL_RUBY": "inventory/gems/ruby-small.png"}}`.
 class AssetMapping {
 public:
     /// A mapping in which no key has files.
@@ -108,7 +119,8 @@ public:
     /// Problems don't stop it, but are logged as warnings, with `source` (e.g. the file's path): text that isn't a
     /// JSON object gives a mapping without files; an unknown key, or a value that isn't a string or an array, is left
     /// out; an entry of an array that isn't a string gives an empty path, which can't be loaded, so that the entries
-    /// after it keep their positions; and a key that is missing or has no files gets none.
+    /// after it keep their positions; and a key that is missing or has no files gets none. In `ITEM_ICONS`, a value
+    /// that isn't an object gives no icons, and an entry that isn't a string is left out.
     ///
     /// \param assets_dir What relative paths are relative to.
     static AssetMapping parse(std::string_view json, const std::filesystem::path& assets_dir, std::string_view source);
@@ -131,8 +143,16 @@ public:
     /// How many files each key has.
     AssetCounts counts() const;
 
+    /// The icon of the item with the key `item_key`, e.g. `SMALL_RUBY`, from `ITEM_ICONS`, with a relative path made
+    /// absolute, or nothing if it has none.
+    std::optional<std::filesystem::path> item_icon(std::string_view item_key) const;
+
+    /// All icons of `ITEM_ICONS`, by the keys of their items.
+    const std::map<std::string, std::filesystem::path, std::less<>>& item_icons() const { return item_icons_; }
+
 private:
     std::array<std::vector<std::filesystem::path>, kAssetKeys.size()> paths_;
+    std::map<std::string, std::filesystem::path, std::less<>> item_icons_;  ///< See item_icons().
 };
 
 }  // namespace manifold

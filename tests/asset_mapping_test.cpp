@@ -119,6 +119,26 @@ TEST(AssetMappingTest, WrongEntriesKeepThePositionsOfTheOthers) {
     EXPECT_NE(log.find("unknown key DOOR_SOUNDS"), std::string::npos) << log;
 }
 
+TEST(AssetMappingTest, ParsesTheIconsOfItems) {
+    constexpr const char* kJson = R"({
+        "EXIT_SOUNDS": ["a.ogg"],
+        "ITEM_ICONS": {"SMALL_RUBY": "icons/ruby.png", "LARGE_RUBY": "/elsewhere/large.png", "SMALL_OPAL": 3}
+    })";
+    std::string log;
+    const AssetMapping mapping = parse(kJson, log);
+    EXPECT_EQ(mapping.item_icon("SMALL_RUBY"), std::filesystem::path("/assets/icons/ruby.png"));
+    EXPECT_EQ(mapping.item_icon("LARGE_RUBY"), std::filesystem::path("/elsewhere/large.png"));
+    EXPECT_FALSE(mapping.item_icon("SMALL_OPAL").has_value());
+    EXPECT_FALSE(mapping.item_icon("LARGE_OPAL").has_value());
+    EXPECT_EQ(mapping.item_icons().size(), 2U);
+    EXPECT_NE(log.find("ITEM_ICONS has an icon 3 for SMALL_OPAL that is not a path"), std::string::npos) << log;
+    EXPECT_EQ(log.find("unknown key"), std::string::npos) << log;
+
+    const AssetMapping wrong = parse(R"({"ITEM_ICONS": ["a.png"]})", log);
+    EXPECT_TRUE(wrong.item_icons().empty());
+    EXPECT_NE(log.find(R"(ITEM_ICONS is ["a.png"], not an object, so items have no icons)"), std::string::npos) << log;
+}
+
 TEST(AssetMappingTest, TextThatIsNotAnObjectGivesNoFiles) {
     for (const std::string_view json : {"", "not json", R"(["a.ogg"])"}) {
         std::string log;
@@ -175,6 +195,13 @@ TEST(GameAssetMappingTest, EveryKeyHasFilesAndAllCanBeUsed) {
             EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
         }
     }
+    EXPECT_FALSE(mapping.item_icons().empty());
+    for (const auto& [item, path] : mapping.item_icons()) {
+        testing::internal::CaptureStderr();
+        EXPECT_TRUE(load_image(path).has_value()) << item << ": " << path;
+        log = testing::internal::GetCapturedStderr();
+        EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
+    }
 }
 
 TEST(GameAssetMappingTest, EverySoundAndImageOfTheAssetsIsMapped) {
@@ -186,6 +213,9 @@ TEST(GameAssetMappingTest, EverySoundAndImageOfTheAssetsIsMapped) {
         for (const std::filesystem::path& path : mapping.paths(key)) {
             mapped.insert(path.lexically_normal());
         }
+    }
+    for (const auto& [item, path] : mapping.item_icons()) {
+        mapped.insert(path.lexically_normal());
     }
     for (const std::string_view extension : {".ogg", ".png"}) {
         for (const std::filesystem::path& path : find_asset_files(MANIFOLD_ASSETS_DIR, extension)) {
