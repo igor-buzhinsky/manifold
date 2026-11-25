@@ -13,7 +13,6 @@
 #include <gtest/gtest.h>
 #include <stb_image_write.h>
 
-#include "level/texture_kind.hpp"
 #include "world/door.hpp"
 
 namespace manifold {
@@ -72,80 +71,24 @@ TEST_F(TextureImageTest, BrokenOrMissingFileGivesNothing) {
     EXPECT_NE(testing::internal::GetCapturedStderr().find("[warning]"), std::string::npos);
 }
 
-TEST_F(TextureImageTest, FindsPngFilesInSubdirectoriesSorted) {
-    const auto b = write_png("pack2/b.png", 1, 1);
-    const auto a = write_png("pack1/nested/a.PNG", 1, 1);
-    const auto c = write_png("pack2/c.png", 1, 1);
-    write_broken("pack2/readme.md");
-    EXPECT_EQ(find_textures(dir()), (std::vector<std::filesystem::path>{a, b, c}));
-}
-
-TEST_F(TextureImageTest, FindsLevelTexturesOnlyInKindDirectoriesWithTheirKinds) {
-    const auto grass = write_png("grass/pack/a.png", 1, 1);
-    const auto metal = write_png("metal/b.png", 1, 1);
-    const auto stone = write_png("stone/pack/nested/c.png", 1, 1);
-    write_png("other/d.png", 1, 1);
-    write_png("e.png", 1, 1);
+TEST_F(TextureImageTest, LevelTextureMustNotBeTooLarge) {
+    const std::filesystem::path wide = write_png("wide.png", kMaxTextureSize + 1, 4);
+    const std::filesystem::path tall = write_png("tall.png", 4, kMaxTextureSize + 1);
     testing::internal::CaptureStderr();
-    const std::vector<TextureFile> files = find_level_textures(dir());
+    EXPECT_FALSE(load_level_texture(wide).has_value());
+    EXPECT_FALSE(load_level_texture(tall).has_value());
+    EXPECT_FALSE(load_level_texture(write_broken("broken.png")).has_value());
+    EXPECT_FALSE(load_level_texture(dir() / "missing.png").has_value());
     const std::string log = testing::internal::GetCapturedStderr();
-    ASSERT_EQ(files.size(), 3U);
-    EXPECT_EQ(files[0].path, grass);
-    EXPECT_EQ(files[0].kind, TextureKind::kGrass);
-    EXPECT_EQ(files[1].path, metal);
-    EXPECT_EQ(files[1].kind, TextureKind::kMetal);
-    EXPECT_EQ(files[2].path, stone);
-    EXPECT_EQ(files[2].kind, TextureKind::kStone);
-    // Wood has none.
-    EXPECT_NE(log.find("[warning] No wood textures found"), std::string::npos) << log;
-    EXPECT_EQ(log.find("No grass textures"), std::string::npos) << log;
+    EXPECT_NE(log.find("[warning] Texture " + wide.string() + " is 129x4, larger than 128x128"), std::string::npos)
+        << log;
+    EXPECT_NE(log.find("[warning] Can't load " + (dir() / "broken.png").string()), std::string::npos) << log;
+
+    const std::optional<Image> largest = load_level_texture(write_png("ok.png", kMaxTextureSize, kMaxTextureSize));
+    ASSERT_TRUE(largest.has_value());
+    EXPECT_EQ(largest->width, kMaxTextureSize);
+    EXPECT_EQ(largest->height, kMaxTextureSize);
 }
-
-TEST_F(TextureImageTest, MissingDirectoryGivesNoTextures) { EXPECT_TRUE(find_textures(dir() / "missing").empty()); }
-
-TEST_F(TextureImageTest, SkipsTexturesThatAreTooLargeOrBroken) {
-    const std::vector<std::filesystem::path> candidates{
-        write_png("wide.png", kMaxTextureSize + 1, 4),
-        write_png("tall.png", 4, kMaxTextureSize + 1),
-        write_broken("broken.png"),
-        write_png("ok.png", kMaxTextureSize, kMaxTextureSize),
-    };
-    for (std::uint64_t seed = 0; seed < 8; ++seed) {
-        testing::internal::CaptureStderr();
-        const std::optional<PickedTexture> picked = pick_texture(candidates, seed);
-        const std::string log = testing::internal::GetCapturedStderr();
-        ASSERT_TRUE(picked.has_value());
-        EXPECT_EQ(picked->path, candidates[3]);
-        EXPECT_EQ(picked->image.width, kMaxTextureSize);
-        EXPECT_NE(log.find("[info] Texture: " + candidates[3].string()), std::string::npos) << log;
-    }
-}
-
-TEST_F(TextureImageTest, WarnsAboutTooLargeTexture) {
-    const std::vector<std::filesystem::path> candidates{write_png("big.png", kMaxTextureSize * 2, 8)};
-    testing::internal::CaptureStderr();
-    EXPECT_FALSE(pick_texture(candidates, 1).has_value());
-    EXPECT_NE(testing::internal::GetCapturedStderr().find("[warning] Texture " + candidates[0].string() + " is 256x8"),
-              std::string::npos);
-}
-
-TEST_F(TextureImageTest, SameSeedPicksSameTextureAndSeedsVary) {
-    std::vector<std::filesystem::path> candidates;
-    candidates.reserve(6);
-    for (int i = 0; i < 6; ++i) {
-        candidates.push_back(write_png("t" + std::to_string(i) + ".png", 2, 2));
-    }
-    testing::internal::CaptureStderr();
-    EXPECT_EQ(pick_texture(candidates, 5).value().path, pick_texture(candidates, 5).value().path);
-    bool varies = false;
-    for (std::uint64_t seed = 1; seed < 20; ++seed) {
-        varies = varies || pick_texture(candidates, seed).value().path != pick_texture(candidates, 0).value().path;
-    }
-    testing::internal::GetCapturedStderr();
-    EXPECT_TRUE(varies);
-}
-
-TEST_F(TextureImageTest, NoCandidatesGivesNothing) { EXPECT_FALSE(pick_texture({}, 0).has_value()); }
 
 TEST(FallbackTextureTest, IsOneOpaquePixel) {
     const Image image = fallback_texture();

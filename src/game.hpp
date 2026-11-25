@@ -40,9 +40,9 @@ struct GameConfig {
     /// How high a jump lifts the player's feet under Earth gravity, in metres. The take-off speed is the same
     /// in every level, so the jump is higher where gravity is weaker: jump_height * kEarthGravity / gravity.
     float jump_height = 0.5f;
-    /// The portraits that the characters of a new party are chosen from, see make_party().
-    std::vector<PortraitFile> portraits;
-    PartyConfig party;  ///< How many characters a new party has, and their hit points.
+    /// How many characters a new party has, and their hit points. Their portraits are chosen among the portrait files
+    /// of `level.assets`, see make_party().
+    PartyConfig party;
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -85,6 +85,7 @@ enum class Activation : std::uint8_t {
     kOpened,   ///< A door started to open.
     kClosed,   ///< A door started to close.
     kRefused,  ///< The player looks at a door that can't start moving now, see Game::set_door_open().
+    kChest,    ///< A chest was activated, see Game::take_chest_activations(). For now nothing else happens.
 };
 
 /// A door that started to open or to close, see Game::take_door_moves().
@@ -163,8 +164,8 @@ public:
     /// start.
     ///
     /// The level number and the game time start again from 0. Noclip stays as it is. A new party is made with
-    /// make_party(), from GameConfig::portraits and a seed derived from `seed`, so the same seed gives the same party.
-    /// It has full mana and no spells in effect.
+    /// make_party(), from the portraits of LevelConfig::assets and a seed derived from `seed`, so the
+    /// same seed gives the same party. It has full mana and no spells in effect.
     ///
     /// \param seed   Seed for level generation and the party.
     /// \param layout The layout of the first level, or nothing to choose it at random.
@@ -190,7 +191,8 @@ public:
     /// kActivationReach of the eyes.
     ///
     /// Aiming at a door that is not passable opens it, and aiming at a frame of a door opens or closes it, see
-    /// set_door_open(). Walls, slabs and doors in front stop the view.
+    /// set_door_open(). Aiming at a chest adds it to take_chest_activations(), each time, and does nothing else for
+    /// now. Walls, slabs and doors in front stop the view.
     ///
     /// \param direction Unit vector from the eyes, e.g. through the point of the view that the player clicked, or none
     ///                  for the center of the view, see Player::view_direction(). The reach is the same either way.
@@ -220,10 +222,6 @@ public:
     /// Sets the party's mana, e.g. as a cheat. It is clamped to [0, PartyMagic::max_mana].
     void set_mana(float mana) { magic_.set_mana(mana); }
 
-    /// Sets what the surfaces of the level are made of, see Level::texture_kind. The next level is stone until this
-    /// is called again.
-    void set_texture_kind(TextureKind kind) { level_.texture_kind = kind; }
-
     /// How many footsteps the player made since the last call, e.g. to play their sounds. Resets the count.
     ///
     /// Without noclip, a player on the ground makes a step every kWalkStepLength walked, or kRunStepLength run, the
@@ -234,6 +232,11 @@ public:
     /// The doors that started to move since the last call, in the order they started, e.g. to play their sounds.
     /// Clears the list. The moves of a level are dropped when the next level starts.
     std::vector<DoorMove> take_door_moves();
+
+    /// The indices into World::chests() of the chests that were activated since the last call, in order, e.g. to play
+    /// their sounds. A chest activated twice is listed twice. Clears the list. The activations of a level are dropped
+    /// when the next level starts.
+    std::vector<std::size_t> take_chest_activations() { return std::exchange(chest_activations_, {}); }
 
     /// Moves the player, e.g. to test a level, without checking for obstacles.
     ///
@@ -326,8 +329,7 @@ private:
     float walk_speed_;
     float run_speed_;
     float max_snap_slope_;
-    float jump_speed_;                     ///< Take-off speed of a jump, in metres per second.
-    std::vector<PortraitFile> portraits_;  ///< See GameConfig::portraits.
+    float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     PartyConfig party_config_;
     bool noclip_ = false;
     bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
@@ -341,12 +343,13 @@ private:
     Level level_;
     Player player_;
     std::vector<Character> party_;
-    std::vector<Character> level_start_party_;  ///< The party when the level started, see save_point().
-    PartyMagic magic_;                          ///< See magic().
-    PartyMagic level_start_magic_;              ///< The party's magic when the level started, see save_point().
-    std::vector<DoorState> doors_;              ///< The state of each door of the level.
-    std::vector<DoorMove> door_moves_;          ///< See take_door_moves().
-    int footsteps_ = 0;                         ///< See take_footsteps().
+    std::vector<Character> level_start_party_;    ///< The party when the level started, see save_point().
+    PartyMagic magic_;                            ///< See magic().
+    PartyMagic level_start_magic_;                ///< The party's magic when the level started, see save_point().
+    std::vector<DoorState> doors_;                ///< The state of each door of the level.
+    std::vector<DoorMove> door_moves_;            ///< See take_door_moves().
+    std::vector<std::size_t> chest_activations_;  ///< See take_chest_activations().
+    int footsteps_ = 0;                           ///< See take_footsteps().
     /// How much of a step the player has moved on the ground since the last footstep, from 0 to 1. Running and
     /// walking add to it by their own step lengths.
     float step_progress_ = 1.0f - kFirstStepFraction;

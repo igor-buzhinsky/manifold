@@ -22,6 +22,7 @@
 #include "level/level.hpp"
 #include "party/party.hpp"
 #include "physics/collision.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
@@ -190,9 +191,7 @@ bool check_air_time(AirTime& air, const Game& game, bool was_on_ground, float st
 void run_seed(const MovementSimConfig& config, LayoutKind layout, std::uint64_t seed, MovementSimReport& report) {
     GameConfig game_config;
     // A portrait for any gender for each character, so that a new party logs no warning about missing portraits.
-    for (std::size_t i = 0; i < game_config.party.size; ++i) {
-        game_config.portraits.push_back({.path = std::format("portrait{}.png", i), .gender = std::nullopt});
-    }
+    game_config.level.assets.set(AssetKey::kAnyPortraits, static_cast<std::uint32_t>(game_config.party.size));
     Game game(game_config, seed, layout);
     Recorder recorder(report, config.examples, seed);
     Rng rng(seed ^ kInputSalt);

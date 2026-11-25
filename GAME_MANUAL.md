@@ -11,7 +11,7 @@
 | Up / Down arrow | Look up / down (at most 40° each way) |
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. In the air, after a jump or a step off a ledge, the party keeps the horizontal speed and direction it had when it left the ground: the keys don't change them, and turning only turns the view. A wall stops only the part of the movement into it. With noclip or Levitate: fly up |
 | Page Down | With noclip or Levitate: fly down |
-| E | Activate what the center of the view points at, up to 2 m away: open a closed door, or open or close a door by aiming at one of its dark frames. Press again for the next activation |
+| E | Activate what the center of the view points at, up to 2 m away: open a closed door, open or close a door by aiming at one of its dark frames, or open a chest. Press again for the next activation |
 | Mouse | With mouse look on: turn left / right and look up / down (at most 40° each way, as with the keys), see Mouse look below |
 | Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere. With mouse look on, a click activates what the center of the view points at, as E does |
 | M | Turn mouse look on or off, see Mouse look below |
@@ -154,7 +154,8 @@ has its own two sounds, picked when the level is generated.
 
 Small chests stand at walls. In room levels, each room at least 2 tiles wide and deep, except the one where the player
 starts, has a chest with a chance of 20%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
-or golden with a chance of 20%. Chests don't block the way, and activating one does nothing yet.
+or golden with a chance of 20%. Chests don't block the way. Activating one, by looking down at it with E or by clicking
+it, plays the sound of opening it, but there is nothing inside yet.
 
 ## Saving
 
@@ -166,7 +167,7 @@ also replaces it.
 
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
 `~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
-party as it was then (each character's portrait, gender and hit points, the party's mana and the spells in effect
+party as it was then (each character's portrait, as its key and index in the asset mapping, gender and hit points, the party's mana and the spells in effect
 with the time left of each), and the layout if it was given with
 `--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
@@ -174,6 +175,27 @@ version of the game may give another level, or be refused if the save format cha
 A run with `--exec` or `--screenshot` (see Console below) never saves, not even the levels reached after its commands, so that
 test runs don't replace the player's save. They can still load it. They also don't ask whether to continue the save,
 but start a new game.
+
+## Assets
+
+`assets/asset_mapping.json` says which sound, texture and portrait files the game uses for what, so they can be
+changed without building the game again. Each of its keys has a path, relative to `assets/`, or a list of paths, and
+one file can be listed under several keys:
+
+| Key | Files |
+|-----|-------|
+| `DOOR_OPEN_SOUNDS`, `DOOR_CLOSE_SOUNDS` | OGG sounds of a door that starts to open or to close |
+| `CHEST_OPEN_SOUNDS` | OGG sounds of a chest that is activated |
+| `EXIT_SOUNDS` | OGG sounds of entering the exit of a level |
+| `FOOTSTEP_SOUNDS_GRASS`, `_WOOD`, `_METAL`, `_STONE` | OGG footsteps in levels of each texture kind |
+| `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
+| `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
+
+Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
+or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives
+no sound, a plain grey level or an empty portrait, and a warning in the console; the files after it keep their
+positions. The number of files of each key decides the random choices, so adding or removing files changes the sounds
+and textures of seeds, and the portraits of saved parties.
 
 ## Console
 
@@ -219,7 +241,7 @@ it types can't be typed.
 | Command | Action |
 |---|---|
 | `help` | List all commands |
-| `level_info` | Describe the level, depending on its layout, and its ambient light. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, the chests with their tiles, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps, the exit and the chests |
+| `level_info` | Describe the level, depending on its layout, its texture (its key in the asset mapping and its index there, see [Assets](#assets)) and its ambient light. For rooms: how tiles map to world coordinates, the start, the exit, how many openings have doors and what they are made of, the chests with their tiles, and a plan of all layers (`@` the start, `E` the exit). For the debug layout: all obstacles, ramps, the exit and the chests |
 | `player_info` | Describe the player: where their feet are, yaw and pitch, whether they stand on the ground, the horizontal velocity and its speed, the vertical speed, and whether noclip is on and Levitate in effect |
 | `camera` | Show where the camera is |
 | `camera X Y Z YAW PITCH` | Put the camera at (X, Y, Z), looking towards YAW (counter-clockwise from +x) and PITCH (from -90, straight down, to 90). The player still moves with the keys |
@@ -232,7 +254,7 @@ it types can't be typed.
 | `run FRAMES` | Run the player forward for this many frames, as holding Shift and W does, like `walk`. A `walk` or `run` replaces the one before |
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `load` | Load the saved game, as F9 does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` or `run` goes on in the loaded level |
-| `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait |
+| `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait (its key in the asset mapping and its index there) |
 | `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
 | `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells above). Fails if the party has less mana than it costs |
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |

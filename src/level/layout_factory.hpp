@@ -8,6 +8,7 @@
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
+#include "util/asset_mapping.hpp"
 
 namespace manifold {
 
@@ -16,6 +17,10 @@ namespace manifold {
 /// The probabilities say how often each layout is chosen when no layout is given. They should add up to 1;
 /// if they don't, they are scaled so that they do.
 struct LevelConfig {
+    /// How many files each key of the asset mapping has, which the assets of levels are chosen among, see
+    /// generate_level(), and the portraits of a new party, see Game::new_game(). None unless set, so that every asset
+    /// index is 0 and parties have no portraits.
+    AssetCounts assets;
     DebugLayoutConfig debug;
     float debug_probability = 0.0f;  ///< Only for testing, so it is never chosen at random.
     RoomLayoutConfig rooms;
@@ -54,8 +59,9 @@ std::uint64_t next_level_seed(std::uint64_t seed);
 ///                    already. Among equally near ones, it is chosen from its own random numbers. Nothing is added if
 ///                    there are none, e.g. for the debug layout. The rest of the level is the same either way.
 ///
-/// The sounds of the doors are chosen last, from their own random numbers, so the rest of the level doesn't depend on
-/// them.
+/// The assets of the level are chosen last, each kind from its own random numbers, among the files of their keys in
+/// `config.assets`, see choose_asset(), so the rest of the level doesn't depend on them: the sounds of the doors, of
+/// the chests and of the exit, and the texture, see choose_level_texture().
 /// \throws std::invalid_argument if `layout` is not given and the layout probabilities are invalid.
 /// \throws std::runtime_error if the level can't be generated.
 Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout, float clearance, std::uint64_t seed,

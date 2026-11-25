@@ -75,7 +75,6 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       run_speed_(config.run_speed),
       max_snap_slope_(config.max_snap_slope),
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
-      portraits_(config.portraits),
       party_config_(config.party),
       seed_(seed),
       level_(std::move(level)),
@@ -85,7 +84,7 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       doors_(level_.world.doors().size()) {}
 
 std::vector<Character> Game::make_new_party(std::uint64_t seed) const {
-    return make_party(portraits_, party_config_, seed ^ kPartySeedSalt);
+    return make_party(level_config_.assets, party_config_, seed ^ kPartySeedSalt);
 }
 
 void Game::set_hp(std::size_t index, int hp) {
@@ -148,6 +147,7 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     player_ = at_start(player_params_, level_);
     doors_.assign(level_.world.doors().size(), DoorState{});
     door_moves_.clear();
+    chest_activations_.clear();
     footsteps_ = 0;
     step_progress_ = 1.0f - kFirstStepFraction;
 }
@@ -186,6 +186,10 @@ Activation Game::activate(std::optional<glm::vec3> direction) {
     const std::optional<RayHit> hit = cast_ray(level_.world, doors_, view, kActivationReach);
     if (!hit || hit->target == RayTarget::kWorld) {
         return Activation::kNothing;
+    }
+    if (hit->target == RayTarget::kChest) {
+        chest_activations_.push_back(hit->chest);
+        return Activation::kChest;
     }
     // A door that isn't passable is closed or moving, and opening it is refused while it moves.
     const bool open = !doors_.at(hit->door).passable();

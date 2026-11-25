@@ -58,7 +58,9 @@ seeds or longer is worth it for a change that touches collision itself.
 - Credit every third-party asset (textures, sounds, models, fonts, ...), even when its license doesn't
   require it: give each pack a `README.md` in its directory under `assets/` (source link, author, license,
   which files were taken, how they were processed), and list it in the Credits section of
-  [README.md](README.md). Only add assets whose license allows redistributing the files in this repo.
+  [README.md](README.md). Only add assets whose license allows redistributing the files in this repo. List each
+  sound, texture and portrait file under its keys in `assets/asset_mapping.json`, which a test checks; the game uses
+  no file that isn't listed there.
 - Add or update unit tests in `tests/` for new logic. Code that needs a window or OpenGL is kept out of
   `manifold_core`, so that everything else can be tested.
 - A bug fix comes with a test that fails without the fix. Check that it does before committing: stash the fix

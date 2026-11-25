@@ -7,6 +7,7 @@
 #include <glm/vec3.hpp>
 
 #include "level/texture_kind.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/random.hpp"
 #include "world/chest.hpp"
 #include "world/torch.hpp"
@@ -34,6 +35,23 @@ ChestLook choose_chest_look(LevelRng& rng);
 /// level_ambient(). The choice depends only on the seed, and is independent of the other random choices made from it.
 bool level_has_ambient_light(std::uint64_t level_seed);
 
+/// The texture of the surfaces of a level: one of the files of the key of its kind in the asset mapping, see
+/// level_textures_key().
+struct LevelTexture {
+    /// What the surfaces are made of, e.g. to choose the sound of footsteps. Stone if there are no textures.
+    TextureKind kind = TextureKind::kStone;
+    AssetIndex index = 0;  ///< Which file of the key of `kind`.
+
+    bool operator==(const LevelTexture&) const = default;
+};
+
+/// Chooses the texture of the level generated from `level_seed`, among the files of all texture kinds, each with the
+/// same chance, so a kind with more files is chosen more often. The choice depends only on the seed and the counts,
+/// and is independent of the other random choices made from the seed.
+///
+/// \return The texture, or stone with index 0 if no kind has files.
+LevelTexture choose_level_texture(const AssetCounts& counts, std::uint64_t level_seed);
+
 /// The kinds of level layouts.
 enum class LayoutKind : std::uint8_t {
     kDebug,  ///< Randomly placed and rotated blocks in one open area, see DebugLayout.
@@ -48,9 +66,9 @@ struct Level {
     float player_yaw = 0.0f;        ///< Direction the player faces at the start: radians counter-clockwise from +x.
     std::string info;               ///< Human-readable description of the level, for debugging. Depends on the layout.
     float gravity = kEarthGravity;  ///< Downward acceleration, in metres per second squared.
-    /// What its surfaces are made of: the kind of its texture, which the game sets when it picks the texture, see
-    /// Game::set_texture_kind(). Stone until then, and when no texture can be used.
-    TextureKind texture_kind = TextureKind::kStone;
+    /// The texture of its surfaces, which also tells what they are made of, see choose_level_texture().
+    // Without the initializer, GCC warns about levels that leave it out, such as those of the layouts.
+    LevelTexture texture = {};  // NOLINT(readability-redundant-member-init)
     /// Torches that could hang on the walls of the room where the player starts, on the wall sides that got none.
     /// Empty for layouts without rooms. generate_level() may add the one nearest to the start, which takes it out.
     // Without the initializer, GCC warns about levels that leave it out, such as those built by hand in tests.

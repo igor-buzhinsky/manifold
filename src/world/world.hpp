@@ -7,6 +7,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "util/asset_index.hpp"
 #include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/geometry.hpp"
@@ -57,6 +58,8 @@ struct LevelExit {
     static constexpr float kHoverHeight = 0.6f;  ///< Height of the cube's bottom above the floor, in metres.
 
     glm::vec3 floor_point{0.0f};  ///< The point on the floor right below the center of the cube.
+    /// The sound it makes when the player enters it: which file of AssetKey::kExitSounds, see generate_level().
+    AssetIndex sound = 0;
 
     /// Center of the cube's bottom face.
     glm::vec3 base_center() const { return floor_point + glm::vec3(0.0f, 0.0f, kHoverHeight); }
@@ -119,6 +122,11 @@ public:
     /// \param index Index of the door in doors().
     /// \throws std::out_of_range if there is no such door.
     void set_door_sounds(std::size_t index, DoorSounds sounds) { doors_.at(index).sounds = sounds; }
+    /// Sets which sound a chest makes when activated.
+    ///
+    /// \param index Index of the chest in chests().
+    /// \throws std::out_of_range if there is no such chest.
+    void set_chest_sound(std::size_t index, AssetIndex sound) { chests_.at(index).open_sound = sound; }
     void set_exit(const LevelExit& exit) { exit_ = exit; }
 
 private:

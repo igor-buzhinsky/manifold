@@ -16,8 +16,11 @@
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
+#include "util/asset_index.hpp"
+#include "util/asset_mapping.hpp"
 #include "util/random.hpp"
 #include "world/torch.hpp"
+#include "world/world.hpp"
 
 namespace manifold {
 
@@ -118,14 +121,26 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
     LevelRng rng(seed);
     const LayoutKind kind = layout ? *layout : choose_layout(config, rng);
     Level level = make_layout(kind, config)->generate(clearance, rng);
-    // Raw numbers of the engine, which SoundSet::get() maps to sounds.
+    const AssetCounts& assets = config.assets;
     constexpr std::uint64_t kDoorSoundSeedSalt = 0x8cb92ba72f3d8dd7ULL;
-    LevelRng sound_rng(seed ^ kDoorSoundSeedSalt);
+    LevelRng door_rng(seed ^ kDoorSoundSeedSalt);
     for (std::size_t i = 0; i < level.world.doors().size(); ++i) {
-        const auto open = static_cast<std::uint32_t>(sound_rng());
-        const auto close = static_cast<std::uint32_t>(sound_rng());
+        const AssetIndex open = choose_asset(door_rng, assets, AssetKey::kDoorOpenSounds);
+        const AssetIndex close = choose_asset(door_rng, assets, AssetKey::kDoorCloseSounds);
         level.world.set_door_sounds(i, {.open = open, .close = close});
     }
+    constexpr std::uint64_t kChestSoundSeedSalt = 0x5be0cd19137e2179ULL;
+    LevelRng chest_rng(seed ^ kChestSoundSeedSalt);
+    for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
+        level.world.set_chest_sound(i, choose_asset(chest_rng, assets, AssetKey::kChestOpenSounds));
+    }
+    if (std::optional<LevelExit> exit = level.world.exit()) {
+        constexpr std::uint64_t kExitSoundSeedSalt = 0xa54ff53a5f1d36f1ULL;
+        LevelRng exit_rng(seed ^ kExitSoundSeedSalt);
+        exit->sound = choose_asset(exit_rng, assets, AssetKey::kExitSounds);
+        level.world.set_exit(*exit);
+    }
+    level.texture = choose_level_texture(assets, seed);
     if (start_torch) {
         add_nearest_start_torch(level, seed);
     }

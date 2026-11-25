@@ -103,6 +103,7 @@ add_library(manifold_core STATIC
     src/ui/text_field.cpp
     src/ui/ui_style.cpp
     src/util/asset_files.cpp
+    src/util/asset_mapping.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
     src/util/random.cpp
@@ -170,6 +171,7 @@ if(MANIFOLD_BUILD_TESTS)
 
     add_executable(manifold_tests
         tests/asset_files_test.cpp
+        tests/asset_mapping_test.cpp
         tests/button_list_test.cpp
         tests/camera_test.cpp
         tests/chest_test.cpp
@@ -216,8 +218,9 @@ if(MANIFOLD_BUILD_TESTS)
     )
     target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)
     target_compile_options(manifold_tests PRIVATE ${MANIFOLD_WARNINGS})
-    # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one.
-    target_compile_definitions(manifold_tests PRIVATE MANIFOLD_SOUNDS_DIR="${CMAKE_SOURCE_DIR}/assets/sounds")
+    # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one, and the asset mapping
+    # tests check the game's mapping and its files.
+    target_compile_definitions(manifold_tests PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
 
     include(GoogleTest)
     # A test that runs longer than this fails, so that one that hangs, e.g. in a loop waiting for the player to land,

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <numbers>
 #include <optional>
@@ -21,6 +22,8 @@
 #include "party/party.hpp"
 #include "party/spells.hpp"
 #include "save/saved_game.hpp"
+#include "util/asset_mapping.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/player.hpp"
 #include "world/world.hpp"
@@ -363,15 +366,25 @@ TEST(GameTest, StoppingMakesTheNextStepComeSoonAndTeleportStartsAgain) {
     EXPECT_EQ(game.take_footsteps(), 0);
 }
 
-TEST(GameTest, FootstepsAndTextureKindStartAgainInTheNextLevel) {
+TEST(GameTest, FootstepsStartAgainInTheNextLevel) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    EXPECT_EQ(game.level().texture_kind, TextureKind::kStone);
-    game.set_texture_kind(TextureKind::kGrass);
-    EXPECT_EQ(game.level().texture_kind, TextureKind::kGrass);
     run(game, {.forward = 1.0f}, 0.5f);
     game.next_level();
     EXPECT_EQ(game.take_footsteps(), 0);
-    EXPECT_EQ(game.level().texture_kind, TextureKind::kStone);
+}
+
+TEST(GameTest, EachLevelHasTheTextureOfItsSeedAmongTheAssets) {
+    GameConfig config = make_config();
+    config.level.assets.set(AssetKey::kGrassLevelTextures, 3);
+    config.level.assets.set(AssetKey::kMetalLevelTextures, 2);
+    Game game(config, 1, LayoutKind::kDebug);
+    for (int level = 0; level < 5; ++level) {
+        const LevelTexture& texture = game.level().texture;
+        EXPECT_EQ(texture, choose_level_texture(config.level.assets, game.seed()));
+        EXPECT_TRUE(texture.kind == TextureKind::kGrass || texture.kind == TextureKind::kMetal);
+        EXPECT_LT(texture.index, config.level.assets.of(level_textures_key(texture.kind)));
+        game.next_level();
+    }
 }
 
 TEST(GameTest, StandingOnFloorKeepsVerticalSpeedZero) {
@@ -828,15 +841,14 @@ TEST(GameTest, LoadKeepsTheGivenLayoutOfTheFirstLevel) {
 
 TEST(GameTest, PartyIsMadeFromThePortraitsAndTheSeed) {
     GameConfig config = make_config();
-    config.portraits = {{.path = "male/a.png", .gender = Gender::kMale},
-                        {.path = "female/b.png", .gender = Gender::kFemale},
-                        {.path = "any/c.png", .gender = std::nullopt},
-                        {.path = "male/d.png", .gender = Gender::kMale}};
+    config.level.assets.set(AssetKey::kMalePortraits, 2);
+    config.level.assets.set(AssetKey::kFemalePortraits, 1);
+    config.level.assets.set(AssetKey::kAnyPortraits, 1);
     config.party = {.size = 3, .max_hp = 50};
     const Game game(config, 5, LayoutKind::kDebug);
     ASSERT_EQ(game.party().size(), 3U);
     for (const Character& character : game.party()) {
-        EXPECT_FALSE(character.portrait.empty());
+        EXPECT_TRUE(character.portrait.has_value());
         EXPECT_EQ(character.hp, 50);
         EXPECT_EQ(character.max_hp, 50);
     }
@@ -1057,6 +1069,45 @@ TEST(GameTest, DoorMovesOfALevelAreDroppedWhenTheNextStarts) {
     ASSERT_TRUE(game.set_door_open(0, true));
     game.next_level();
     EXPECT_TRUE(game.take_door_moves().empty());
+}
+
+/// make_door_level() with a chest on the floor between the player and the door, its front towards the player, and the
+/// direction from the player's eyes to its middle.
+std::pair<Level, glm::vec3> make_chest_level(const GameConfig& config) {
+    Level level = make_door_level();
+    level.world.add_chest({.base_center = {0.0f, -1.0f, 0.0f},
+                           .yaw = -std::numbers::pi_v<float> / 2.0f,
+                           .look = ChestLook::kWood,
+                           .open_sound = 1});
+    const Player player(config.player);
+    const glm::vec3 eyes = level.player_start + glm::vec3(0.0f, 0.0f, player.eye_position().z - player.position().z);
+    return {std::move(level), glm::normalize(glm::vec3(0.0f, -1.0f, Chest::kHeight / 2.0f) - eyes)};
+}
+
+TEST(GameTest, ActivatingAChestReportsItEachTimeAndLeavesTheDoor) {
+    const GameConfig config = make_config();
+    auto [level, to_chest] = make_chest_level(config);
+    Game game(config, std::move(level));
+    EXPECT_TRUE(game.take_chest_activations().empty());
+    EXPECT_EQ(game.activate(to_chest), Activation::kChest);
+    EXPECT_EQ(game.activate(to_chest), Activation::kChest);
+    EXPECT_EQ(game.take_chest_activations(), (std::vector<std::size_t>{0, 0}));
+    EXPECT_TRUE(game.take_chest_activations().empty());
+    EXPECT_TRUE(game.take_door_moves().empty());
+    // The chest is below the view, which reaches the door above it.
+    EXPECT_EQ(game.activate(), Activation::kOpened);
+    EXPECT_TRUE(game.take_chest_activations().empty());
+}
+
+TEST(GameTest, ClickingAChestActivatesItAndTheNextLevelDropsItsActivations) {
+    const GameConfig config = make_config();
+    auto [level, to_chest] = make_chest_level(config);
+    Game game(config, std::move(level));
+    game.update({.click = to_chest}, 0.0f);
+    EXPECT_EQ(game.take_chest_activations(), (std::vector<std::size_t>{0}));
+    game.update({.click = to_chest}, 0.0f);
+    game.next_level();
+    EXPECT_TRUE(game.take_chest_activations().empty());
 }
 
 TEST(GameTest, ActivationNeedsANewPressOfTheKey) {
