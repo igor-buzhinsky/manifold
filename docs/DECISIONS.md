@@ -603,7 +603,7 @@ Drawbacks:
 ## 2026-11-21: Small chests as objects of their own, placed at walls
 
 Status: **ACCEPTED**. Done in v0.4. Since the asset mapping (see below), activating a chest plays its sound, and
-ray casts hit chests.
+ray casts hit chests. Since the inventory (see below), chests hold items, which activating a chest shows.
 
 Decision: a small chest is an object of its own in the world (`World::chests()`), with a position on the floor, the
 direction it faces and its look, not a decoration of a wall or of a floor tile. Level generation puts it at a wall, 5 cm
@@ -762,7 +762,8 @@ Drawbacks:
 
 ## 2026-11-25: Assets referred to by keys of a mapping file, and by indices in game objects
 
-Status: **ACCEPTED**. Done in v0.4.
+Status: **ACCEPTED**. Done in v0.4. Since the inventory (see below), the mapping also has `ITEM_ICONS`, an object
+from the keys of items to their icons, which aren't keys of `AssetKey`, so that items are added without code.
 
 Decision: `assets/asset_mapping.json` says which files the game uses for what. Each of its keys, such as
 `DOOR_OPEN_SOUNDS`, `CHEST_OPEN_SOUNDS`, `LEVEL_TEXTURES_GRASS` or `PORTRAITS_MALE`, has a path or a list of paths,
@@ -808,3 +809,54 @@ Drawbacks:
   removed or reordered before its own, and none if the key has fewer files than its index.
 - The mapping is long: about 240 files, most of them textures of stone.
 - Old saves (format version 4) are refused, since they store portraits as paths.
+
+## 2026-11-25: Items chosen for chests by value, in one inventory of the party without stacking
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: the kinds of items are listed in `assets/items.json`, each with a key, a name, a value, a weight in grams and
+a chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. When a level is generated, each
+chest gets a value at random, uniformly from half to one and a half of its mean (1000 for a wooden chest, 4000 for a
+golden one), and items are added one by one: each is chosen with a probability proportional to its chance among the
+items whose value still fits into what is left, until none fits or the chest holds 8. The value is never shown to the
+player. The party shares one inventory, a list of items without a limit of weight, which is saved by the keys of the
+items at the start of each level; what chests hold isn't saved, since a loaded level starts again. The inventory is a
+scrollable grid of cells, one item per cell. An item is moved by selecting it with a click and clicking an empty cell,
+which puts it at the end of that grid's list; with a chest open, the two grids are side by side, and Take all moves
+everything. The first items are ten gems: a large diamond is worth 5000, a ruby 4000, an emerald 3000, a sapphire 2500
+and an amethyst 500, a small gem a quarter of its large one, and diamonds have twice the chance of the others.
+
+Gains:
+
+- Value budgets tie what a container holds to how rich it should be, whatever items exist: a new item needs only its
+  value and chance, and golden chests stay richer than wooden ones. Monsters and other containers can use the same
+  filling with their own values.
+- Chances tune how common an item is independently of its value, and they needn't add up to anything, so adding an
+  item doesn't change the others' numbers.
+- Items, values and icons change without building the game, as assets do.
+- Saving item keys keeps saves valid when items are added or reordered.
+- One shared inventory is simple to use and to save, and fits a party that moves as one.
+
+Rejected alternatives:
+
+- **Loot tables per container** (fixed lists of items with probabilities): each container would need its own table,
+  and every new item would mean editing all of them.
+- **Picking a number of items first, and then which**: the value of a chest would vary with the items' values instead
+  of being bounded.
+- **Realistic prices**, where an amethyst is worth about a hundredth of a diamond: chests would fill up with dozens of
+  amethysts before nothing else fits. Amethyst is valued as it was when it counted among the precious stones, and
+  chests hold at most 8 items.
+- **An inventory for each character**: needs moving items between characters before there is any reason to, such as
+  equipment or a limit of weight per character.
+- **Drag and drop**: more code for the same moves; selecting and clicking also works with the keys.
+- **Stacking items of a kind in one cell**: worth doing, but later, see ROADMAP.md.
+
+Drawbacks:
+
+- With the gems so far, a wooden chest worth less than 625 holds only amethysts, and the cheapest item decides how
+  much of a chest's value is left unused: up to 124.
+- An item can only be put at the end of a grid; there is no way to put it into a cell in between.
+- Without stacking, many small items fill the grid quickly, and it must be scrolled.
+- What a chest holds depends on the order and number of the items in the file, so changing them changes the chests of
+  seeds, as remapping assets changes the assets of seeds.
+- Items taken from chests during a level are lost when the level is loaded again, as everything else of the level is.

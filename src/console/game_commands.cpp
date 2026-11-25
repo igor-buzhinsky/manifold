@@ -16,6 +16,8 @@
 
 #include "console/console.hpp"
 #include "game.hpp"
+#include "items/inventory.hpp"
+#include "items/item_catalog.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "party/party.hpp"
@@ -24,6 +26,7 @@
 #include "render/viewport.hpp"
 #include "util/asset_mapping.hpp"
 #include "util/log.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/player.hpp"
 
@@ -474,6 +477,104 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                 });
 }
 
+/// Describes the items of an inventory for the console, one per line, each after a line break: its index, key, name,
+/// weight and value, see ItemType.
+std::string describe_items(const Inventory& inventory, const ItemCatalog& catalog) {
+    std::string list;
+    for (std::size_t i = 0; i < inventory.size(); ++i) {
+        const ItemType& item = catalog.at(inventory.items()[i]);
+        list += std::format("\n{}: {} ({}), weight {}, value {}", i, item.key, item.name, format_weight(item.weight),
+                            item.value);
+    }
+    return list;
+}
+
+/// Parses the number of a chest of the level.
+///
+/// \throws CommandError if there is no such chest.
+std::size_t parse_chest(const std::string& text, const Game& game) {
+    const int index = parse_int_argument(text);
+    if (index < 0 || static_cast<std::size_t>(index) >= game.world().chests().size()) {
+        throw CommandError(std::format("no such chest: {}, the level has {}", text, game.world().chests().size()));
+    }
+    return static_cast<std::size_t>(index);
+}
+
+/// Adds the commands that inspect and change items: items, inventory, give, chests and open.
+void add_item_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
+    console.add("items", "items", "Lists all kinds of items: their keys, names, weights, values and chances.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "items");
+                    std::string list;
+                    for (const ItemType& item : game.items().items()) {
+                        list += std::format("\n{} ({}), weight {}, value {}, chance {}", item.key, item.name,
+                                            format_weight(item.weight), item.value, item.chance);
+                    }
+                    log_info("{} kinds of items{}", game.items().items().size(), list);
+                });
+    console.add("inventory", "inventory", "Lists the party's items, with their total weight and value.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "inventory");
+                    const Inventory& inventory = game.inventory();
+                    log_info("The party carries {} items, weight {}, value {}{}", inventory.size(),
+                             format_weight(inventory.weight(game.items())), inventory.value(game.items()),
+                             describe_items(inventory, game.items()));
+                });
+
+    const std::string give_usage = "give ITEM [COUNT]";
+    console.add("give", give_usage, "Gives the party COUNT items of the key ITEM, see items, by default one (a cheat).",
+                [&game, give_usage](std::span<const std::string> arguments) {
+                    if (arguments.size() != 1) {
+                        expect_count(arguments, 2, give_usage);
+                    }
+                    const std::optional<ItemId> item = game.items().find(arguments[0]);
+                    if (!item) {
+                        throw CommandError("no such item: " + arguments[0]);
+                    }
+                    const int count = arguments.size() == 2 ? parse_int_argument(arguments[1]) : 1;
+                    if (count < 1) {
+                        throw CommandError("count must be positive: " + arguments[1]);
+                    }
+                    for (int i = 0; i < count; ++i) {
+                        game.inventory().add(*item);
+                    }
+                    log_info("The party gets {} x {}", count, game.items().at(*item).name);
+                });
+
+    console.add("chests", "chests",
+                "Lists the chests of the level: what they are made of, where they stand, and their "
+                "items.",
+                [&game](std::span<const std::string> arguments) {
+                    expect_count(arguments, 0, "chests");
+                    const std::span<const Chest> chests = game.world().chests();
+                    std::string list;
+                    for (std::size_t i = 0; i < chests.size(); ++i) {
+                        const Chest& chest = chests[i];
+                        const Inventory& inventory = game.chest_inventories()[i];
+                        list += std::format("\nChest {}: {} at ({:.2f}, {:.2f}, {:.2f}), {} items, value {}{}", i,
+                                            chest_look_name(chest.look), chest.base_center.x, chest.base_center.y,
+                                            chest.base_center.z, inventory.size(), inventory.value(game.items()),
+                                            describe_items(inventory, game.items()));
+                    }
+                    log_info("{} chests{}", chests.size(), list);
+                });
+
+    const std::string open_usage = "open inventory|chest N";
+    console.add("open", open_usage,
+                "Shows the party's items, as I does, or those of chest N next to them, as activating it does.",
+                [&game, &queue, &state, open_usage](std::span<const std::string> arguments) {
+                    if (arguments.size() == 1 && arguments[0] == "inventory") {
+                        state.inventory = InventoryRequest{};
+                    } else if (arguments.size() == 2 && arguments[0] == "chest") {
+                        state.inventory = InventoryRequest{.chest = parse_chest(arguments[1], game)};
+                    } else {
+                        throw CommandError("usage: " + open_usage);
+                    }
+                    // As with `menu`, the main loop opens it at the start of the next frame.
+                    queue.wait(1);
+                });
+}
+
 }  // namespace
 
 Camera view_camera(const ViewSettings& view, const Player& player) {
@@ -485,6 +586,7 @@ void add_game_commands(Console& console, CommandQueue& queue, Game& game, Consol
     add_door_commands(console, game);
     add_activate_command(console, game);
     add_party_commands(console, game);
+    add_item_commands(console, queue, game, state);
     add_view_commands(console, queue, state);
 }
 

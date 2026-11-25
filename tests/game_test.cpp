@@ -7,6 +7,7 @@
 #include <numbers>
 #include <optional>
 #include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -16,12 +17,14 @@
 #include <gtest/gtest.h>
 
 #include "door_level.hpp"
+#include "items/inventory.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
 #include "save/saved_game.hpp"
+#include "test_items.hpp"
 #include "util/asset_mapping.hpp"
 #include "world/chest.hpp"
 #include "world/door.hpp"
@@ -1108,6 +1111,63 @@ TEST(GameTest, ClickingAChestActivatesItAndTheNextLevelDropsItsActivations) {
     game.update({.click = to_chest}, 0.0f);
     game.next_level();
     EXPECT_TRUE(game.take_chest_activations().empty());
+}
+
+TEST(GameTest, ChestsHoldTheirItemsUntilTheNextLevel) {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Level level = make_door_level();
+    level.world.add_chest({.base_center = {0.0f, -1.0f, 0.0f}, .look = ChestLook::kGold, .items = {kPebble, kCrown}});
+    level.world.add_chest({.base_center = {2.0f, -1.0f, 0.0f}});
+    Game game(config, std::move(level));
+    ASSERT_EQ(game.chest_inventories().size(), 2U);
+    EXPECT_EQ(game.chest_inventories()[0], Inventory({kPebble, kCrown}));
+    EXPECT_TRUE(game.chest_inventories()[1].empty());
+    EXPECT_EQ(game.items(), make_test_items());
+    move_item(game.chest_inventory(0), 1, game.inventory());
+    EXPECT_EQ(game.chest_inventories()[0], Inventory({kPebble}));
+    EXPECT_EQ(game.inventory(), Inventory({kCrown}));
+    EXPECT_THROW(static_cast<void>(game.chest_inventory(2)), std::out_of_range);
+    // The next level has its own chests, and the party keeps its items.
+    game.next_level();
+    ASSERT_EQ(game.chest_inventories().size(), game.world().chests().size());
+    for (std::size_t i = 0; i < game.world().chests().size(); ++i) {
+        EXPECT_EQ(game.chest_inventories()[i], Inventory(game.world().chests()[i].items));
+    }
+    EXPECT_EQ(game.inventory(), Inventory({kCrown}));
+}
+
+TEST(GameTest, ItemsAreSavedAtTheStartOfTheLevelAndANewGameHasNone) {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Game game(config, 3, LayoutKind::kDebug);
+    EXPECT_TRUE(game.inventory().empty());
+    game.inventory().add(kGoldBar);
+    EXPECT_TRUE(game.save_point().inventory.empty());
+    game.next_level();
+    game.inventory().add(kPebble);
+    const SavedGame save = game.save_point();
+    EXPECT_EQ(save.inventory, std::vector<std::string>{"GOLD_BAR"});
+
+    Game loaded(config, 5, LayoutKind::kDebug);
+    loaded.inventory().add(kCrown);
+    loaded.load(save);
+    EXPECT_EQ(loaded.inventory(), Inventory({kGoldBar}));
+    loaded.new_game(7, LayoutKind::kDebug);
+    EXPECT_TRUE(loaded.inventory().empty());
+}
+
+TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Game game(config, 3, LayoutKind::kDebug);
+    SavedGame save = game.save_point();
+    save.inventory = {"PEBBLE", "UNICORN", "CROWN"};
+    testing::internal::CaptureStderr();
+    game.load(save);
+    const std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(game.inventory(), Inventory({kPebble, kCrown}));
+    EXPECT_NE(log.find("[warning] The saved item UNICORN is unknown"), std::string::npos) << log;
 }
 
 TEST(GameTest, ActivationNeedsANewPressOfTheKey) {

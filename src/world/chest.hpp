@@ -2,9 +2,11 @@
 
 #include <cstdint>
 #include <string_view>
+#include <vector>
 
 #include <glm/vec3.hpp>
 
+#include "items/item_catalog.hpp"
 #include "util/asset_index.hpp"
 #include "world/geometry.hpp"
 #include "world/obstacle.hpp"
@@ -20,11 +22,13 @@ enum class ChestLook : std::uint8_t {
 /// Short name of a chest look, for logs and the level info: "wooden" or "golden".
 std::string_view chest_look_name(ChestLook look);
 
+/// What the player sees a chest of `look` called, e.g. over what it holds: "Wooden chest" or "Golden chest".
+std::string_view chest_title(ChestLook look);
+
 /// A small chest that stands on the floor, its back to a wall and a little away from it.
 ///
-/// For now it is a box with a lid of another color on top, and nearly only decoration: it doesn't collide with
-/// anything, and activating it only plays its sound, see
-/// Game::take_chest_activations(). A chest is not part of the wall it stands
+/// For now it is a box with a lid of another color on top: it doesn't collide with anything, and activating it plays
+/// its sound and shows what it holds, see Game::take_chest_activations(). A chest is not part of the wall it stands
 /// at: it keeps its place if the wall goes.
 ///
 /// In its own frame, x runs along its width and y from its back to its front.
@@ -43,6 +47,10 @@ struct Chest {
     ChestLook look = ChestLook::kWood;  ///< What the chest is made of.
     /// The sound it makes when activated: which file of AssetKey::kChestOpenSounds, see generate_level().
     AssetIndex open_sound = 0;
+    /// What it holds when the level starts, see fill_chest() and generate_level(). What it holds later is kept by the
+    /// game, see Game::chest_inventory().
+    // Without the initializer, GCC warns about chests that leave it out.
+    std::vector<ItemId> items = {};  // NOLINT(readability-redundant-member-init)
 
     /// A chest that stands at a wall, centered on a point, with kWallGap between its back and the wall.
     ///

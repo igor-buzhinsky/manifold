@@ -9,6 +9,8 @@ struct Rect {
     glm::vec2 top_left{0.0f};
     glm::vec2 size{0.0f};  ///< Width and height, not negative.
 
+    bool operator==(const Rect&) const = default;
+
     /// Whether `point` is inside, counting the top and left edges but not the bottom and right ones, so that
     /// rectangles side by side never both contain a point.
     bool contains(const glm::vec2& point) const {

@@ -18,7 +18,7 @@ one file can be listed under several keys:
 | `FOOTSTEP_SOUNDS_GRASS`, `_WOOD`, `_METAL`, `_STONE` | OGG footsteps in levels of each texture kind |
 | `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
 | `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
-| `ITEM_ICONS` | Not a list but an object from the key of each item to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one shows an empty cell |
+| `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one shows an empty cell |
 
 Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives
@@ -27,6 +27,30 @@ positions. The number of files of each key decides the random choices, so adding
 and textures of seeds and the portraits of new parties. Saved parties keep the positions of their portraits, so
 inserting, removing or reordering portraits before a saved one shows another portrait, while adding one at the end
 changes nothing.
+
+## Items
+
+`assets/items.json` lists all kinds of items, so they can be added and changed without building the game again. Each
+field is the key of an item, such as `SMALL_RUBY`, which saves store and `ITEM_ICONS` of the asset mapping gives the
+icon of, with an object of:
+
+- `name`: what the player sees, e.g. `"Small ruby"`.
+- `value`: what the item is worth, a positive integer. The player never sees it.
+- `weight`: in grams, an integer of 0 or more. The game shows weights in kilograms with three decimals, without the
+  unit.
+- `chance`: how often the item is chosen for a chest, relative to the others, a number of 0 or more. The chances
+  needn't add up to 1, and an item with 0 is never chosen.
+
+An item that lacks a field or has a wrong one is left out, with a warning in the log. The order of the file is the
+order in which `items` lists them, and it decides the random choices of chests, as the number of items does: changing
+the items changes what the chests of seeds hold.
+
+Level generation fills each chest, with random numbers of its own, so the rest of the level doesn't change: it chooses
+the chest's value at random, from 500 to 1500 for a wooden chest and from 2000 to 6000 for a golden one, and then adds
+items one by one, each chosen by its chance among those that keep the total value within the chest's. It stops when
+no item fits, or at 8 items. The gems are worth 5000 (diamond), 4000 (ruby), 3000 (emerald), 2500 (sapphire) and 500
+(amethyst) when large, a quarter of that when small, and weigh 4 grams when large and 1 gram when small. Diamonds have
+twice the chance of the others.
 
 ## Console
 
@@ -89,6 +113,11 @@ it types can't be typed.
 | `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
 | `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells in [GAME_MANUAL.md](GAME_MANUAL.md#spells)). Fails if the party has less mana than it costs |
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
+| `items` | List all kinds of items: their keys, names, weights, values and chances, see [Items](#items) |
+| `inventory` | List the party's items, each with its index, key, name, weight and value, and their total weight and value |
+| `give ITEM [COUNT]` | Give the party COUNT items (by default one) of the key ITEM, see `items`. A cheat, e.g. to fill the inventory |
+| `chests` | List the chests of the level: their numbers, what they are made of, where they stand, and the items they hold now with their total value |
+| `open inventory\|chest N` | Show the party's inventory, as I does, or chest N (see `chests`) with the party's items, as activating it does, instead of an inventory that is open. The commands after it run in the next frame, when it is open, so that a screenshot shows it. `menu close` closes it |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |
 | `cutaway off` | Show everything again |

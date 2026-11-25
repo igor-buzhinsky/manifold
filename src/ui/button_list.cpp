@@ -82,14 +82,21 @@ std::optional<std::size_t> ButtonList::handle(const UiEvent& event, const Placem
                 break;
             case NavKey::kConfirm:
                 return focus_;
+            case NavKey::kLeft:
+            case NavKey::kRight:
             case NavKey::kCancel:
+            case NavKey::kInventory:
+            case NavKey::kTakeAll:
                 break;
         }
         return std::nullopt;
     }
-    const auto& pointer = std::get<PointerEvent>(event);
-    const std::optional<std::size_t> under = button_at(pointer.position, placement);
-    switch (pointer.action) {
+    const auto* pointer = std::get_if<PointerEvent>(&event);
+    if (pointer == nullptr) {
+        return std::nullopt;  // The buttons don't scroll.
+    }
+    const std::optional<std::size_t> under = button_at(pointer->position, placement);
+    switch (pointer->action) {
         case PointerAction::kMove:
             if (under) {
                 focus_ = under;

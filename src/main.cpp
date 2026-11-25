@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <random>
 #include <span>
@@ -35,6 +36,7 @@
 #include "console/console_window.hpp"
 #include "console/game_commands.hpp"
 #include "game.hpp"
+#include "items/item_catalog.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
@@ -58,6 +60,7 @@
 #include "ui/crosshair.hpp"
 #include "ui/debug_overlay.hpp"
 #include "ui/game_menus.hpp"
+#include "ui/inventory_screen.hpp"
 #include "ui/mouse_look.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/party_hud.hpp"
@@ -72,6 +75,7 @@
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
 #include "util/random.hpp"
+#include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/torch.hpp"
 #include "world/world.hpp"
@@ -144,10 +148,16 @@ std::uint64_t random_seed() {
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
+/// What the game reads from the directory of its assets.
+struct GameAssets {
+    manifold::AssetMapping mapping;  ///< Which files the game uses for what.
+    manifold::ItemCatalog items;     ///< All kinds of items.
+};
+
 /// Finds the game's assets, see manifold::find_assets_dir(): the `assets` directory next to the executable, or else
-/// the one in the source tree, whose path CMake sets, and reads their mapping, see manifold::AssetMapping::load(). Logs
-/// which directory is used.
-manifold::AssetMapping load_assets() {
+/// the one in the source tree, whose path CMake sets, and reads their mapping, see manifold::AssetMapping::load(), and
+/// the items, see manifold::ItemCatalog::load(). Logs which directory is used.
+GameAssets load_assets() {
     // SDL keeps the string, so it isn't freed.
     const char* base_path = SDL_GetBasePath();
     if (base_path == nullptr) {
@@ -156,7 +166,7 @@ manifold::AssetMapping load_assets() {
     const std::filesystem::path assets = manifold::find_assets_dir(
         base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path(), MANIFOLD_ASSETS_DIR);
     manifold::log_info("Assets: {}", assets.string());
-    return manifold::AssetMapping::load(assets);
+    return {.mapping = manifold::AssetMapping::load(assets), .items = manifold::ItemCatalog::load(assets)};
 }
 
 /// Loads the texture of the game's current level, see manifold::Level::texture. If it can't be used, a plain grey one
@@ -188,10 +198,13 @@ struct ObjectSounds {
     manifold::SoundSet chest_open;
 };
 
-/// Plays the sounds of the doors that started to move and of the chests that were activated since the last call, see
-/// manifold::Game::take_door_moves() and manifold::Game::take_chest_activations(). Each door and chest has its own
+/// Plays the sounds of the doors that started to move since the last call, see manifold::Game::take_door_moves(), and
+/// of the chests that were activated, see manifold::Game::take_chest_activations(). Each door and chest has its own
 /// sounds, see manifold::DoorSounds and manifold::Chest::open_sound.
-void play_object_sounds(manifold::Game& game, const ObjectSounds& sounds, manifold::AudioOutput& audio) {
+///
+/// \param chests The indices of the chests that were activated, into manifold::World::chests().
+void play_object_sounds(manifold::Game& game, std::span<const std::size_t> chests, const ObjectSounds& sounds,
+                        manifold::AudioOutput& audio) {
     for (const manifold::DoorMove& move : game.take_door_moves()) {
         const manifold::DoorSounds& door = game.world().doors()[move.door].sounds;
         const manifold::Sound* sound = move.open ? sounds.door_open.get(door.open) : sounds.door_close.get(door.close);
@@ -199,7 +212,7 @@ void play_object_sounds(manifold::Game& game, const ObjectSounds& sounds, manifo
             audio.play(*sound);
         }
     }
-    for (const std::size_t chest : game.take_chest_activations()) {
+    for (const std::size_t chest : chests) {
         if (const manifold::Sound* sound = sounds.chest_open.get(game.world().chests()[chest].open_sound)) {
             audio.play(*sound);
         }
@@ -304,6 +317,45 @@ private:
     std::vector<std::optional<manifold::Portrait>> portraits_;
     /// The image of each character loaded last, or nothing if it has none.
     std::vector<std::optional<manifold::ImageTexture>> images_;
+};
+
+/// The icons of all kinds of items, loaded once, which draws those that the screens of the interface show.
+///
+/// Needs a current OpenGL 4.1 core context, see manifold::Window for its whole lifetime.
+class ItemIcons {
+public:
+    /// Loads the icon of each item of `items`, see manifold::AssetMapping::item_icon(). An item without one, or whose
+    /// icon can't be loaded, shows none, after a warning.
+    ItemIcons(const manifold::AssetMapping& assets, const manifold::ItemCatalog& items) {
+        for (const manifold::ItemType& item : items.items()) {
+            std::optional<manifold::ImageTexture>& texture = textures_.emplace_back();
+            const std::optional<std::filesystem::path> path = assets.item_icon(item.key);
+            if (!path) {
+                manifold::log_warning("Item {} has no icon in {}", item.key, manifold::kItemIconsKey);
+                continue;
+            }
+            if (const std::optional<manifold::Image> image = manifold::load_image(*path)) {
+                texture.emplace(*image);
+            }
+        }
+    }
+
+    /// Draws `icons` into `viewport`, over what is there.
+    void draw(std::span<const manifold::IconPlacement> icons, const manifold::Viewport& viewport) const {
+        for (const manifold::IconPlacement& icon : icons) {
+            if (icon.item >= textures_.size()) {
+                continue;
+            }
+            if (const std::optional<manifold::ImageTexture>& texture = textures_[icon.item]) {
+                image_renderer_.draw(*texture, icon.area, viewport);
+            }
+        }
+    }
+
+private:
+    manifold::ImageRenderer image_renderer_;
+    /// The icon of each item, by manifold::ItemId, or nothing if it has none.
+    std::vector<std::optional<manifold::ImageTexture>> textures_;
 };
 
 /// Logs the seed, the level and the player.
@@ -556,6 +608,10 @@ private:
 constexpr SDL_Scancode kConsoleKey = SDL_SCANCODE_GRAVE;
 /// The key that shows and hides the debug overlay.
 constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
+/// The key that opens and closes the party's inventory.
+constexpr SDL_Keycode kInventoryKey = SDLK_I;
+/// The key that takes all items of an open chest.
+constexpr SDL_Keycode kTakeAllKey = SDLK_T;
 /// The key that loads the saved game.
 constexpr SDL_Keycode kLoadKey = SDLK_F9;
 /// The keys that cast spells. Like the movement keys, they are the keys at the places of C and L on US keyboards.
@@ -610,6 +666,8 @@ struct Ui {
     glm::vec2 mouse_motion{0.0f};
     /// The spells whose keys were pressed in this frame while no screen was open, in order.
     std::vector<manifold::Spell> casts;
+    /// manifold::Game::level_starts() of the level whose things the screens may show, see close_old_level_screens().
+    int level_starts = 0;
 
     /// Passes an event to the screen on top, unless the screens already asked for something in this frame.
     void handle(const manifold::UiEvent& event) {
@@ -626,10 +684,18 @@ std::optional<manifold::NavKey> nav_key(SDL_Keycode key) {
             return manifold::NavKey::kUp;
         case SDLK_DOWN:
             return manifold::NavKey::kDown;
+        case SDLK_LEFT:
+            return manifold::NavKey::kLeft;
+        case SDLK_RIGHT:
+            return manifold::NavKey::kRight;
         case SDLK_RETURN:
         case SDLK_KP_ENTER:
         case SDLK_SPACE:
             return manifold::NavKey::kConfirm;
+        case kInventoryKey:
+            return manifold::NavKey::kInventory;
+        case kTakeAllKey:
+            return manifold::NavKey::kTakeAll;
         default:
             return std::nullopt;
     }
@@ -694,8 +760,9 @@ void handle_console_key(const SDL_KeyboardEvent& key, manifold::ConsoleWindow& c
 
 /// Handles a key press: the console key; Escape, which closes the console, leaves the screen on top, or asks `state`
 /// for the game menu; the keys of the console window while it is open; those of the screen on top while one is open;
-/// and otherwise the load key, which asks `state` to load the game, the mouse look key, which turns `ui.mouse_look` on
-/// or off, and the keys of spells, which are kept in `ui.casts`.
+/// and otherwise the load key, which asks `state` to load the game, the inventory key, which asks `state` to show the
+/// party's inventory, the mouse look key, which turns `ui.mouse_look` on or off, and the keys of spells, which are kept
+/// in `ui.casts`.
 void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, manifold::ConsoleWindow& console_window,
                      manifold::CommandQueue& commands, manifold::ConsoleState& state, Ui& ui) {
     if (key.scancode == kConsoleKey) {
@@ -716,9 +783,11 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     } else if (console_window.is_open()) {
         handle_console_key(key, console_window, commands);
     } else if (!ui.screens.empty()) {
-        // Holding Up or Down moves on, but holding Enter doesn't choose again.
+        // Holding an arrow key moves on, but holding Enter doesn't choose again, nor do the keys of the inventory.
         const std::optional<manifold::NavKey> nav = nav_key(key.key);
-        if (nav && (!key.repeat || *nav != manifold::NavKey::kConfirm)) {
+        const bool moves = nav == manifold::NavKey::kUp || nav == manifold::NavKey::kDown ||
+                           nav == manifold::NavKey::kLeft || nav == manifold::NavKey::kRight;
+        if (nav && (!key.repeat || moves)) {
             ui.handle(*nav);
         }
     } else if (key.repeat) {
@@ -726,6 +795,8 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     } else if (key.key == kLoadKey) {
         state.load = true;
         state.load_stops_on_error = false;
+    } else if (key.key == kInventoryKey) {
+        state.inventory = manifold::InventoryRequest{};
     } else if (key.scancode == kMouseLookKey) {
         ui.mouse_look = !ui.mouse_look;
         manifold::log_info("Mouse look {}", ui.mouse_look ? "on" : "off");
@@ -746,10 +817,11 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
 }
 
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the
-/// left button and a screen is open. Without a screen, a press of the left button over the picture is kept in
-/// `ui.game_click`, to activate what is there, unless it is on the portraits of the party, the spells in effect or the
-/// bar of mana, see manifold::party_hud_contains() and manifold::spell_hud_contains(). While mouse look is active,
-/// motion is added to `ui.mouse_motion` instead, and a press is kept in `ui.center_click`.
+/// left button and a screen is open, or as a scroll event if it is a turn of the wheel. Without a screen, a press of
+/// the left button over the picture is kept in `ui.game_click`, to activate what is there, unless it is on the
+/// portraits of the party, the spells in effect or the bar of mana, see manifold::party_hud_contains() and
+/// manifold::spell_hud_contains(). While mouse look is active, motion is added to `ui.mouse_motion` instead, and a
+/// press is kept in `ui.center_click`.
 ///
 /// \param game The game, whose party and magic are shown over it.
 void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, Ui& ui, const manifold::Game& game) {
@@ -771,6 +843,13 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
                 ui.game_click = point / size;
             }
         }
+        return;
+    }
+    if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+        const float flip = event.wheel.direction == SDL_MOUSEWHEEL_FLIPPED ? -1.0f : 1.0f;
+        ui.handle(
+            manifold::ScrollEvent{.steps = event.wheel.y * flip,
+                                  .position = picture_point({event.wheel.mouse_x, event.wheel.mouse_y}, window, ui)});
         return;
     }
     std::optional<manifold::PointerEvent> pointer;
@@ -958,10 +1037,11 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
 }
 
 /// Draws the game into the bound framebuffer, as draw_game() does, with the open screens of the interface over it, or
-/// only the screens if one of them hides the game.
+/// only the screens if one of them hides the game. Each screen draws its shapes and then the icons of its items.
 void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-                const PartyPortraits& portraits, const manifold::Game& game, const manifold::ViewSettings& view,
-                const manifold::ScreenStack& screens, const manifold::PixelSize& framebuffer) {
+                const PartyPortraits& portraits, const ItemIcons& icons, const manifold::Game& game,
+                const manifold::ViewSettings& view, const manifold::ScreenStack& screens,
+                const manifold::PixelSize& framebuffer) {
     if (screens.hides_game()) {
         manifold::clear_to_black();
     } else {
@@ -969,7 +1049,11 @@ void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& o
     }
     if (!screens.empty()) {
         const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
-        overlay_renderer.draw(screens.build_mesh({.width = viewport.width, .height = viewport.height}), viewport);
+        for (const manifold::ScreenLayer& layer :
+             screens.build_layers({.width = viewport.width, .height = viewport.height})) {
+            overlay_renderer.draw(layer.mesh, viewport);
+            icons.draw(layer.icons, viewport);
+        }
     }
 }
 
@@ -981,13 +1065,14 @@ void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& o
 /// \param window_size The size of screenshots that don't give their own.
 /// \throws std::runtime_error if a screenshot that stops on error fails.
 void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRenderer& overlay_renderer,
-                      const PartyPortraits& portraits, const manifold::Game& game, const manifold::ScreenStack& screens,
-                      std::span<const manifold::ScreenshotRequest> requests, const manifold::PixelSize& window_size) {
+                      const PartyPortraits& portraits, const ItemIcons& icons, const manifold::Game& game,
+                      const manifold::ScreenStack& screens, std::span<const manifold::ScreenshotRequest> requests,
+                      const manifold::PixelSize& window_size) {
     for (const manifold::ScreenshotRequest& request : requests) {
         const manifold::PixelSize size = request.size.value_or(window_size);
         try {
             const manifold::OffscreenFramebuffer framebuffer(size);
-            draw_scene(renderer, overlay_renderer, portraits, game, request.view, screens, size);
+            draw_scene(renderer, overlay_renderer, portraits, icons, game, request.view, screens, size);
             manifold::save_screenshot(request.path, size.width, size.height);
             manifold::log_info("Saved {} ({} x {})", request.path, size.width, size.height);
         } catch (const std::runtime_error& error) {
@@ -1026,6 +1111,44 @@ void open_menu(manifold::MenuRequest request, manifold::ScreenStack& screens, bo
     }
 }
 
+/// Closes the screens that show something of the level, such as what a chest holds, if another level started since they
+/// were opened, see manifold::Screen::shows_level().
+void close_old_level_screens(Ui& ui, const manifold::Game& game) {
+    if (game.level_starts() != ui.level_starts) {
+        ui.screens.close_level_screens();
+        ui.level_starts = game.level_starts();
+    }
+}
+
+/// Opens the inventory that `request` asks for over the open screens, instead of another one that is open. A chest
+/// that the level doesn't have is logged as a warning.
+void open_inventory(const manifold::InventoryRequest& request, Ui& ui, manifold::Game& game) {
+    close_old_level_screens(ui, game);
+    ui.screens.close_level_screens();
+    if (!request.chest) {
+        ui.screens.push(std::make_unique<manifold::InventoryScreen>(game.items(), game.inventory()));
+        return;
+    }
+    if (*request.chest >= game.world().chests().size()) {
+        manifold::log_warning("The level has no chest {}", *request.chest);
+        return;
+    }
+    const manifold::Chest& chest = game.world().chests()[*request.chest];
+    ui.screens.push(std::make_unique<manifold::InventoryScreen>(game.items(), game.inventory(),
+                                                                game.chest_inventory(*request.chest),
+                                                                std::string(manifold::chest_title(chest.look))));
+}
+
+/// Plays the sounds of the doors and chests of this frame, see play_object_sounds(), and shows what the chest that was
+/// activated holds, the last one if there were several.
+void follow_objects(manifold::Game& game, Ui& ui, const ObjectSounds& sounds, manifold::AudioOutput& audio) {
+    const std::vector<std::size_t> chests = game.take_chest_activations();
+    play_object_sounds(game, chests, sounds, audio);
+    if (!chests.empty()) {
+        open_inventory({.chest = chests.back()}, ui, game);
+    }
+}
+
 /// Does what a screen of the interface asked for. Loading or starting a new game closes all screens, unless it fails,
 /// which is logged.
 ///
@@ -1053,7 +1176,8 @@ void apply_ui_command(manifold::UiCommand command, manifold::ScreenStack& screen
 }
 
 /// Does what was asked for since the last frame, at the start of a frame: what a screen of the interface asked for,
-/// the menu that Escape or the `menu` command asked for, and loading. Saves the new game that the start menu offered
+/// the menu that Escape or the `menu` command asked for, loading, and the inventory that I or the `open` command asked
+/// for. Saves the new game that the start menu offered
 /// once no screen is open.
 ///
 /// \param layout The layout of the first level of a new game, if given on the command line.
@@ -1075,6 +1199,10 @@ void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, 
     if (ui.screens.empty()) {
         level.save_deferred(game);
     }
+    // The inventory opens over the menus that are open, and in the loaded level.
+    if (const std::optional<manifold::InventoryRequest> inventory = std::exchange(state.inventory, std::nullopt)) {
+        open_inventory(*inventory, ui, game);
+    }
 }
 
 /// Runs the game until the player quits or a console command does.
@@ -1090,9 +1218,11 @@ void run(const Options& options) {
     });
     const LogListenerReset reset_log_listener;
 
-    const manifold::AssetMapping assets = load_assets();
+    const GameAssets game_assets = load_assets();
+    const manifold::AssetMapping& assets = game_assets.mapping;
     manifold::GameConfig config;
     config.level.assets = assets.counts();
+    config.level.items = game_assets.items;
     manifold::Game game(config, options.seed.value_or(random_seed()), options.layout);
 
     const std::optional<std::filesystem::path> data_dir = user_data_dir();
@@ -1110,6 +1240,7 @@ void run(const Options& options) {
     FootstepSounds footsteps(assets);
     const manifold::OverlayRenderer overlay_renderer;
     PartyPortraits portraits(assets);
+    const ItemIcons icons(assets, game.items());
     // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
     // mostly test the game, so they leave the player's save alone. If there is a save, the player is asked first
     // whether to continue it, and the new game is saved only once the start menu is closed without continuing.
@@ -1120,6 +1251,7 @@ void run(const Options& options) {
     Ui ui;
     ui.mouse_look = settings.mouse_look && !scripted;
     ui.mouse_sensitivity = settings.mouse_sensitivity;
+    ui.level_starts = game.level_starts();
     if (ask) {
         ui.screens.push(manifold::make_start_menu(true));
     }
@@ -1165,7 +1297,8 @@ void run(const Options& options) {
         ui.casts.clear();
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
-        play_object_sounds(game, object_sounds, audio);
+        close_old_level_screens(ui, game);
+        follow_objects(game, ui, object_sounds, audio);
         footsteps.play(game, audio);
         // A new game or a loaded one has another party.
         portraits.follow(game.party());
@@ -1173,7 +1306,7 @@ void run(const Options& options) {
         const manifold::PixelSize window_size = window.framebuffer_size();
         const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
         ui.picture = {.width = viewport.width, .height = viewport.height};
-        draw_scene(level.renderer(), overlay_renderer, portraits, game, state.view, ui.screens, window_size);
+        draw_scene(level.renderer(), overlay_renderer, portraits, icons, game, state.view, ui.screens, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = level.renderer().stats();
         // A screen that hides the game hides the overlay too, whose numbers would be of the last drawing of the game.
@@ -1183,7 +1316,7 @@ void run(const Options& options) {
         if (console_window.is_open()) {
             overlay_renderer.draw(console_window.build_mesh(ui.picture), viewport);
         }
-        take_screenshots(level.renderer(), overlay_renderer, portraits, game, ui.screens, state.screenshots,
+        take_screenshots(level.renderer(), overlay_renderer, portraits, icons, game, ui.screens, state.screenshots,
                          window_size);
         state.screenshots.clear();
         if (state.quit) {

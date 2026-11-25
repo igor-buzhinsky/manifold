@@ -3,10 +3,12 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <utility>
 #include <vector>
 
 #include <glm/vec3.hpp>
 
+#include "items/item_catalog.hpp"
 #include "util/asset_index.hpp"
 #include "world/chest.hpp"
 #include "world/door.hpp"
@@ -127,6 +129,11 @@ public:
     /// \param index Index of the chest in chests().
     /// \throws std::out_of_range if there is no such chest.
     void set_chest_sound(std::size_t index, AssetIndex sound) { chests_.at(index).open_sound = sound; }
+    /// Sets what a chest holds when the level starts.
+    ///
+    /// \param index Index of the chest in chests().
+    /// \throws std::out_of_range if there is no such chest.
+    void set_chest_items(std::size_t index, std::vector<ItemId> items) { chests_.at(index).items = std::move(items); }
     void set_exit(const LevelExit& exit) { exit_ = exit; }
 
 private:

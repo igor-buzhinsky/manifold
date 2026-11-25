@@ -11,9 +11,10 @@
 | Up / Down arrow | Look up / down (at most 40° each way) |
 | Page Up | Jump (0.5 m high under Earth gravity, higher where gravity is weaker). Press again for the next jump. In the air, after a jump or a step off a ledge, the party keeps the horizontal speed and direction it had when it left the ground: the keys don't change them, and turning only turns the view. A wall stops only the part of the movement into it. With noclip or Levitate: fly up |
 | Page Down | With noclip or Levitate: fly down |
-| E | Activate what the center of the view points at, up to 2 m away: open a closed door, open or close a door by aiming at one of its dark frames, or open a chest. Press again for the next activation |
+| E | Activate what the center of the view points at, up to 2 m away: open a closed door, open or close a door by aiming at one of its dark frames, or open a chest to see what it holds (see Inventory below). Press again for the next activation |
 | Mouse | With mouse look on: turn left / right and look up / down (at most 40° each way, as with the keys), see Mouse look below |
 | Left mouse button | Activate what the clicked point of the view shows, as E does when aiming at it: from the eyes, up to 2 m away. The point can be anywhere in the view, also beyond the 40° that the view can be turned up or down. Each click activates once. Clicks on the portraits of the party, or between them, on the spells in effect or between them, and on the bar of mana do nothing, nor do clicks while the console is open, while the debug overlay has the keyboard, and while `camera` shows the view from elsewhere. With mouse look on, a click activates what the center of the view points at, as E does |
+| I | Open or close the party's inventory, see Inventory below |
 | M | Turn mouse look on or off, see Mouse look below |
 | C | Cast Candlelight, see Spells below |
 | L | Cast Levitate, see Spells below |
@@ -73,7 +74,7 @@ below), and M doesn't change the setting, so the next start is as the setting sa
 `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) start with mouse look off, so they
 don't take the mouse; M still turns it on.
 
-While a menu, the console or the debug overlay (F3) is open, mouse look pauses: the pointer comes back, to be used
+While a menu, the inventory, the console or the debug overlay (F3) is open, mouse look pauses: the pointer comes back, to be used
 with them, and the mouse doesn't turn the view. Mouse look goes on again once they are closed. It also lets the
 pointer go while the game's window doesn't have the focus.
 
@@ -135,6 +136,27 @@ already has one. The debug layout (`--layout debug`) has no rooms, and gets no s
 Mana and the spells in effect stay as they are in the next level. The `cast` and `mana` commands of the console cast
 spells and set the mana, see the Console section of [DEBUGGING.md](DEBUGGING.md#console).
 
+## Inventory
+
+The party shares one inventory, which has no limit of weight yet. I opens it over the darkened game, which is paused
+while it is open, as with a menu: a grid of the items, each in a cell of its own, and their total weight. Weights are in
+kilograms, shown without the unit. Items of the same kind aren't stacked yet, so each takes a cell. For now, the only
+items are gems: small and large diamonds, rubies, emeralds, sapphires and amethysts.
+
+Activating a chest opens its items in a grid on the left, with the party's on the right, each narrower. What a chest
+holds is chosen when the level is generated, up to eight items. Items can be moved between the two grids, and they
+stay where they were put while the party is in the level. A level that starts again, e.g. after loading, has its
+chests full again.
+
+| Key | Action |
+|---|---|
+| Left mouse button | On an item: select it, which shows its name and weight at the bottom. On an empty cell: move the selected item to the end of that grid's items, the party's or the chest's, and the items after its old place move up |
+| Arrow keys | Move the selection, from one grid to the other at their edges. Without a selection, select the first item |
+| Enter or Space | With a chest open: move the selected item to the end of the other grid, and select the item that comes into its place |
+| T, or the Take all button | Move all items of the chest to the end of the party's, in their order |
+| Mouse wheel | Scroll the grid under the pointer. Each grid has an empty cell after its items, so that an item can always be put there |
+| Escape or I | Close the inventory |
+
 ## Levels
 
 Each level has an exit: a spinning blue portal cube floating above the floor, whose pulsing light shows
@@ -157,7 +179,8 @@ has its own two sounds, picked when the level is generated.
 Small chests stand at walls. In room levels, each room at least 2 tiles wide and deep, except the one where the player
 starts, has a chest with a chance of 20%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
 or golden with a chance of 20%. Chests don't block the way. Activating one, by looking down at it with E or by clicking
-it, plays the sound of opening it, but there is nothing inside yet.
+it, plays the sound of opening it and shows what it holds next to the party's items, see Inventory above. A golden
+chest holds more than a wooden one, on average.
 
 ## Saving
 
@@ -170,7 +193,7 @@ also replaces it.
 The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
 `~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
 party as it was then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets), gender and hit points, the party's mana and the spells in effect
-with the time left of each), and the layout if it was given with
+with the time left of each, and the keys of the items it carried, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with
 `--layout`. Levels are generated again from their seed, so a save of an older
 version of the game may give another level, or be refused if the save format changed.
 

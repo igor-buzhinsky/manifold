@@ -258,8 +258,9 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
     Blender or taken from free packs. Props don't move, so they can join the level mesh and cast shadows like walls.
     This needs several textures per level, placement rules that keep doorways, ramps, the start and the exit free,
     and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
-  - Items and inventory. Items lying on the level are implemented either as 3D objects (preferred) or billboard
-    sprites. Chests that hold items, opened by activating them.
+  - Items lying on the level, implemented either as 3D objects (preferred) or billboard sprites, which the party can
+    pick up into its inventory. Monsters and other containers that hold items, filled by value as chests are.
+  - **Stacking of items** in the inventory: items of the same kind in one cell, with their number.
   - **Damage from falling**: a fall from high enough hurts the characters of the party.
   - **A single casting sound for spells**: one sound that plays whenever a spell is cast.
 
@@ -269,7 +270,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   debug layout puts one below every third torch, unless an obstacle, a ramp or the exit is in the way. 20% of
   chests are golden, the others wooden. A chest is an object of its own in the world, not a part of a wall or a floor
   tile, so it stays if a wall goes. Activating a chest does nothing yet (since the asset mapping below, it plays the
-  chest's sound). Chests are drawn with the world and cast shadows.
+  chest's sound, and since the inventory below, it shows what the chest holds). Chests are drawn with the world and
+  cast shadows.
 - **Asset mapping** (see [DECISIONS.md](DECISIONS.md)): `assets/asset_mapping.json` lists the files of each use,
   by keys such as `DOOR_OPEN_SOUNDS`, `CHEST_OPEN_SOUNDS` and `LEVEL_TEXTURES_GRASS` (`AssetMapping`), so assets can
   be remapped without building the game again, and one file can serve several uses. Game objects keep the index of
@@ -317,6 +319,17 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   motion turns the view (`mouse_look_rotation()`, `PlayerInput::mouse_rotation`) within the same 40° of pitch, and a
   left click activates at the center, as E does. Menus, the console and the debug overlay pause it, since they need
   the pointer. Runs with `--exec` or `--screenshot` start with it off.
+- **Items and the party's inventory** (see [DECISIONS.md](DECISIONS.md)): `assets/items.json` lists the kinds of
+  items (`ItemCatalog`), each with a name, a value hidden from the player, a weight in grams and a chance, and
+  `ITEM_ICONS` of the asset mapping gives their 64 × 64 icons. For now they are ten gems, small and large, made from
+  "Six grades of gems" (CC-BY 3.0) by `scripts/make_gem_icons.py`. Level generation fills each chest (`fill_chest()`)
+  up to a random value, 500 to 1500 for a wooden chest and 2000 to 6000 for a golden one, with at most 8 items, each
+  chosen by its chance among those that still fit. The party shares one inventory (`Inventory`) without a limit of
+  weight, kept from level to level and saved by the keys of its items. I opens it as a scrollable grid
+  (`InventoryScreen`, `ItemGrid`), with the selected item's name and weight and the total weight; activating a chest
+  shows the chest's grid next to the party's, with a Take all button (T). Items are moved by selecting them and
+  clicking an empty cell, which puts them at the end of that grid, or with Enter; there is no drag and drop. The
+  console has `items`, `inventory`, `give`, `chests` and `open`.
 
 ## Later (unordered)
 

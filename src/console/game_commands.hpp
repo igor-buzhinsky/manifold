@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
@@ -55,6 +56,14 @@ enum class MenuRequest : std::uint8_t {
     kClose,  ///< No menu.
 };
 
+/// Which inventory the `open` command or the inventory key (I) asks the main loop to show, see ConsoleState::inventory.
+struct InventoryRequest {
+    /// The chest of World::chests() whose items to show next to the party's, or nothing for the party's alone.
+    std::optional<std::size_t> chest;
+
+    bool operator==(const InventoryRequest&) const = default;
+};
+
 /// What console commands change, and what they ask the main loop to do.
 struct ConsoleState {
     ViewSettings view;                           ///< How the game is shown.
@@ -74,6 +83,9 @@ struct ConsoleState {
     /// The menu to show instead of those that are open, as the `menu` command asks, or nothing to leave them. The main
     /// loop does it at the start of the next frame and resets this.
     std::optional<MenuRequest> menu;
+    /// The inventory to show over the open screens, as the `open` command asks, or nothing. The main loop does it at
+    /// the start of the next frame and resets this.
+    std::optional<InventoryRequest> inventory;
 };
 
 /// Largest width and height of a screenshot, in pixels.

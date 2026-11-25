@@ -203,6 +203,7 @@ std::string save_to_json(const SavedGame& save) {
         spells.push_back({{"spell", spell_name(active.spell)}, {"remaining", active.remaining}});
     }
     json["spells"] = std::move(spells);
+    json["inventory"] = save.inventory;
     if (save.layout) {
         json["layout"] = std::string(layout_name(*save.layout));
     }
@@ -254,6 +255,19 @@ SavedGame parse_saved_game(std::string_view json) {
         save.party.push_back(parse_character(character));
     }
     save.magic = parse_magic(object);
+
+    // Saves made before the party had items have no inventory, and the meaning of the other fields is the same.
+    if (const auto inventory = object.find("inventory"); inventory != object.end()) {
+        if (!inventory->is_array()) {
+            throw_invalid("inventory", *inventory, "an array of item keys");
+        }
+        for (const nlohmann::json& item : *inventory) {
+            if (!item.is_string()) {
+                throw_invalid("item", item, "an item key");
+            }
+            save.inventory.push_back(item.get<std::string>());
+        }
+    }
 
     if (const auto layout = object.find("layout"); layout != object.end()) {
         if (layout->is_string()) {

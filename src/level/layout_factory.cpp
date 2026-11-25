@@ -13,6 +13,7 @@
 
 #include <glm/geometric.hpp>
 
+#include "items/loot.hpp"
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
@@ -133,6 +134,11 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
     LevelRng chest_rng(seed ^ kChestSoundSeedSalt);
     for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
         level.world.set_chest_sound(i, choose_asset(chest_rng, assets, AssetKey::kChestOpenSounds));
+    }
+    constexpr std::uint64_t kChestItemsSeedSalt = 0x1f83d9abfb41bd6bULL;
+    LevelRng items_rng(seed ^ kChestItemsSeedSalt);
+    for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
+        level.world.set_chest_items(i, fill_chest(config.items, level.world.chests()[i].look, items_rng));
     }
     if (std::optional<LevelExit> exit = level.world.exit()) {
         constexpr std::uint64_t kExitSoundSeedSalt = 0xa54ff53a5f1d36f1ULL;

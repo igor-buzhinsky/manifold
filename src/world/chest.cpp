@@ -22,6 +22,16 @@ std::string_view chest_look_name(ChestLook look) {
     return "unknown";
 }
 
+std::string_view chest_title(ChestLook look) {
+    switch (look) {
+        case ChestLook::kWood:
+            return "Wooden chest";
+        case ChestLook::kGold:
+            return "Golden chest";
+    }
+    return "Chest";
+}
+
 Chest Chest::at_wall(const glm::vec3& wall_point, float yaw, ChestLook look) {
     // The lid reaches out over the back of the body too, so the gap is measured from the lid.
     const float from_wall = kWallGap + kLidOverhang + (kDepth / 2.0f);

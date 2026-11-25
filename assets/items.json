@@ -1,0 +1,62 @@
+{
+  "SMALL_DIAMOND": {
+    "name": "Small diamond",
+    "value": 1250,
+    "weight": 1,
+    "chance": 2.0
+  },
+  "LARGE_DIAMOND": {
+    "name": "Large diamond",
+    "value": 5000,
+    "weight": 4,
+    "chance": 2.0
+  },
+  "SMALL_RUBY": {
+    "name": "Small ruby",
+    "value": 1000,
+    "weight": 1,
+    "chance": 1.0
+  },
+  "LARGE_RUBY": {
+    "name": "Large ruby",
+    "value": 4000,
+    "weight": 4,
+    "chance": 1.0
+  },
+  "SMALL_EMERALD": {
+    "name": "Small emerald",
+    "value": 750,
+    "weight": 1,
+    "chance": 1.0
+  },
+  "LARGE_EMERALD": {
+    "name": "Large emerald",
+    "value": 3000,
+    "weight": 4,
+    "chance": 1.0
+  },
+  "SMALL_SAPPHIRE": {
+    "name": "Small sapphire",
+    "value": 625,
+    "weight": 1,
+    "chance": 1.0
+  },
+  "LARGE_SAPPHIRE": {
+    "name": "Large sapphire",
+    "value": 2500,
+    "weight": 4,
+    "chance": 1.0
+  },
+  "SMALL_AMETHYST": {
+    "name": "Small amethyst",
+    "value": 125,
+    "weight": 1,
+    "chance": 1.0
+  },
+  "LARGE_AMETHYST": {
+    "name": "Large amethyst",
+    "value": 500,
+    "weight": 4,
+    "chance": 1.0
+  }
+}

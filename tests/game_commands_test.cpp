@@ -1,5 +1,6 @@
 #include "console/game_commands.hpp"
 
+#include <format>
 #include <numbers>
 #include <string>
 #include <string_view>
@@ -12,9 +13,11 @@
 #include "console/console.hpp"
 #include "door_level.hpp"
 #include "game.hpp"
+#include "items/inventory.hpp"
 #include "level/level.hpp"
 #include "party/spells.hpp"
 #include "render/camera.hpp"
+#include "test_items.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"
 
@@ -416,6 +419,56 @@ TEST(GameCommandsTest, ActivateAtAPointActsLikeAClick) {
     EXPECT_FLOAT_EQ(fixture.game.doors()[0].target, 1.0f);
     for (const char* command :
          {"activate 0.5", "activate 0.5 0.5 0.5", "activate -0.1 0.5", "activate 0.5 1.1", "activate x 0.5"}) {
+        fixture.expect_error(command);
+    }
+}
+
+/// A game with the items of make_test_items(), and the debug level's chests filled from them.
+Game make_game_with_items() {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    return {config, 1, LayoutKind::kDebug};
+}
+
+TEST(GameCommandsTest, GiveAddsItemsToTheParty) {
+    Fixture fixture(make_game_with_items());
+    fixture.run("give PEBBLE");
+    fixture.run("give GOLD_BAR 2");
+    EXPECT_EQ(fixture.game.inventory(), Inventory({kPebble, kGoldBar, kGoldBar}));
+    for (const char* command : {"give", "give UNICORN", "give PEBBLE 0", "give PEBBLE x", "give PEBBLE 1 2"}) {
+        fixture.expect_error(command);
+    }
+    EXPECT_EQ(fixture.game.inventory().size(), 3U);
+}
+
+TEST(GameCommandsTest, ItemsInventoryAndChestsAreListed) {
+    Fixture fixture(make_game_with_items());
+    ASSERT_FALSE(fixture.game.world().chests().empty());
+    fixture.run("give CROWN");
+    testing::internal::CaptureStderr();
+    fixture.run("items");
+    fixture.run("inventory");
+    fixture.run("chests");
+    const std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_NE(log.find("3 kinds of items\nPEBBLE (Pebble), weight 0.250, value 100, chance 1"), std::string::npos)
+        << log;
+    EXPECT_NE(log.find("The party carries 1 items, weight 1.500, value 200\n0: CROWN (Crown), weight 1.500, value 200"),
+              std::string::npos)
+        << log;
+    EXPECT_NE(log.find(std::format("{} chests\nChest 0: ", fixture.game.world().chests().size())), std::string::npos)
+        << log;
+    fixture.expect_error("inventory 1");
+}
+
+TEST(GameCommandsTest, OpenAsksForAnInventoryInTheNextFrame) {
+    Fixture fixture(make_game_with_items());
+    fixture.run("open inventory");
+    EXPECT_EQ(fixture.state.inventory, InventoryRequest{});
+    fixture.run("open chest 0");
+    EXPECT_EQ(fixture.state.inventory, InventoryRequest{.chest = 0});
+    const std::string last = std::to_string(fixture.game.world().chests().size());
+    for (const std::string& command :
+         std::vector<std::string>{"open", "open chest", "open chest -1", "open chest " + last, "open door 0"}) {
         fixture.expect_error(command);
     }
 }
