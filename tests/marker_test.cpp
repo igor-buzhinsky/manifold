@@ -23,8 +23,7 @@ TEST(MarkerTest, ArrowLiesFlatAboveFeetAndPointsAlongYaw) {
         EXPECT_LT(corner.z, feet.z + 0.1f);
     }
     // The tip is the farthest point along the yaw, half the length ahead of the feet.
-    const auto tip =
-        std::max_element(arrow.begin(), arrow.end(), [](const glm::vec3& a, const glm::vec3& b) { return a.y < b.y; });
+    const auto tip = std::ranges::max_element(arrow, [](const glm::vec3& a, const glm::vec3& b) { return a.y < b.y; });
     EXPECT_NEAR(tip->x, feet.x, 1e-5f);
     EXPECT_NEAR(tip->y, feet.y + (kArrowLength / 2.0f), 1e-5f);
 }

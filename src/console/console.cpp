@@ -105,7 +105,10 @@ Console::Console() {
 }
 
 void Console::add(const std::string& name, std::string usage, std::string help, Handler handler) {
-    if (!commands_.try_emplace(name, Command{std::move(usage), std::move(help), std::move(handler)}).second) {
+    if (!commands_
+             .try_emplace(name,
+                          Command{.usage = std::move(usage), .help = std::move(help), .handler = std::move(handler)})
+             .second) {
         throw std::invalid_argument("console command added twice: " + name);
     }
 }
