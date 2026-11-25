@@ -164,16 +164,16 @@ manifold::AssetMapping load_assets() {
 manifold::Image load_texture_of_level(const manifold::Game& game, const manifold::AssetMapping& assets) {
     const manifold::LevelTexture& texture = game.level().texture;
     const manifold::AssetKey key = manifold::level_textures_key(texture.kind);
-    const std::optional<std::filesystem::path> path = assets.path(key, texture.index);
-    std::optional<manifold::Image> image = path ? manifold::load_level_texture(*path) : std::nullopt;
-    if (!image) {
-        manifold::log_warning("Texture {} {} can't be used, so the level is plain grey", manifold::asset_key_name(key),
-                              texture.index);
-        return manifold::fallback_texture();
+    if (const std::optional<std::filesystem::path> path = assets.path(key, texture.index)) {
+        if (std::optional<manifold::Image> image = manifold::load_level_texture(*path)) {
+            manifold::log_info("Texture: {} ({}x{}), kind {}", path->string(), image->width, image->height,
+                               manifold::texture_kind_name(texture.kind));
+            return std::move(*image);
+        }
     }
-    manifold::log_info("Texture: {} ({}x{}), kind {}", path->string(), image->width, image->height,
-                       manifold::texture_kind_name(texture.kind));
-    return std::move(*image);
+    manifold::log_warning("Texture {} {} can't be used, so the level is plain grey", manifold::asset_key_name(key),
+                          texture.index);
+    return manifold::fallback_texture();
 }
 
 /// The sounds of doors and chests, loaded once for all levels.
