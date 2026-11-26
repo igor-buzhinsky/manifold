@@ -22,14 +22,15 @@ struct ItemType {
     /// What the item is worth, which chooses what containers hold, see fill_container(). Hidden from the player.
     int value = 0;
     int weight = 0;  ///< In grams, see format_weight().
-    /// How often the item is chosen for a container, relative to the other items that fit, see fill_container(). The
-    /// chances of all items needn't add up to 1. An item with no chance is never put into a container.
+    /// How often the item is chosen for a container, relative to the other items in the container's range of values,
+    /// see fill_container(). The chances of all items needn't add up to 1. An item with no chance is never put into a
+    /// container.
     double chance = 0.0;
 
     bool operator==(const ItemType&) const = default;
 };
 
-/// Name of the file of the items, in the directory of the assets.
+/// Name of the file of the items, in the directory of the game's data, see kDataDirName.
 inline constexpr std::string_view kItemsFileName = "items.json";
 
 /// All kinds of items of the game, read from a JSON file, so that items can be added and changed without building the
@@ -56,9 +57,9 @@ public:
     /// is left out.
     static ItemCatalog parse(std::string_view json, std::string_view source);
 
-    /// Reads the items of the game: kItemsFileName in `assets_dir`, see parse(). A file that can't be read gives a
+    /// Reads the items of the game: kItemsFileName in `data_dir`, see parse(). A file that can't be read gives a
     /// catalog without items, after a warning. How many items there are is logged as info.
-    static ItemCatalog load(const std::filesystem::path& assets_dir);
+    static ItemCatalog load(const std::filesystem::path& data_dir);
 
     /// All items, in the order of the file: the position of each is its ItemId.
     std::span<const ItemType> items() const { return items_; }

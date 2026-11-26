@@ -262,6 +262,10 @@ void InventoryScreen::handle_pointer(const PointerEvent& pointer, const PixelSiz
         }
         if (*cell < target.inventory->size()) {
             select({.side = side, .index = *cell});
+            // Each second press of quick presses is a double click, which the first press selected for.
+            if (pointer.clicks >= 2 && pointer.clicks % 2 == 0) {
+                move_selected_across();
+            }
         } else {
             move_selected_to(side);
         }

@@ -30,6 +30,9 @@ struct ItemSelection {
 /// - A click on an item selects it, and the line at the bottom shows its name and weight. A click on an empty cell
 ///   then moves the selected item to the end of that grid's inventory, which may be the same one, and the items after
 ///   its old place move up; the item stays selected.
+/// - With a container open, a double click on an item moves it to the end of the other inventory, as Enter does with
+/// the
+///   selected item. Without one, it only selects the item.
 /// - The arrow keys move the selection in its grid, and Left and Right also from one grid to the other at their
 ///   edges. With nothing selected, they select the first item. Enter moves the selected item to the end of the other
 ///   inventory, and selects the item that comes into its place.
@@ -48,10 +51,10 @@ public:
     static constexpr float kLabelPadding = 6.0f;  ///< Left and right of the label in a button.
 
     /// Cells of the grid of the party alone, see ItemGrid.
-    static constexpr std::size_t kColumns = 8;
+    static constexpr std::size_t kColumns = 12;
     static constexpr std::size_t kRows = 6;
     /// Cells of each grid when a container is open.
-    static constexpr std::size_t kContainerColumns = 5;
+    static constexpr std::size_t kContainerColumns = 7;
     static constexpr std::size_t kContainerRows = 6;
 
     /// The label of the button that takes all items of the container.

@@ -69,5 +69,12 @@ TEST_F(AssetFilesTest, WithoutAssetsNextToTheExecutableTheFallbackIsUsed) {
     EXPECT_EQ(find_assets_dir({}, dir() / "source"), dir() / "source");
 }
 
+TEST_F(AssetFilesTest, DataIsFoundNextToTheExecutableLikeTheAssets) {
+    std::filesystem::create_directories(dir() / "game" / "assets");
+    EXPECT_EQ(find_game_dir(dir() / "game", kDataDirName, dir() / "source"), dir() / "source");
+    std::filesystem::create_directories(dir() / "game" / "data");
+    EXPECT_EQ(find_game_dir(dir() / "game", kDataDirName, dir() / "source"), dir() / "game" / "data");
+}
+
 }  // namespace
 }  // namespace manifold

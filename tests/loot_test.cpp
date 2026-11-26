@@ -16,52 +16,67 @@
 namespace manifold {
 namespace {
 
-TEST(LootTest, ChestValuesAreTheirMeanLessOrMoreHalf) {
-    EXPECT_EQ(chest_value_range(ChestLook::kWood).min, 500);
-    EXPECT_EQ(chest_value_range(ChestLook::kWood).max, 1500);
-    EXPECT_EQ(chest_value_range(ChestLook::kGold).min, 2000);
-    EXPECT_EQ(chest_value_range(ChestLook::kGold).max, 6000);
+TEST(LootTest, ChestsAreFilledAsTheirLookSays) {
+    EXPECT_EQ(
+        chest_loot(ChestLook::kWood),
+        (ContainerLoot{
+            .min_items = 1, .max_items = 3, .min_item_value = 100, .max_item_value = 2000, .max_total_value = 2000}));
+    EXPECT_EQ(
+        chest_loot(ChestLook::kGold),
+        (ContainerLoot{
+            .min_items = 3, .max_items = 5, .min_item_value = 100, .max_item_value = 5000, .max_total_value = 6000}));
 }
 
-TEST(LootTest, ItemsNeverExceedTheValueAndStopWhenNoneFits) {
+TEST(LootTest, TheNumberOfItemsIsChosenFromTheRangeWhenTheTotalAllowsIt) {
     const ItemCatalog items = make_test_items();
-    for (int seed = 0; seed < 200; ++seed) {
+    const ContainerLoot loot{
+        .min_items = 2, .max_items = 4, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 100000};
+    std::set<std::size_t> sizes;
+    for (int seed = 0; seed < 100; ++seed) {
         Rng rng(static_cast<Rng::result_type>(seed));
-        const int value = 50 + (seed * 37);
-        const Inventory chosen(fill_container(items, value, 1000, rng));
-        EXPECT_LE(chosen.value(items), value) << seed;
-        // The pebble always fits while 100 or more are left, so less than that is left.
-        EXPECT_LT(value - chosen.value(items), items.at(kPebble).value) << seed;
-        for (const ItemId item : chosen.items()) {
-            EXPECT_NE(item, kCrown) << "an item without a chance was chosen";
-        }
+        sizes.insert(fill_container(items, loot, rng).size());
     }
+    EXPECT_EQ(sizes, (std::set<std::size_t>{2, 3, 4}));
 }
 
-TEST(LootTest, AtMostMaxItemsAreChosen) {
+TEST(LootTest, OnlyItemsInTheRangeOfValuesWithAChanceAreChosen) {
     const ItemCatalog items = make_test_items();
-    Rng rng(3);
-    EXPECT_EQ(fill_container(items, 100000, 8, rng).size(), 8U);
-    EXPECT_TRUE(fill_container(items, 100000, 0, rng).empty());
+    // The pebble is too cheap, the crown has no chance, and the gold bar is in the range.
+    const ContainerLoot loot{
+        .min_items = 5, .max_items = 5, .min_item_value = 150, .max_item_value = 2000, .max_total_value = 100000};
+    Rng rng(1);
+    EXPECT_EQ(fill_container(items, loot, rng), std::vector<ItemId>(5, kGoldBar));
+    const ContainerLoot nothing_fits{
+        .min_items = 1, .max_items = 3, .min_item_value = 300, .max_item_value = 1000, .max_total_value = 100000};
+    EXPECT_TRUE(fill_container(items, nothing_fits, rng).empty());
+    EXPECT_TRUE(fill_container(ItemCatalog(), loot, rng).empty());
 }
 
-TEST(LootTest, NothingIsChosenWithoutItemsThatFitAndHaveAChance) {
-    Rng rng(4);
-    Rng unused(4);
-    EXPECT_TRUE(fill_container(ItemCatalog(), 1000, 8, rng).empty());
-    EXPECT_TRUE(fill_container(make_test_items(), 99, 8, rng).empty());
-    const ItemCatalog crowns({{.key = "CROWN", .name = "Crown", .value = 1, .weight = 1, .chance = 0.0}});
-    EXPECT_TRUE(fill_container(crowns, 1000, 8, rng).empty());
-    EXPECT_EQ(rng(), unused());
+TEST(LootTest, AnItemAboveTheTotalIsLeftOutAndStopsTheFilling) {
+    const ItemCatalog items = make_test_items();
+    // Each gold bar is worth 1500, so the third would make 4500.
+    const ContainerLoot loot{
+        .min_items = 5, .max_items = 5, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 4000};
+    for (int seed = 0; seed < 20; ++seed) {
+        Rng rng(static_cast<Rng::result_type>(seed));
+        EXPECT_EQ(fill_container(items, loot, rng), std::vector<ItemId>(2, kGoldBar)) << seed;
+    }
+    // Also before the fewest items.
+    const ContainerLoot too_dear{
+        .min_items = 2, .max_items = 2, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 1000};
+    Rng rng(3);
+    EXPECT_TRUE(fill_container(items, too_dear, rng).empty());
 }
 
 TEST(LootTest, ItemsAreChosenInProportionToTheirChances) {
-    // The gold bar has twice the chance of the pebble, and both always fit.
+    // The gold bar has twice the chance of the pebble.
     const ItemCatalog items = make_test_items();
+    const ContainerLoot loot{
+        .min_items = 1, .max_items = 1, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 10000};
     std::array<int, 3> counts{};
     Rng rng(5);
     for (int i = 0; i < 3000; ++i) {
-        for (const ItemId item : fill_container(items, 1500, 1, rng)) {
+        for (const ItemId item : fill_container(items, loot, rng)) {
             ++counts.at(item);
         }
     }
@@ -70,22 +85,19 @@ TEST(LootTest, ItemsAreChosenInProportionToTheirChances) {
     EXPECT_NEAR(static_cast<double>(counts[kGoldBar]) / counts[kPebble], 2.0, 0.25);
 }
 
-TEST(LootTest, ChestsAreFilledWithinTheirValuesAndTheSameStateGivesTheSameItems) {
+TEST(LootTest, ChestsStayWithinTheirLimitsAndTheSameStateGivesTheSameItems) {
     const ItemCatalog items = make_test_items();
-    std::set<std::size_t> sizes;
     for (const ChestLook look : {ChestLook::kWood, ChestLook::kGold}) {
+        const ContainerLoot& loot = chest_loot(look);
         for (int seed = 0; seed < 100; ++seed) {
             Rng rng(static_cast<Rng::result_type>(seed));
             Rng again(static_cast<Rng::result_type>(seed));
             const std::vector<ItemId> chosen = fill_chest(items, look, rng);
             EXPECT_EQ(fill_chest(items, look, again), chosen);
-            EXPECT_LE(chosen.size(), kMaxChestItems);
-            EXPECT_LE(Inventory(chosen).value(items), chest_value_range(look).max);
-            sizes.insert(chosen.size());
+            EXPECT_LE(chosen.size(), static_cast<std::size_t>(loot.max_items));
+            EXPECT_LE(Inventory(chosen).value(items), loot.max_total_value);
         }
     }
-    EXPECT_TRUE(sizes.contains(kMaxChestItems));
-    EXPECT_GT(sizes.size(), 3U);
 }
 
 }  // namespace

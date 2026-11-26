@@ -33,6 +33,9 @@ enum class PointerAction : std::uint8_t {
 struct PointerEvent {
     PointerAction action = PointerAction::kMove;
     glm::vec2 position{0.0f};  ///< In pixels from the top-left corner of the picture, y down, as in OverlayMesh.
+    /// For a press: how many presses in quick succession at about the same place it ends, e.g. 2 for the second press
+    /// of a double click.
+    int clicks = 1;
 };
 
 /// A turn of the mouse wheel.

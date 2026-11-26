@@ -319,16 +319,19 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   motion turns the view (`mouse_look_rotation()`, `PlayerInput::mouse_rotation`) within the same 40° of pitch, and a
   left click activates at the center, as E does. Menus, the console and the debug overlay pause it, since they need
   the pointer. Runs with `--exec` or `--screenshot` start with it off.
-- **Items and the party's inventory** (see [DECISIONS.md](DECISIONS.md)): `assets/items.json` lists the kinds of
+- **Items and the party's inventory** (see [DECISIONS.md](DECISIONS.md)): `data/items.json` lists the kinds of
   items (`ItemCatalog`), each with a name, a value hidden from the player, a weight in grams and a chance, and
   `ITEM_ICONS` of the asset mapping gives their 64 × 64 icons. For now they are ten gems, small and large, made from
   "Six grades of gems" (CC-BY 3.0) by `scripts/make_gem_icons.py`. Level generation fills each chest (`fill_chest()`)
-  up to a random value, 500 to 1500 for a wooden chest and 2000 to 6000 for a golden one, with at most 8 items, each
-  chosen by its chance among those that still fit. The party shares one inventory (`Inventory`) without a limit of
+  with a random number of items, 1 to 3 for a wooden chest and 3 to 5 for a golden one, each chosen by its chance
+  among those worth 100 to 2000 (wooden) or 100 to 5000 (golden); an item that would make the chest worth more than
+  2000 (wooden) or 6000 (golden) is left out and ends the filling. `data/` holds such files, which define the game
+  rather than how it looks. The party shares one inventory (`Inventory`) without a limit of
   weight, kept from level to level and saved by the keys of its items. I opens it as a scrollable grid
   (`InventoryScreen`, `ItemGrid`), with the selected item's name and weight and the total weight; activating a chest
   shows the chest's grid next to the party's, with a Take all button (T). Items are moved by selecting them and
-  clicking an empty cell, which puts them at the end of that grid, or with Enter; there is no drag and drop. The
+  clicking an empty cell, which puts them at the end of that grid, with Enter, or, with a chest open, by double
+  clicking them; there is no drag and drop. The
   console has `items`, `inventory`, `give`, `chests` and `open`.
 
 ## Later (unordered)

@@ -95,10 +95,10 @@ TEST(ItemCatalogTest, WeightsAreShownInKilogramsWithThreeDecimals) {
     EXPECT_EQ(format_weight(-5), "-0.005");
 }
 
-/// The items of the game, from the assets.
+/// The items of the game, from its data.
 ItemCatalog load_game_items(std::string& log) {
     testing::internal::CaptureStderr();
-    ItemCatalog catalog = ItemCatalog::load(MANIFOLD_ASSETS_DIR);
+    ItemCatalog catalog = ItemCatalog::load(MANIFOLD_DATA_DIR);
     log = testing::internal::GetCapturedStderr();
     return catalog;
 }
@@ -130,7 +130,6 @@ TEST(GameItemsTest, LargeGemsAreWorthAndWeighFourTimesTheSmallOnes) {
         ASSERT_TRUE(small && large) << gem;
         EXPECT_EQ(catalog.at(*large).value, 4 * catalog.at(*small).value) << gem;
         EXPECT_EQ(catalog.at(*large).weight, 4 * catalog.at(*small).weight) << gem;
-        EXPECT_EQ(catalog.at(*large).chance, catalog.at(*small).chance) << gem;
     }
     EXPECT_EQ(catalog.at(*catalog.find("LARGE_DIAMOND")).value, 5000);
 }

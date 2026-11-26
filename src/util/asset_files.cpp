@@ -28,10 +28,10 @@ bool has_extension(const std::filesystem::path& path, std::string_view extension
 
 }  // namespace
 
-std::filesystem::path find_assets_dir(const std::filesystem::path& executable_dir,
-                                      const std::filesystem::path& fallback) {
+std::filesystem::path find_game_dir(const std::filesystem::path& executable_dir, std::string_view name,
+                                    const std::filesystem::path& fallback) {
     if (!executable_dir.empty()) {
-        std::filesystem::path next_to_executable = executable_dir / kAssetsDirName;
+        std::filesystem::path next_to_executable = executable_dir / name;
         std::error_code error;
         if (std::filesystem::is_directory(next_to_executable, error)) {
             return next_to_executable;

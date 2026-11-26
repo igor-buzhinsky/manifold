@@ -132,18 +132,20 @@ TEST(InventoryScreenTest, SelectedItemsNameAndWeightAndTheTotalWeightAreShown) {
 }
 
 TEST(InventoryScreenTest, ArrowKeysMoveTheSelectionWithinTheItems) {
+    constexpr std::size_t kColumns = InventoryScreen::kColumns;
+    // A full row and two items in the next.
     Fixture fixture;
-    fixture.party = Inventory(std::vector<ItemId>(10, kPebble));
+    fixture.party = Inventory(std::vector<ItemId>(kColumns + 2, kPebble));
     InventoryScreen screen(fixture.items, fixture.party);
     screen.handle(NavKey::kRight, kPicture);  // Selects the first item.
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
     screen.handle(NavKey::kLeft, kPicture);
     EXPECT_EQ(screen.selection()->index, 0U);
     screen.handle(NavKey::kDown, kPicture);
-    EXPECT_EQ(screen.selection()->index, 8U);
+    EXPECT_EQ(screen.selection()->index, kColumns);
     screen.handle(NavKey::kRight, kPicture);
-    screen.handle(NavKey::kRight, kPicture);  // There is no item 10.
-    EXPECT_EQ(screen.selection()->index, 9U);
+    screen.handle(NavKey::kRight, kPicture);  // There is no item after the last.
+    EXPECT_EQ(screen.selection()->index, kColumns + 1);
     screen.handle(NavKey::kUp, kPicture);
     EXPECT_EQ(screen.selection()->index, 1U);
     screen.handle(NavKey::kUp, kPicture);
@@ -154,21 +156,21 @@ TEST(InventoryScreenTest, ArrowKeysMoveTheSelectionWithinTheItems) {
     }
     EXPECT_EQ(screen.selection()->index, 6U);
     screen.handle(NavKey::kDown, kPicture);
-    EXPECT_EQ(screen.selection()->index, 9U);
+    EXPECT_EQ(screen.selection()->index, kColumns + 1);
     // Enter does nothing without a container.
     screen.handle(NavKey::kConfirm, kPicture);
-    EXPECT_EQ(fixture.party.size(), 10U);
+    EXPECT_EQ(fixture.party.size(), kColumns + 2);
 }
 
 TEST(InventoryScreenTest, KeysScrollToTheSelectionAndTheWheelScrollsTheGridUnderThePointer) {
     Fixture fixture;
-    fixture.party = Inventory(std::vector<ItemId>(100, kPebble));
+    fixture.party = Inventory(std::vector<ItemId>(200, kPebble));
     InventoryScreen screen(fixture.items, fixture.party);
     screen.handle(NavKey::kDown, kPicture);
     for (int i = 0; i < 7; ++i) {
         screen.handle(NavKey::kDown, kPicture);
     }
-    EXPECT_EQ(screen.selection()->index, 56U);
+    EXPECT_EQ(screen.selection()->index, 7 * InventoryScreen::kColumns);
     // Row 7 is shown at the bottom of the 6 rows.
     EXPECT_EQ(Fixture::cell_point(screen, 0, 0, fixture.party), glm::vec2(-1.0f));
     const glm::vec2 grid = middle(screen.grid_placement(0, kPicture).area);
@@ -232,6 +234,35 @@ TEST(InventoryScreenTest, KeysMoveTheSelectionAcrossAndEnterMovesTheItemToTheOth
     EXPECT_TRUE(fixture.chest.empty());
     EXPECT_FALSE(screen.selection().has_value());
     EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble, kGoldBar, kCrown}));
+}
+
+TEST(InventoryScreenTest, DoubleClickMovesAnItemToTheOtherSide) {
+    Fixture fixture;
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    const glm::vec2 chest_item = Fixture::cell_point(screen, 0, 1, fixture.chest);
+    screen.handle(press(chest_item), kPicture);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = chest_item, .clicks = 2}, kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
+    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
+    // And from the party into the chest.
+    const glm::vec2 party_item = Fixture::cell_point(screen, 1, 0, fixture.party);
+    screen.handle(press(party_item), kPicture);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = party_item, .clicks = 2}, kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar, kPebble}));
+    EXPECT_EQ(fixture.party, Inventory({kGoldBar, kPebble}));
+    // A third press only selects, and a fourth is a double click again.
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = party_item, .clicks = 3}, kPicture);
+    EXPECT_EQ(fixture.party.size(), 2U);
+}
+
+TEST(InventoryScreenTest, DoubleClickWithoutAContainerOnlySelects) {
+    Fixture fixture;
+    InventoryScreen screen(fixture.items, fixture.party);
+    const glm::vec2 item = Fixture::cell_point(screen, 0, 0, fixture.party);
+    screen.handle(press(item), kPicture);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = item, .clicks = 2}, kPicture);
+    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
 }
 
 TEST(InventoryScreenTest, TakeAllMovesTheChestsItemsInTheirOrder) {

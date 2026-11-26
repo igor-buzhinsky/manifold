@@ -127,8 +127,8 @@ ItemCatalog ItemCatalog::parse(std::string_view json, std::string_view source) {
     return ItemCatalog(std::move(items));
 }
 
-ItemCatalog ItemCatalog::load(const std::filesystem::path& assets_dir) {
-    const std::filesystem::path file = assets_dir / kItemsFileName;
+ItemCatalog ItemCatalog::load(const std::filesystem::path& data_dir) {
+    const std::filesystem::path file = data_dir / kItemsFileName;
     std::string json;
     try {
         json = read_text_file(file);
