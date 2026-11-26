@@ -153,7 +153,7 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Build
         run: cmake --build build
-      # The archive holds a directory of the game made by `cmake --install`: the executable, assets/, the manual,
+      # The archive holds a directory of the game made by `cmake --install`: the executable, assets/, data/, the manual,
       # DEBUGGING.md, the game's settings and the licenses. SDL3 is linked into the executable, so only the system's C
       # and C++ libraries, OpenGL and the libraries that SDL3 loads for the display and sound are needed.
       - name: Package

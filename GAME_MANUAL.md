@@ -144,10 +144,10 @@ kilograms, shown without the unit. Items of the same kind aren't stacked yet, so
 items are gems: small and large diamonds, rubies, emeralds, sapphires and amethysts.
 
 Activating a chest opens its items in a grid on the left, with the party's on the right, each narrower. What a chest
-holds is chosen when the level is generated: a wooden chest holds one to three items, a golden one three to five, and
-more valuable ones. Items can be moved between the two grids, and they
-stay where they were put while the party is in the level. A level that starts again, e.g. after loading, has its
-chests full again.
+holds is chosen when the level is generated: a wooden chest holds at most three items, usually one or two, and a golden
+one at most five, usually two to four, and more valuable ones. Items can be moved between the two grids, and they stay
+where they were put while the party is in the level. A level that starts again, e.g. after loading, has its chests full
+again.
 
 | Key | Action |
 |---|---|
@@ -182,7 +182,7 @@ Small chests stand at walls. In room levels, each room at least 2 tiles wide and
 starts, has a chest with a chance of 20%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
 or golden with a chance of 20%. Chests don't block the way. Activating one, by looking down at it with E or by clicking
 it, plays the sound of opening it and shows what it holds next to the party's items, see Inventory above. A golden
-chest holds more items than a wooden one, and more valuable ones.
+chest holds more items than a wooden one on average, and more valuable ones.
 
 ## Saving
 

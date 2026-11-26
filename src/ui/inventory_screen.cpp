@@ -251,6 +251,7 @@ void InventoryScreen::handle_pointer(const PointerEvent& pointer, const PixelSiz
     }
     if (take_all_hovered_) {
         take_all();
+        last_selecting_press_.reset();
         return;
     }
     for (std::size_t side = 0; side < sides_.size(); ++side) {
@@ -260,17 +261,24 @@ void InventoryScreen::handle_pointer(const PointerEvent& pointer, const PixelSiz
         if (!cell) {
             continue;
         }
+        const ItemSelection pressed{.side = side, .index = *cell};
         if (*cell < target.inventory->size()) {
-            select({.side = side, .index = *cell});
-            // Each second press of quick presses is a double click, which the first press selected for.
-            if (pointer.clicks >= 2 && pointer.clicks % 2 == 0) {
+            // Each second press of quick presses is a double click, if the press before selected this item. SDL also
+            // counts presses on a neighbouring cell, or one that moved an item here, or one that opened the screen.
+            const bool double_click = pointer.clicks % 2 == 0 && last_selecting_press_ == pressed;
+            select(pressed);
+            last_selecting_press_ = pressed;
+            if (double_click) {
                 move_selected_across();
+                last_selecting_press_.reset();
             }
         } else {
             move_selected_to(side);
+            last_selecting_press_.reset();
         }
         return;
     }
+    last_selecting_press_.reset();
 }
 
 std::optional<UiCommand> InventoryScreen::handle(const UiEvent& event, const PixelSize& picture) {

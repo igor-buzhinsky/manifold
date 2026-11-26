@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <set>
+#include <string>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -20,17 +21,34 @@ TEST(LootTest, ChestsAreFilledAsTheirLookSays) {
     EXPECT_EQ(
         chest_loot(ChestLook::kWood),
         (ContainerLoot{
-            .min_items = 1, .max_items = 3, .min_item_value = 100, .max_item_value = 2000, .max_total_value = 2000}));
+            .min_draws = 1, .max_draws = 3, .min_item_value = 100, .max_item_value = 2000, .max_total_value = 2000}));
     EXPECT_EQ(
         chest_loot(ChestLook::kGold),
         (ContainerLoot{
-            .min_items = 3, .max_items = 5, .min_item_value = 100, .max_item_value = 5000, .max_total_value = 6000}));
+            .min_draws = 3, .max_draws = 5, .min_item_value = 100, .max_item_value = 5000, .max_total_value = 6000}));
+}
+
+TEST(LootTest, LootOfChestsIsFineAndWrongLootIsWarnedAbout) {
+    testing::internal::CaptureStderr();
+    EXPECT_TRUE(check_container_loot(kWoodenChestLoot, "wooden chests"));
+    EXPECT_TRUE(check_container_loot(kGoldenChestLoot, "golden chests"));
+    std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
+
+    testing::internal::CaptureStderr();
+    EXPECT_FALSE(check_container_loot(
+        {.min_draws = 3, .max_draws = 1, .min_item_value = 500, .max_item_value = 100, .max_total_value = 50}, "test"));
+    log = testing::internal::GetCapturedStderr();
+    for (const char* message : {"Loot of test: the total value 50 is below the largest value of an item, 100",
+                                "the draws from 3 to 1 are not a range", "the values of items from 500 to 100"}) {
+        EXPECT_NE(log.find(message), std::string::npos) << message << "\n" << log;
+    }
 }
 
 TEST(LootTest, TheNumberOfItemsIsChosenFromTheRangeWhenTheTotalAllowsIt) {
     const ItemCatalog items = make_test_items();
     const ContainerLoot loot{
-        .min_items = 2, .max_items = 4, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 100000};
+        .min_draws = 2, .max_draws = 4, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 100000};
     std::set<std::size_t> sizes;
     for (int seed = 0; seed < 100; ++seed) {
         Rng rng(static_cast<Rng::result_type>(seed));
@@ -43,11 +61,11 @@ TEST(LootTest, OnlyItemsInTheRangeOfValuesWithAChanceAreChosen) {
     const ItemCatalog items = make_test_items();
     // The pebble is too cheap, the crown has no chance, and the gold bar is in the range.
     const ContainerLoot loot{
-        .min_items = 5, .max_items = 5, .min_item_value = 150, .max_item_value = 2000, .max_total_value = 100000};
+        .min_draws = 5, .max_draws = 5, .min_item_value = 150, .max_item_value = 2000, .max_total_value = 100000};
     Rng rng(1);
     EXPECT_EQ(fill_container(items, loot, rng), std::vector<ItemId>(5, kGoldBar));
     const ContainerLoot nothing_fits{
-        .min_items = 1, .max_items = 3, .min_item_value = 300, .max_item_value = 1000, .max_total_value = 100000};
+        .min_draws = 1, .max_draws = 3, .min_item_value = 300, .max_item_value = 1000, .max_total_value = 100000};
     EXPECT_TRUE(fill_container(items, nothing_fits, rng).empty());
     EXPECT_TRUE(fill_container(ItemCatalog(), loot, rng).empty());
 }
@@ -56,14 +74,14 @@ TEST(LootTest, AnItemAboveTheTotalIsLeftOutAndStopsTheFilling) {
     const ItemCatalog items = make_test_items();
     // Each gold bar is worth 1500, so the third would make 4500.
     const ContainerLoot loot{
-        .min_items = 5, .max_items = 5, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 4000};
+        .min_draws = 5, .max_draws = 5, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 4000};
     for (int seed = 0; seed < 20; ++seed) {
         Rng rng(static_cast<Rng::result_type>(seed));
         EXPECT_EQ(fill_container(items, loot, rng), std::vector<ItemId>(2, kGoldBar)) << seed;
     }
     // Also before the fewest items.
     const ContainerLoot too_dear{
-        .min_items = 2, .max_items = 2, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 1000};
+        .min_draws = 2, .max_draws = 2, .min_item_value = 1000, .max_item_value = 2000, .max_total_value = 1000};
     Rng rng(3);
     EXPECT_TRUE(fill_container(items, too_dear, rng).empty());
 }
@@ -72,7 +90,7 @@ TEST(LootTest, ItemsAreChosenInProportionToTheirChances) {
     // The gold bar has twice the chance of the pebble.
     const ItemCatalog items = make_test_items();
     const ContainerLoot loot{
-        .min_items = 1, .max_items = 1, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 10000};
+        .min_draws = 1, .max_draws = 1, .min_item_value = 0, .max_item_value = 10000, .max_total_value = 10000};
     std::array<int, 3> counts{};
     Rng rng(5);
     for (int i = 0; i < 3000; ++i) {
@@ -94,7 +112,7 @@ TEST(LootTest, ChestsStayWithinTheirLimitsAndTheSameStateGivesTheSameItems) {
             Rng again(static_cast<Rng::result_type>(seed));
             const std::vector<ItemId> chosen = fill_chest(items, look, rng);
             EXPECT_EQ(fill_chest(items, look, again), chosen);
-            EXPECT_LE(chosen.size(), static_cast<std::size_t>(loot.max_items));
+            EXPECT_LE(chosen.size(), static_cast<std::size_t>(loot.max_draws));
             EXPECT_LE(Inventory(chosen).value(items), loot.max_total_value);
         }
     }

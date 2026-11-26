@@ -30,9 +30,9 @@ struct ItemSelection {
 /// - A click on an item selects it, and the line at the bottom shows its name and weight. A click on an empty cell
 ///   then moves the selected item to the end of that grid's inventory, which may be the same one, and the items after
 ///   its old place move up; the item stays selected.
-/// - With a container open, a double click on an item moves it to the end of the other inventory, as Enter does with
-/// the
-///   selected item. Without one, it only selects the item.
+/// - With a container open, a double click on an item moves it to the end of the other inventory, as Enter does
+///   with the selected item. Without one, it only selects the item. Only a press on the item that the press before
+///   selected counts as the second of a double click.
 /// - The arrow keys move the selection in its grid, and Left and Right also from one grid to the other at their
 ///   edges. With nothing selected, they select the first item. Enter moves the selected item to the end of the other
 ///   inventory, and selects the item that comes into its place.
@@ -40,7 +40,8 @@ struct ItemSelection {
 /// - The Take all button, or T, moves all items of the container to the end of the party's, in their order.
 /// - Escape or I closes the screen (UiCommand::kResume).
 ///
-/// Each grid shows the total weight of its inventory, see format_weight(). Values of items are never shown.
+/// The party's grid shows the total weight of its items, see format_weight(); with a container open, the Take all
+/// button is below the container's. Values of items are never shown.
 class InventoryScreen : public Screen {
 public:
     /// Sizes at scale 1, in interface pixels, see Placement::scale.
@@ -132,6 +133,8 @@ private:
     std::vector<Side> sides_;
     std::optional<ItemSelection> selection_;
     bool take_all_hovered_ = false;  ///< Whether the pointer is over the Take all button.
+    /// The cell of the last press of the main button, if it selected the item there, which a double click needs.
+    std::optional<ItemSelection> last_selecting_press_;
 };
 
 }  // namespace manifold
