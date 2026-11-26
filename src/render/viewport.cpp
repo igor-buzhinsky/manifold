@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include <glm/common.hpp>
 #include <glm/vec2.hpp>
 
 namespace manifold {
@@ -19,6 +20,8 @@ Viewport fit_viewport(const PixelSize& framebuffer, float aspect_ratio) {
     }
     return viewport;
 }
+
+glm::vec2 pixel_center(const glm::vec2& point) { return glm::floor(point) + glm::vec2(0.5f); }
 
 glm::vec2 window_to_viewport(const glm::vec2& point, const PixelSize& window, const PixelSize& framebuffer,
                              const Viewport& viewport) {

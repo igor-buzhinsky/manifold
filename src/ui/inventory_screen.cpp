@@ -31,7 +31,7 @@ constexpr const char* kPartyTitle = "Party";
 /// The title of the panel of the party alone.
 constexpr const char* kInventoryTitle = "Inventory";
 
-/// Rounds `pixels` down to whole interface pixels of `scale`, so that the blocky font stays sharp.
+/// Rounds `pixels` down to whole interface pixels of `scale`, so that the blocky font is drawn evenly.
 float floor_to_scale(float pixels, float scale) { return std::floor(pixels / scale) * scale; }
 
 }  // namespace

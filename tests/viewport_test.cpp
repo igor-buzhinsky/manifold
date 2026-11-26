@@ -53,5 +53,12 @@ TEST(ViewportTest, WindowPointsWithSideBars) {
     EXPECT_EQ(window_to_viewport({200.0f, 10.0f}, {}, framebuffer, viewport), glm::vec2(0.0f, 10.0f));
 }
 
+TEST(ViewportTest, PointsAreTakenToTheCentersOfTheirPixels) {
+    EXPECT_EQ(pixel_center({14.0f, 0.0f}), glm::vec2(14.5f, 0.5f));
+    EXPECT_EQ(pixel_center({14.99f, 3.2f}), glm::vec2(14.5f, 3.5f));
+    // Points on the bars left of or above the picture stay outside it.
+    EXPECT_EQ(pixel_center({-0.25f, -3.0f}), glm::vec2(-0.5f, -2.5f));
+}
+
 }  // namespace
 }  // namespace manifold

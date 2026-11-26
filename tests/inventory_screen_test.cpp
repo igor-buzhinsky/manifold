@@ -14,6 +14,7 @@
 #include "test_items.hpp"
 #include "ui/item_grid.hpp"
 #include "ui/overlay_mesh.hpp"
+#include "ui/party_hud.hpp"
 #include "ui/rect.hpp"
 #include "ui/screen.hpp"
 #include "ui/ui_event.hpp"
@@ -341,6 +342,25 @@ TEST(InventoryScreenTest, PanelIsCenteredAndHoldsTheGridsAndTheButton) {
     std::vector<IconPlacement> icons;
     screen.add_icons(icons, kPicture);
     EXPECT_EQ(icons.size(), 5U);
+}
+
+TEST(InventoryScreenTest, PanelsLeaveThePortraitsFreeAtEverySize) {
+    Fixture fixture;
+    const InventoryScreen alone(fixture.items, fixture.party);
+    const InventoryScreen with_chest(fixture.items, fixture.party, fixture.chest, "Golden chest");
+    // Small screenshots too: at 800 x 450 the interface used to be drawn at scale 2, only 225 interface pixels high.
+    for (const PixelSize picture : {PixelSize{.width = 800, .height = 450}, PixelSize{.width = 1600, .height = 900},
+                                    PixelSize{.width = 1920, .height = 1080}}) {
+        const std::vector<CharacterPlacement> portraits = layout_party_hud(picture, 3);
+        const float portraits_top = portraits[0].portrait.top_left.y;
+        const float portraits_right = portraits[2].portrait.top_left.x + portraits[2].portrait.size.x;
+        for (const InventoryScreen* screen : {&alone, &with_chest}) {
+            const Rect panel = screen->panel(picture);
+            const bool below = panel.top_left.y + panel.size.y <= portraits_top;
+            const bool right = panel.top_left.x >= portraits_right;
+            EXPECT_TRUE(below || right) << picture.width << " x " << picture.height;
+        }
+    }
 }
 
 }  // namespace

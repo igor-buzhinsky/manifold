@@ -61,7 +61,7 @@ void add_party_hud(OverlayMesh& mesh, std::span<const CharacterPlacement> placem
         const CharacterPlacement& placement = placements[i];
         mesh.add_rectangle(placement.portrait.top_left, placement.portrait.size, kEmptyPortraitColor);
         mesh.add_rectangle(placement.hp_bar.top_left, placement.hp_bar.size, kHpBarBackColor);
-        // Whole pixels keep the end of the bar sharp, and a character with any hit points left keeps one.
+        // A whole number of pixels wide, at least one while the character has any hit points left.
         const float fraction = party[i].hp_fraction();
         const float filled = fraction > 0.0f ? std::max(1.0f, std::round(placement.hp_bar.size.x * fraction)) : 0.0f;
         if (filled > 0.0f) {
