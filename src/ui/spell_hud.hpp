@@ -57,8 +57,8 @@ bool spell_box_visible(float remaining);
 
 /// Adds the party's magic to `mesh`: a white box with the black spell_title() of each spell in effect, in the order of
 /// PartyMagic::spells, leaving out those that spell_box_visible() hides but keeping their places, and the bar of mana,
-/// dark blue with the part of PartyMagic::mana_fraction() from its left blue. The blue part is rounded to whole pixels,
-/// and is at least one pixel wide while the party has any mana.
+/// dark blue with the part of PartyMagic::mana_fraction() from its left blue. The width of the blue part is rounded to
+/// whole pixels, and is at least one pixel while the party has any mana.
 ///
 /// \param[out] mesh Where the shapes are appended.
 /// \param picture   Size of the picture.

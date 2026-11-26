@@ -419,7 +419,8 @@ Drawbacks:
 
 ## 2026-11-18: Build the game's interface from own controls on the overlay renderer
 
-Status: **ACCEPTED**. Done in v0.3.
+Status: **ACCEPTED**. Done in v0.3. Since the inventory, the interface is scaled by the picture's height over 300,
+also by fractions, so that it looks the same at every size; the console is still scaled by whole pixels.
 
 Decision: the game's menus, and later the party screen with tabs for stats, level-ups and inventory, are built from a
 small set of own controls in `manifold_core` (`src/ui/`), drawn as an `OverlayMesh` with the blocky font of the
@@ -450,7 +451,8 @@ Rejected alternatives:
 Drawbacks:
 
 - Every control must be written by hand: tabs, scrolling lists and drag and drop for the inventory are still to come.
-- The font has only ASCII characters and one size, scaled by whole pixels.
+- The font has only ASCII characters and one size, scaled by whole pixels (since the inventory, by the picture's
+  height over 300, so also by fractions, at which it looks a little uneven).
 - Layouts are computed for every event and drawing. This is cheap for a few controls, but large screens may need to
   cache them.
 

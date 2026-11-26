@@ -37,4 +37,11 @@ Viewport fit_viewport(const PixelSize& framebuffer, float aspect_ratio);
 glm::vec2 window_to_viewport(const glm::vec2& point, const PixelSize& window, const PixelSize& framebuffer,
                              const Viewport& viewport);
 
+/// The center of the pixel that `point` is in, e.g. to test a point of the mouse against shapes as they are drawn: the
+/// GPU fills a pixel if its center is inside a shape, which matters where edges fall between pixels, as at fractional
+/// scales of the interface, see ui_scale().
+///
+/// \param point In pixels, such as those of window_to_viewport().
+glm::vec2 pixel_center(const glm::vec2& point);
+
 }  // namespace manifold

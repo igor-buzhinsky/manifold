@@ -32,7 +32,8 @@ inline constexpr glm::vec4 kUiBlackColor{0.0f, 0.0f, 0.0f, 1.0f};
 /// Size of an interface pixel in pixels of a picture of `picture` size: its height divided by 300, so that the
 /// interface is 300 interface pixels high and looks the same at every size, e.g. 1.5 at 450 pixels, 3 at 900 and 3.6 at
 /// 1080. At heights that aren't multiples of 300, interface pixels aren't whole pixels of the picture, so the blocky
-/// font and thin lines look a little uneven.
+/// font and thin lines look a little uneven. Below 300 pixels, an interface pixel is less than a pixel of the picture,
+/// so thin lines and strokes of the font may vanish: the game isn't meant for such small pictures.
 float ui_scale(const PixelSize& picture);
 
 }  // namespace manifold

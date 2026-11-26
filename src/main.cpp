@@ -814,7 +814,8 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     }
 }
 
-/// The point of the picture under a point of the window, in pixels from its top-left corner, y down.
+/// The point of the picture under a point of the window, in pixels from its top-left corner, y down: the center of the
+/// pixel under it, see manifold::pixel_center().
 ///
 /// The picture is laid out for the current size of the window, not that of the last drawing, in case the window was
 /// resized. Also updates `ui.picture` to its size.
@@ -822,7 +823,8 @@ glm::vec2 picture_point(const glm::vec2& point, const manifold::Window& window, 
     const manifold::PixelSize framebuffer = window.framebuffer_size();
     const manifold::Viewport viewport = manifold::fit_viewport(framebuffer, manifold::kAspectRatio);
     ui.picture = {.width = viewport.width, .height = viewport.height};
-    return manifold::window_to_viewport(point, window.size(), framebuffer, viewport);
+    // As drawn, a pixel belongs to the shape that its center is in, also where edges fall between pixels.
+    return manifold::pixel_center(manifold::window_to_viewport(point, window.size(), framebuffer, viewport));
 }
 
 /// Passes a mouse event to the screen on top as a pointer event, in pixels of the picture, if it is a motion or the

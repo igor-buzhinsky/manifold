@@ -136,8 +136,8 @@ void ButtonList::add_to(OverlayMesh& mesh, const Placement& placement) const {
             color = kUiFocusColor;
         }
         mesh.add_rectangle(rect.top_left, rect.size, color);
-        // Centered, rounded down to whole interface pixels so that the font stays sharp. Vertically, the letters are
-        // centered rather than the line, which has empty rows below them.
+        // Centered, rounded down to whole interface pixels so that the font is drawn evenly. Vertically, the letters
+        // are centered rather than the line, which has empty rows below them.
         const float text_x =
             rect.top_left.x + (std::floor((rect.size.x - text_width(button.label, scale)) / 2.0f / scale) * scale);
         const float text_y =

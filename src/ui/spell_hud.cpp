@@ -88,7 +88,7 @@ void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic
         const Rect& box = boxes[i];
         const char* title = spell_title(magic.spells[i].spell);
         mesh.add_rectangle(box.top_left, box.size, kSpellBoxColor);
-        // Centered, rounded down to whole interface pixels so that the font stays sharp.
+        // Centered, rounded down to whole interface pixels so that the font is drawn evenly.
         const float text_x =
             box.top_left.x + (std::floor((box.size.x - text_width(title, scale)) / 2.0f / scale) * scale);
         mesh.add_text({text_x, box.top_left.y + (kHudSpellPaddingY * scale)}, title, scale, kSpellTextColor);
@@ -96,7 +96,7 @@ void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic
 
     const Rect bar = layout_mana_bar(picture);
     mesh.add_rectangle(bar.top_left, bar.size, kManaBarBackColor);
-    // Whole pixels keep the end of the bar sharp, and a party with any mana left keeps one.
+    // A whole number of pixels wide, at least one while the party has any mana left.
     const float fraction = magic.mana_fraction();
     const float filled = fraction > 0.0f ? std::max(1.0f, std::round(bar.size.x * fraction)) : 0.0f;
     if (filled > 0.0f) {
