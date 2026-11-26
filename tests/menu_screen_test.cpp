@@ -29,12 +29,11 @@ std::optional<UiCommand> click(MenuScreen& menu, std::size_t index) {
     return menu.handle(PointerEvent{.action = PointerAction::kRelease, .position = center}, kPicture);
 }
 
-TEST(UiStyleTest, ScaleGrowsWithTheHeightInWholeSteps) {
-    EXPECT_EQ(ui_scale({.width = 400, .height = 225}), 1.0f);
-    EXPECT_EQ(ui_scale({.width = 800, .height = 449}), 1.0f);
-    EXPECT_EQ(ui_scale({.width = 800, .height = 450}), 2.0f);
-    EXPECT_EQ(ui_scale({.width = 1600, .height = 900}), 3.0f);
-    EXPECT_EQ(ui_scale({.width = 1920, .height = 1080}), 4.0f);
+TEST(UiStyleTest, ScaleIsTheHeightOver300) {
+    EXPECT_FLOAT_EQ(ui_scale({.width = 400, .height = 225}), 0.75f);
+    EXPECT_FLOAT_EQ(ui_scale({.width = 800, .height = 450}), 1.5f);
+    EXPECT_FLOAT_EQ(ui_scale({.width = 1600, .height = 900}), 3.0f);
+    EXPECT_FLOAT_EQ(ui_scale({.width = 1920, .height = 1080}), 3.6f);
 }
 
 TEST(MenuScreenTest, PanelIsCenteredAroundTheButtons) {

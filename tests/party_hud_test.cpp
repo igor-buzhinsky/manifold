@@ -19,7 +19,7 @@ namespace manifold {
 namespace {
 
 TEST(PartyHudTest, PortraitsGoSideBySideInTheBottomLeftCornerWithBarsBelow) {
-    const PixelSize picture{.width = 800, .height = 450};
+    const PixelSize picture{.width = 1000, .height = 600};
     const float scale = ui_scale(picture);
     ASSERT_EQ(scale, 2.0f);
     const std::vector<CharacterPlacement> placements = layout_party_hud(picture, 3);
@@ -32,7 +32,7 @@ TEST(PartyHudTest, PortraitsGoSideBySideInTheBottomLeftCornerWithBarsBelow) {
         EXPECT_EQ(bar.top_left.x, portrait.top_left.x);
         // The bar is one interface pixel below the portrait, and four above the bottom edge.
         EXPECT_EQ(bar.top_left.y, portrait.top_left.y + 80.0f + 2.0f);
-        EXPECT_EQ(bar.top_left.y + bar.size.y, 450.0f - 8.0f);
+        EXPECT_EQ(bar.top_left.y + bar.size.y, 600.0f - 8.0f);
         if (i > 0) {
             // Two interface pixels between neighbours.
             const Rect& left = placements[i - 1].portrait;
@@ -45,7 +45,7 @@ TEST(PartyHudTest, PortraitsGoSideBySideInTheBottomLeftCornerWithBarsBelow) {
 }
 
 TEST(PartyHudTest, ContainsThePortraitsTheBarsAndTheGapsBetweenThem) {
-    const PixelSize picture{.width = 800, .height = 450};
+    const PixelSize picture{.width = 1000, .height = 600};
     const std::vector<CharacterPlacement> placements = layout_party_hud(picture, 3);
     const Rect& first = placements[0].portrait;
     const Rect& last_bar = placements[2].hp_bar;
@@ -66,7 +66,7 @@ TEST(PartyHudTest, ContainsThePortraitsTheBarsAndTheGapsBetweenThem) {
 constexpr std::size_t kRectangleVertices = 6;
 
 TEST(PartyHudTest, BarsAreFilledAsFarAsTheHpGo) {
-    const PixelSize picture{.width = 800, .height = 450};
+    const PixelSize picture{.width = 1000, .height = 600};
     const std::vector<CharacterPlacement> placements = layout_party_hud(picture, 3);
     const std::vector<Character> party = {
         {.portrait = Portrait{.key = AssetKey::kMalePortraits, .index = 0},
@@ -93,7 +93,7 @@ TEST(PartyHudTest, BarsAreFilledAsFarAsTheHpGo) {
 }
 
 TEST(PartyHudTest, AnyHpLeftShowsAtLeastOnePixel) {
-    const std::vector<CharacterPlacement> placements = layout_party_hud({.width = 800, .height = 450}, 1);
+    const std::vector<CharacterPlacement> placements = layout_party_hud({.width = 1000, .height = 600}, 1);
     OverlayMesh mesh;
     add_party_hud(mesh, placements,
                   std::vector<Character>{{.portrait = std::nullopt, .gender = Gender::kMale, .hp = 1, .max_hp = 1000}});

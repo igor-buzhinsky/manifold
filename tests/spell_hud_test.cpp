@@ -17,14 +17,14 @@
 namespace manifold {
 namespace {
 
-constexpr PixelSize kPicture{.width = 800, .height = 450};
+constexpr PixelSize kPicture{.width = 1000, .height = 600};
 
 TEST(SpellHudTest, SpellsGoDownFromTheTopRightCornerInBoxesOfOneWidth) {
     ASSERT_EQ(ui_scale(kPicture), 2.0f);
     const std::vector<Rect> boxes = layout_spell_hud(kPicture, 2);
     ASSERT_EQ(boxes.size(), 2U);
     EXPECT_EQ(boxes[0].top_left.y, 8.0f);
-    EXPECT_EQ(boxes[0].top_left.x + boxes[0].size.x, 800.0f - 8.0f);
+    EXPECT_EQ(boxes[0].top_left.x + boxes[0].size.x, 1000.0f - 8.0f);
     // Nine pixels of letters and one above and below them, in interface pixels.
     EXPECT_EQ(boxes[0].size.y, 22.0f);
     EXPECT_EQ(boxes[1].size, boxes[0].size);
@@ -37,7 +37,7 @@ TEST(SpellHudTest, SpellsGoDownFromTheTopRightCornerInBoxesOfOneWidth) {
 TEST(SpellHudTest, ManaBarIsInTheBottomRightCornerLevelWithTheHitPoints) {
     const Rect bar = layout_mana_bar(kPicture);
     EXPECT_EQ(bar.size, glm::vec2(2.0f * kHudPortraitWidth, 4.0f * kHudBarHeight) * 2.0f);
-    EXPECT_EQ(bar.top_left + bar.size, glm::vec2(800.0f - 8.0f, 450.0f - 8.0f));
+    EXPECT_EQ(bar.top_left + bar.size, glm::vec2(1000.0f - 8.0f, 600.0f - 8.0f));
     const Rect hp_bar = layout_party_hud(kPicture, 1)[0].hp_bar;
     EXPECT_EQ(bar.top_left.y + bar.size.y, hp_bar.top_left.y + hp_bar.size.y);
 }

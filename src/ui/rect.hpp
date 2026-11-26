@@ -23,7 +23,7 @@ struct Rect {
 struct Placement {
     Rect area;
     /// Size of an interface pixel in pixels of the picture, see ui_scale(). All sizes of a control are whole
-    /// interface pixels, so that the blocky font stays sharp.
+    /// interface pixels, so that the blocky font is drawn evenly, and stays sharp where the scale is a whole number.
     float scale = 1.0f;
 };
 
