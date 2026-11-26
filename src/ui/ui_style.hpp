@@ -29,8 +29,10 @@ inline constexpr glm::vec4 kUiDimColor{0.0f, 0.0f, 0.0f, 0.5f};
 /// Behind a screen that hides the game.
 inline constexpr glm::vec4 kUiBlackColor{0.0f, 0.0f, 0.0f, 1.0f};
 
-/// Size of an interface pixel in pixels of a picture of `picture` size: a whole number that grows with the height,
-/// 1 below 450 pixels, 2 from 450, 3 from 750 (e.g. 900), 4 from 1050 (e.g. 1080) and so on.
+/// Size of an interface pixel in pixels of a picture of `picture` size: its height divided by 300, so that the
+/// interface is 300 interface pixels high and looks the same at every size, e.g. 1.5 at 450 pixels, 3 at 900 and 3.6 at
+/// 1080. At heights that aren't multiples of 300, interface pixels aren't whole pixels of the picture, so the blocky
+/// font and thin lines look a little uneven.
 float ui_scale(const PixelSize& picture);
 
 }  // namespace manifold
