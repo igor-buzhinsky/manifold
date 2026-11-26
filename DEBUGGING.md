@@ -30,7 +30,9 @@ changes nothing.
 
 ## Items
 
-`assets/items.json` lists all kinds of items, so they can be added and changed without building the game again. Each
+`data/items.json` lists all kinds of items, so they can be added and changed without building the game again. Like
+`assets/`, the `data/` directory is found next to the executable in a copy of the game, otherwise in the source tree;
+it holds what defines the game rather than how it looks and sounds. Each
 field is the key of an item, such as `SMALL_RUBY`, which saves store and `ITEM_ICONS` of the asset mapping gives the
 icon of, with an object of:
 
@@ -38,19 +40,27 @@ icon of, with an object of:
 - `value`: what the item is worth, a positive integer. The player never sees it.
 - `weight`: in grams, an integer of 0 or more. The game shows weights in kilograms with three decimals, without the
   unit.
-- `chance`: how often the item is chosen for a chest, relative to the others, a number of 0 or more. The chances
-  needn't add up to 1, and an item with 0 is never chosen.
+- `chance`: how often the item is chosen for a chest, relative to the others in the chest's range of values (see
+  below), a number of 0 or more. The chances needn't add up to 1, and an item with 0 is never chosen.
 
 An item that lacks a field or has a wrong one is left out, with a warning in the log. The order of the file is the
 order in which `items` lists them, and it decides the random choices of chests, as the number of items does: changing
 the items changes what the chests of seeds hold.
 
-Level generation fills each chest, with random numbers of its own, so the rest of the level doesn't change: it chooses
-the chest's value at random, from 500 to 1500 for a wooden chest and from 2000 to 6000 for a golden one, and then adds
-items one by one, each chosen by its chance among those that keep the total value within the chest's. It stops when
-no item fits, or at 8 items. The gems are worth 5000 (diamond), 4000 (ruby), 3000 (emerald), 2500 (sapphire) and 500
-(amethyst) when large, a quarter of that when small, and weigh 4 grams when large and 1 gram when small. Diamonds have
-twice the chance of the others.
+Level generation fills each chest, with random numbers of its own, so the rest of the level doesn't change. It
+chooses the number of items, each number with the same chance, and then the items one by one, each by its chance
+among the items whose values are in the chest's range. An item that would make the chest's items worth more than its
+total is left out, and the filling stops there, also below the fewest items:
+
+| Chest | Items | Value of each item | Total value |
+|---|---|---|---|
+| Wooden | 1 to 3 | 100 to 2000 | At most 2000 |
+| Golden | 3 to 5 | 100 to 5000 | At most 6000 |
+
+The limits are in code for now (`kWoodenChestLoot`, `kGoldenChestLoot`). The gems are worth 5000 (diamond), 4000 (ruby), 3000 (emerald), 2500 (sapphire) and 500
+(amethyst) when large, a quarter of that when small, and weigh 4 grams when large and 1 gram when small. All have the
+same chance. Large gems other than amethysts are worth more than 2000, so they are found only in
+golden chests.
 
 ## Console
 

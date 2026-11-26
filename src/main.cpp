@@ -148,25 +148,28 @@ std::uint64_t random_seed() {
     return (static_cast<std::uint64_t>(device()) << 32U) | device();
 }
 
-/// What the game reads from the directory of its assets.
+/// What the game reads from the directories of its assets and its data.
 struct GameAssets {
     manifold::AssetMapping mapping;  ///< Which files the game uses for what.
     manifold::ItemCatalog items;     ///< All kinds of items.
 };
 
-/// Finds the game's assets, see manifold::find_assets_dir(): the `assets` directory next to the executable, or else
-/// the one in the source tree, whose path CMake sets, and reads their mapping, see manifold::AssetMapping::load(), and
-/// the items, see manifold::ItemCatalog::load(). Logs which directory is used.
+/// Finds the game's assets and data, see manifold::find_game_dir(): the `assets` and `data` directories next to the
+/// executable, or else those in the source tree, whose paths CMake sets, and reads the mapping of the assets, see
+/// manifold::AssetMapping::load(), and the items, see manifold::ItemCatalog::load(). Logs which directories are used.
 GameAssets load_assets() {
     // SDL keeps the string, so it isn't freed.
     const char* base_path = SDL_GetBasePath();
     if (base_path == nullptr) {
         manifold::log_warning("The directory of the executable isn't known: {}", SDL_GetError());
     }
-    const std::filesystem::path assets = manifold::find_assets_dir(
-        base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path(), MANIFOLD_ASSETS_DIR);
-    manifold::log_info("Assets: {}", assets.string());
-    return {.mapping = manifold::AssetMapping::load(assets), .items = manifold::ItemCatalog::load(assets)};
+    const std::filesystem::path executable_dir =
+        base_path != nullptr ? std::filesystem::path(base_path) : std::filesystem::path();
+    const std::filesystem::path assets = manifold::find_assets_dir(executable_dir, MANIFOLD_ASSETS_DIR);
+    const std::filesystem::path data =
+        manifold::find_game_dir(executable_dir, manifold::kDataDirName, MANIFOLD_DATA_DIR);
+    manifold::log_info("Assets: {}, data: {}", assets.string(), data.string());
+    return {.mapping = manifold::AssetMapping::load(assets), .items = manifold::ItemCatalog::load(data)};
 }
 
 /// Loads the texture of the game's current level, see manifold::Level::texture. If it can't be used, a plain grey one
@@ -864,7 +867,8 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
         pointer = manifold::PointerEvent{.action = event.type == SDL_EVENT_MOUSE_BUTTON_DOWN
                                                        ? manifold::PointerAction::kPress
                                                        : manifold::PointerAction::kRelease,
-                                         .position = {event.button.x, event.button.y}};
+                                         .position = {event.button.x, event.button.y},
+                                         .clicks = event.button.clicks};
     }
     if (!pointer) {
         return;

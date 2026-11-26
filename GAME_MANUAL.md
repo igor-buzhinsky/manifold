@@ -144,7 +144,8 @@ kilograms, shown without the unit. Items of the same kind aren't stacked yet, so
 items are gems: small and large diamonds, rubies, emeralds, sapphires and amethysts.
 
 Activating a chest opens its items in a grid on the left, with the party's on the right, each narrower. What a chest
-holds is chosen when the level is generated, up to eight items. Items can be moved between the two grids, and they
+holds is chosen when the level is generated: a wooden chest holds one to three items, a golden one three to five, and
+more valuable ones. Items can be moved between the two grids, and they
 stay where they were put while the party is in the level. A level that starts again, e.g. after loading, has its
 chests full again.
 
@@ -152,6 +153,7 @@ chests full again.
 |---|---|
 | Left mouse button | On an item: select it, which shows its name and weight at the bottom. On an empty cell: move the selected item to the end of that grid's items, the party's or the chest's, and the items after its old place move up |
 | Arrow keys | Move the selection, from one grid to the other at their edges. Without a selection, select the first item |
+| Double click | With a chest open: move the item from the chest to the end of the party's items, or from the party's into the chest. Without a chest, it only selects the item |
 | Enter or Space | With a chest open: move the selected item to the end of the other grid, and select the item that comes into its place |
 | T, or the Take all button | Move all items of the chest to the end of the party's, in their order |
 | Mouse wheel | Scroll the grid under the pointer. Each grid has an empty cell after its items, so that an item can always be put there |
@@ -180,7 +182,7 @@ Small chests stand at walls. In room levels, each room at least 2 tiles wide and
 starts, has a chest with a chance of 20%. In the debug layout, chests stand below every third torch, unless something is in the way. A chest is wooden,
 or golden with a chance of 20%. Chests don't block the way. Activating one, by looking down at it with E or by clicking
 it, plays the sound of opening it and shows what it holds next to the party's items, see Inventory above. A golden
-chest holds more than a wooden one, on average.
+chest holds more items than a wooden one, and more valuable ones.
 
 ## Saving
 

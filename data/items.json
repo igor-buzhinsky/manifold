@@ -3,13 +3,13 @@
     "name": "Small diamond",
     "value": 1250,
     "weight": 1,
-    "chance": 2.0
+    "chance": 1.0
   },
   "LARGE_DIAMOND": {
     "name": "Large diamond",
     "value": 5000,
     "weight": 4,
-    "chance": 2.0
+    "chance": 1.0
   },
   "SMALL_RUBY": {
     "name": "Small ruby",

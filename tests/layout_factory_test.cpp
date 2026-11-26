@@ -234,15 +234,15 @@ TEST(LayoutFactoryTest, ChestsHoldItemsWithinTheirValuesThatDependOnlyOnTheSeed)
                 EXPECT_EQ(chest.look, without.world.chests()[i].look);
                 EXPECT_EQ(chest.open_sound, without.world.chests()[i].open_sound);
                 EXPECT_TRUE(without.world.chests()[i].items.empty());
-                EXPECT_LE(chest.items.size(), kMaxChestItems);
-                EXPECT_LE(Inventory(chest.items).value(config.items), chest_value_range(chest.look).max);
+                EXPECT_LE(chest.items.size(), static_cast<std::size_t>(chest_loot(chest.look).max_items));
+                EXPECT_LE(Inventory(chest.items).value(config.items), chest_loot(chest.look).max_total_value);
                 items += chest.items.size();
             }
             chests += level.world.chests().size();
         }
     }
     ASSERT_GT(chests, 2U);
-    // Each chest is worth at least 500, so it holds at least one pebble.
+    // Each chest gets at least one item: the first is never worth more than a chest's total.
     EXPECT_GE(items, chests);
 }
 

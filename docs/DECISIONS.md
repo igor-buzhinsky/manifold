@@ -810,52 +810,60 @@ Drawbacks:
 - The mapping is long: about 240 files, most of them textures of stone.
 - Old saves (format version 4) are refused, since they store portraits as paths.
 
-## 2026-11-25: Items chosen for chests by value, in one inventory of the party without stacking
+## 2026-11-25: Items chosen for chests by number and value, in one inventory of the party without stacking
 
 Status: **ACCEPTED**. Done in v0.4.
 
-Decision: the kinds of items are listed in `assets/items.json`, each with a key, a name, a value, a weight in grams and
-a chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. When a level is generated, each
-chest gets a value at random, uniformly from half to one and a half of its mean (1000 for a wooden chest, 4000 for a
-golden one), and items are added one by one: each is chosen with a probability proportional to its chance among the
-items whose value still fits into what is left, until none fits or the chest holds 8. The value is never shown to the
-player. The party shares one inventory, a list of items without a limit of weight, which is saved by the keys of the
-items at the start of each level; what chests hold isn't saved, since a loaded level starts again. The inventory is a
-scrollable grid of cells, one item per cell. An item is moved by selecting it with a click and clicking an empty cell,
-which puts it at the end of that grid's list; with a chest open, the two grids are side by side, and Take all moves
-everything. The first items are ten gems: a large diamond is worth 5000, a ruby 4000, an emerald 3000, a sapphire 2500
-and an amethyst 500, a small gem a quarter of its large one, and diamonds have twice the chance of the others.
+Decision: the kinds of items are listed in `data/items.json`, each with a key, a name, a value, a weight in grams and a
+chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. `data/` is a new directory, found like
+`assets/`, for files that define the game rather than how it looks and sounds; later it will hold level settings and
+other constants. When a level is generated, each chest gets a number of items, uniformly from 1 to 3 for a wooden
+chest and from 3 to 5 for a golden one. The items are chosen one by one, each with a probability proportional to its
+chance among the items worth 100 to 2000 (wooden) or 100 to 5000 (golden). An item that would make the chest's items
+worth more than 2000 (wooden) or 6000 (golden) together is left out, and the filling stops there, also below the
+fewest items. These limits are constants in code for now (`ContainerLoot`). Values are never shown to the player. The
+party shares one inventory, a list of items without a limit of weight, which is saved by the keys of the items at the
+start of each level; what chests hold isn't saved, since a loaded level starts again. The inventory is a scrollable
+grid of cells, one item per cell. An item is moved by selecting it with a click and clicking an empty cell, which puts
+it at the end of that grid's list; with a chest open, the two grids are side by side, a double click or Enter moves an
+item to the other side, and Take all moves everything. The first items are ten gems: a large diamond is worth 5000, a
+ruby 4000, an emerald 3000, a sapphire 2500 and an amethyst 500, a small gem a quarter of its large one, and all
+have the same chance.
 
 Gains:
 
-- Value budgets tie what a container holds to how rich it should be, whatever items exist: a new item needs only its
-  value and chance, and golden chests stay richer than wooden ones. Monsters and other containers can use the same
-  filling with their own values.
+- The number of items says how much a chest holds, and the range of values how rich it is, independently: a golden
+  chest holds more items and finds the dear ones, a wooden chest never gets more than a few.
+- A new item needs only its value and chance, and monsters and other containers can be filled the same way with their
+  own limits.
 - Chances tune how common an item is independently of its value, and they needn't add up to anything, so adding an
   item doesn't change the others' numbers.
-- Items, values and icons change without building the game, as assets do.
+- Items, values and icons change without building the game, and `data/` keeps the rules apart from the assets.
 - Saving item keys keeps saves valid when items are added or reordered.
 - One shared inventory is simple to use and to save, and fits a party that moves as one.
 
 Rejected alternatives:
 
+- **Filling up to a random total value** (the first version of this change: wooden 500 to 1500, golden 2000 to 6000,
+  at most 8 items, each chosen among those that still fit): once the dear items no longer fit, only the cheapest are
+  left, so chests filled up with amethysts.
 - **Loot tables per container** (fixed lists of items with probabilities): each container would need its own table,
   and every new item would mean editing all of them.
-- **Picking a number of items first, and then which**: the value of a chest would vary with the items' values instead
-  of being bounded.
-- **Realistic prices**, where an amethyst is worth about a hundredth of a diamond: chests would fill up with dozens of
-  amethysts before nothing else fits. Amethyst is valued as it was when it counted among the precious stones, and
-  chests hold at most 8 items.
+- **Realistic prices**, where an amethyst is worth about a hundredth of a diamond: amethysts would be worthless next to
+  the other gems. Amethyst is valued as it was when it counted among the precious stones.
+- **`items.json` in `assets/`**: it holds rules, such as values and chances, not files of assets. **`config/`** as the
+  name of the new directory: it reads like the player's configuration, which `settings.json` is.
 - **An inventory for each character**: needs moving items between characters before there is any reason to, such as
   equipment or a limit of weight per character.
-- **Drag and drop**: more code for the same moves; selecting and clicking also works with the keys.
+- **Drag and drop**: more code for the same moves; selecting and clicking, and double clicking, also work without it.
 - **Stacking items of a kind in one cell**: worth doing, but later, see ROADMAP.md.
 
 Drawbacks:
 
-- With the gems so far, a wooden chest worth less than 625 holds only amethysts. When filling stops because nothing
-  fits, the cheapest item decides how much of a chest's value is left unused: up to 124. When it stops at 8 items,
-  much more can be: a wooden chest worth 1500 that gets eight small amethysts leaves 500.
+- A chest can get fewer items than its fewest when an early item is dear: e.g. a large diamond (5000) as the first of
+  a golden chest's items leaves room only for amethysts or small gems worth together at most 1000, and a dear second
+  item ends the filling.
+- The limits of containers are in code, not yet in `data/`.
 - An item can only be put at the end of a grid; there is no way to put it into a cell in between.
 - Without stacking, many small items fill the grid quickly, and it must be scrolled.
 - What a chest holds depends on the order and number of the items in the file, so changing them changes the chests of

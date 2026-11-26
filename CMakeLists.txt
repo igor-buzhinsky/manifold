@@ -147,7 +147,8 @@ target_link_libraries(manifold_sim PRIVATE manifold_core)
 target_compile_options(manifold_sim PRIVATE ${MANIFOLD_WARNINGS})
 # Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
 # `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
-target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
+                                            MANIFOLD_DATA_DIR="${CMAKE_SOURCE_DIR}/data")
 # The game's own settings are read the same way: `settings.json` next to the executable, or else the one in the source
 # tree. The player's settings in the directory of the saves take priority over them.
 target_compile_definitions(manifold PRIVATE MANIFOLD_SETTINGS_FILE="${CMAKE_SOURCE_DIR}/settings.json")
@@ -160,6 +161,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 install(TARGETS manifold RUNTIME DESTINATION .)
 install(DIRECTORY assets/ DESTINATION assets)
+install(DIRECTORY data/ DESTINATION data)
 install(FILES LICENSE GAME_MANUAL.md DEBUGGING.md settings.json DESTINATION .)
 install(FILES ${sdl3_SOURCE_DIR}/LICENSE.txt DESTINATION licenses RENAME SDL3.txt)
 install(FILES ${glm_SOURCE_DIR}/copying.txt DESTINATION licenses RENAME glm.txt)
@@ -227,9 +229,10 @@ if(MANIFOLD_BUILD_TESTS)
     )
     target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)
     target_compile_options(manifold_tests PRIVATE ${MANIFOLD_WARNINGS})
-    # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one, and the asset mapping
-    # tests check the game's mapping and its files.
-    target_compile_definitions(manifold_tests PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets")
+    # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one, the asset mapping tests
+    # check the game's mapping and its files, and the item tests the game's items.
+    target_compile_definitions(manifold_tests PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
+                                                      MANIFOLD_DATA_DIR="${CMAKE_SOURCE_DIR}/data")
 
     include(GoogleTest)
     # A test that runs longer than this fails, so that one that hangs, e.g. in a loop waiting for the player to land,
