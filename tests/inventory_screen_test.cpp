@@ -255,6 +255,38 @@ TEST(InventoryScreenTest, DoubleClickMovesAnItemToTheOtherSide) {
     EXPECT_EQ(fixture.party.size(), 2U);
 }
 
+TEST(InventoryScreenTest, DoubleClickNeedsBothPressesOnTheSameItem) {
+    Fixture fixture;
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    // Quick presses on two neighbouring items, which SDL may count as a double click, only select.
+    screen.handle(press(Fixture::cell_point(screen, 0, 0, fixture.chest)), kPicture);
+    screen.handle(
+        PointerEvent{
+            .action = PointerAction::kPress, .position = Fixture::cell_point(screen, 0, 1, fixture.chest), .clicks = 2},
+        kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kCrown, kPebble, kGoldBar}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 1}));
+    // A double click on an empty cell moves the selected item there and leaves it there.
+    const glm::vec2 empty = Fixture::cell_point(screen, 1, 2, fixture.party);
+    screen.handle(press(empty), kPicture);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = empty, .clicks = 2}, kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
+    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 1, .index = 2}));
+}
+
+TEST(InventoryScreenTest, ThePressThatOpenedTheScreenIsNoFirstClick) {
+    Fixture fixture;
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    // The first press of a double click on the chest in the world opened the screen; the second only selects.
+    screen.handle(
+        PointerEvent{
+            .action = PointerAction::kPress, .position = Fixture::cell_point(screen, 0, 0, fixture.chest), .clicks = 2},
+        kPicture);
+    EXPECT_EQ(fixture.chest.size(), 3U);
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
+}
+
 TEST(InventoryScreenTest, DoubleClickWithoutAContainerOnlySelects) {
     Fixture fixture;
     InventoryScreen screen(fixture.items, fixture.party);

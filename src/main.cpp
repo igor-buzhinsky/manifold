@@ -37,6 +37,7 @@
 #include "console/game_commands.hpp"
 #include "game.hpp"
 #include "items/item_catalog.hpp"
+#include "items/loot.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
@@ -169,6 +170,8 @@ GameAssets load_assets() {
     const std::filesystem::path data =
         manifold::find_game_dir(executable_dir, manifold::kDataDirName, MANIFOLD_DATA_DIR);
     manifold::log_info("Assets: {}, data: {}", assets.string(), data.string());
+    manifold::check_container_loot(manifold::kWoodenChestLoot, "wooden chests");
+    manifold::check_container_loot(manifold::kGoldenChestLoot, "golden chests");
     return {.mapping = manifold::AssetMapping::load(assets), .items = manifold::ItemCatalog::load(data)};
 }
 

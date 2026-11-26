@@ -145,8 +145,9 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 add_executable(manifold_sim src/sim/sim_main.cpp)
 target_link_libraries(manifold_sim PRIVATE manifold_core)
 target_compile_options(manifold_sim PRIVATE ${MANIFOLD_WARNINGS})
-# Textures and sounds are read from `assets` next to the executable if there is one, as in a copy of the game made by
-# `cmake --install`, and otherwise from the source tree, so that the game in the build directory finds them too.
+# Textures and sounds are read from `assets`, and the game's data such as its items from `data`, next to the executable
+# if they are there, as in a copy of the game made by `cmake --install`, and otherwise from the source tree, so that
+# the game in the build directory finds them too.
 target_compile_definitions(manifold PRIVATE MANIFOLD_ASSETS_DIR="${CMAKE_SOURCE_DIR}/assets"
                                             MANIFOLD_DATA_DIR="${CMAKE_SOURCE_DIR}/data")
 # The game's own settings are read the same way: `settings.json` next to the executable, or else the one in the source

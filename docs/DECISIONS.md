@@ -817,23 +817,24 @@ Status: **ACCEPTED**. Done in v0.4.
 Decision: the kinds of items are listed in `data/items.json`, each with a key, a name, a value, a weight in grams and a
 chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. `data/` is a new directory, found like
 `assets/`, for files that define the game rather than how it looks and sounds; later it will hold level settings and
-other constants. When a level is generated, each chest gets a number of items, uniformly from 1 to 3 for a wooden
-chest and from 3 to 5 for a golden one. The items are chosen one by one, each with a probability proportional to its
-chance among the items worth 100 to 2000 (wooden) or 100 to 5000 (golden). An item that would make the chest's items
-worth more than 2000 (wooden) or 6000 (golden) together is left out, and the filling stops there, also below the
-fewest items. These limits are constants in code for now (`ContainerLoot`). Values are never shown to the player. The
-party shares one inventory, a list of items without a limit of weight, which is saved by the keys of the items at the
-start of each level; what chests hold isn't saved, since a loaded level starts again. The inventory is a scrollable
-grid of cells, one item per cell. An item is moved by selecting it with a click and clicking an empty cell, which puts
-it at the end of that grid's list; with a chest open, the two grids are side by side, a double click or Enter moves an
-item to the other side, and Take all moves everything. The first items are ten gems: a large diamond is worth 5000, a
-ruby 4000, an emerald 3000, a sapphire 2500 and an amethyst 500, a small gem a quarter of its large one, and all
-have the same chance.
+other constants. When a level is generated, each chest gets a number of draws, uniformly from 1 to 3 for a wooden chest
+and from 3 to 5 for a golden one. Each draw chooses an item with a probability proportional to its chance among the
+items worth 100 to 2000 (wooden) or 100 to 5000 (golden). A drawn item that would make the chest's items worth more than
+2000 (wooden) or 6000 (golden) together is left out, and the filling stops there, so chests often get fewer items than
+draws: in a simulation, wooden chests got 1, 2 or 3 items 39%, 46% and 15% of the time, and golden chests 1 to 5 items
+14%, 28%, 35%, 17% and 6% of the time. These limits are constants in code for now (`ContainerLoot`). Values are never
+shown to the player. The party shares one inventory, a list of items without a limit of weight, which is saved by the
+keys of the items at the start of each level; what chests hold isn't saved, since a loaded level starts again. The
+inventory is a scrollable grid of cells, one item per cell. An item is moved by selecting it with a click and clicking
+an empty cell, which puts it at the end of that grid's list; with a chest open, the two grids are side by side, a double
+click or Enter moves an item to the other side, and Take all moves everything. The first items are ten gems: a large
+diamond is worth 5000, a ruby 4000, an emerald 3000, a sapphire 2500 and an amethyst 500, a small gem a quarter of its
+large one, and all have the same chance.
 
 Gains:
 
-- The number of items says how much a chest holds, and the range of values how rich it is, independently: a golden
-  chest holds more items and finds the dear ones, a wooden chest never gets more than a few.
+- The number of draws says how much a chest holds, and the range of values how rich it is, independently: a golden
+  chest holds more items on average and finds the dear ones, a wooden chest never gets more than a few.
 - A new item needs only its value and chance, and monsters and other containers can be filled the same way with their
   own limits.
 - Chances tune how common an item is independently of its value, and they needn't add up to anything, so adding an
@@ -847,6 +848,9 @@ Rejected alternatives:
 - **Filling up to a random total value** (the first version of this change: wooden 500 to 1500, golden 2000 to 6000,
   at most 8 items, each chosen among those that still fit): once the dear items no longer fit, only the cheapest are
   left, so chests filled up with amethysts.
+- **Skipping an item that doesn't fit and drawing again**, or retrying a few times: chests would nearly always get
+  their fewest items, but the number of draws would no longer bound the work, and after a dear first item the rest
+  would mostly be the cheapest gems.
 - **Loot tables per container** (fixed lists of items with probabilities): each container would need its own table,
   and every new item would mean editing all of them.
 - **Realistic prices**, where an amethyst is worth about a hundredth of a diamond: amethysts would be worthless next to
@@ -860,9 +864,10 @@ Rejected alternatives:
 
 Drawbacks:
 
-- A chest can get fewer items than its fewest when an early item is dear: e.g. a large diamond (5000) as the first of
-  a golden chest's items leaves room only for amethysts or small gems worth together at most 1000, and a dear second
-  item ends the filling.
+- Chests often get fewer items than draws, 42% of golden chests fewer than 3: e.g. a large diamond (5000) drawn first
+  for a golden chest leaves room for at most 1000, so most second draws end the filling. Stopping instead of drawing
+  again keeps the filling simple and bounded, and the number of draws an upper limit. A total below the largest value of
+  an item would let a dear first draw leave a chest empty, so the game warns about such limits.
 - The limits of containers are in code, not yet in `data/`.
 - An item can only be put at the end of a grid; there is no way to put it into a cell in between.
 - Without stacking, many small items fill the grid quickly, and it must be scrolled.
