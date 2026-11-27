@@ -190,7 +190,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   texture's key there gives its kind.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
   (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux; since v0.4 there is also a save of
-  the middle of the level, see there), so a level that is left can't be returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
+  the middle of the level, see "Saving in the middle of a level" under v0.4), so a level that is left can't be returned to. Until v0.4, F9 or the `load` command started the saved level again from its start. A save holds the level seed, the
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
 - **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
   Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of
