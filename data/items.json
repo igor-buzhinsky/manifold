@@ -1,59 +1,59 @@
 {
-  "SMALL_DIAMOND": {
+  "small_diamond": {
     "name": "Small diamond",
     "value": 1250,
     "weight": 1,
     "chance": 1.0
   },
-  "LARGE_DIAMOND": {
+  "large_diamond": {
     "name": "Large diamond",
     "value": 5000,
     "weight": 4,
     "chance": 1.0
   },
-  "SMALL_RUBY": {
+  "small_ruby": {
     "name": "Small ruby",
     "value": 1000,
     "weight": 1,
     "chance": 1.0
   },
-  "LARGE_RUBY": {
+  "large_ruby": {
     "name": "Large ruby",
     "value": 4000,
     "weight": 4,
     "chance": 1.0
   },
-  "SMALL_EMERALD": {
+  "small_emerald": {
     "name": "Small emerald",
     "value": 750,
     "weight": 1,
     "chance": 1.0
   },
-  "LARGE_EMERALD": {
+  "large_emerald": {
     "name": "Large emerald",
     "value": 3000,
     "weight": 4,
     "chance": 1.0
   },
-  "SMALL_SAPPHIRE": {
+  "small_sapphire": {
     "name": "Small sapphire",
     "value": 625,
     "weight": 1,
     "chance": 1.0
   },
-  "LARGE_SAPPHIRE": {
+  "large_sapphire": {
     "name": "Large sapphire",
     "value": 2500,
     "weight": 4,
     "chance": 1.0
   },
-  "SMALL_AMETHYST": {
+  "small_amethyst": {
     "name": "Small amethyst",
     "value": 125,
     "weight": 1,
     "chance": 1.0
   },
-  "LARGE_AMETHYST": {
+  "large_amethyst": {
     "name": "Large amethyst",
     "value": 500,
     "weight": 4,

@@ -15,7 +15,7 @@ using ItemId = std::uint16_t;
 
 /// A kind of item that the party can carry, such as a small ruby, with what the game needs to know about it.
 struct ItemType {
-    /// The item's key in the item file and in saves, e.g. `SMALL_RUBY`. Its icon is found by it too, see
+    /// The item's key in the item file and in saves, e.g. `small_ruby`. Its icon is found by it too, see
     /// AssetMapping::item_icon().
     std::string key;
     std::string name;  ///< What the player sees, e.g. "Small ruby".
@@ -38,7 +38,7 @@ inline constexpr std::string_view kItemsFileName = "items.json";
 ///
 /// The file is an object whose fields are the keys of the items, each an object with `name` (a string that isn't
 /// empty), `value` (a positive integer), `weight` (grams, an integer that isn't negative) and `chance` (a finite number
-/// that isn't negative), e.g. `{"SMALL_RUBY": {"name": "Small ruby", "value": 1000, "weight": 1, "chance": 1}}`.
+/// that isn't negative), e.g. `{"small_ruby": {"name": "Small ruby", "value": 1000, "weight": 1, "chance": 1}}`.
 /// The items keep the order of the file, which the random choices of containers depend on, see fill_container().
 class ItemCatalog {
 public:

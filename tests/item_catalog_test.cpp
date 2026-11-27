@@ -25,48 +25,48 @@ ItemCatalog parse(std::string_view json, std::string& log) {
 
 TEST(ItemCatalogTest, ParsesItemsInTheOrderOfTheFile) {
     constexpr const char* kJson = R"({
-        "ZEBRA": {"name": "Zebra", "value": 3, "weight": 400000, "chance": 0.5},
-        "ANT": {"name": "Ant", "value": 1, "weight": 0, "chance": 0}
+        "zebra": {"name": "Zebra", "value": 3, "weight": 400000, "chance": 0.5},
+        "ant": {"name": "Ant", "value": 1, "weight": 0, "chance": 0}
     })";
     std::string log;
     const ItemCatalog catalog = parse(kJson, log);
     EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
     ASSERT_EQ(catalog.items().size(), 2U);
-    EXPECT_EQ(catalog.at(0), (ItemType{.key = "ZEBRA", .name = "Zebra", .value = 3, .weight = 400000, .chance = 0.5}));
-    EXPECT_EQ(catalog.at(1), (ItemType{.key = "ANT", .name = "Ant", .value = 1, .weight = 0, .chance = 0.0}));
-    EXPECT_EQ(catalog.find("ANT"), ItemId{1});
-    EXPECT_EQ(catalog.find("ZEBRA"), ItemId{0});
-    EXPECT_FALSE(catalog.find("zebra").has_value());
+    EXPECT_EQ(catalog.at(0), (ItemType{.key = "zebra", .name = "Zebra", .value = 3, .weight = 400000, .chance = 0.5}));
+    EXPECT_EQ(catalog.at(1), (ItemType{.key = "ant", .name = "Ant", .value = 1, .weight = 0, .chance = 0.0}));
+    EXPECT_EQ(catalog.find("ant"), ItemId{1});
+    EXPECT_EQ(catalog.find("zebra"), ItemId{0});
+    EXPECT_FALSE(catalog.find("Zebra").has_value());
     EXPECT_THROW(static_cast<void>(catalog.at(2)), std::out_of_range);
 }
 
 TEST(ItemCatalogTest, WrongItemsAreLeftOutWithAWarning) {
     constexpr const char* kJson = R"({
-        "GOOD": {"name": "Good", "value": 1, "weight": 1, "chance": 1},
-        "NOT_AN_OBJECT": 5,
-        "NO_NAME": {"value": 1, "weight": 1, "chance": 1},
-        "EMPTY_NAME": {"name": "", "value": 1, "weight": 1, "chance": 1},
-        "FREE": {"name": "Free", "value": 0, "weight": 1, "chance": 1},
-        "FRACTION": {"name": "Fraction", "value": 1.5, "weight": 1, "chance": 1},
-        "NEGATIVE_WEIGHT": {"name": "Negative", "value": 1, "weight": -1, "chance": 1},
-        "NEGATIVE_CHANCE": {"name": "Negative", "value": 1, "weight": 1, "chance": -0.5},
-        "TEXT_CHANCE": {"name": "Text", "value": 1, "weight": 1, "chance": "often"}
+        "good": {"name": "Good", "value": 1, "weight": 1, "chance": 1},
+        "not_an_object": 5,
+        "no_name": {"value": 1, "weight": 1, "chance": 1},
+        "empty_name": {"name": "", "value": 1, "weight": 1, "chance": 1},
+        "free": {"name": "Free", "value": 0, "weight": 1, "chance": 1},
+        "fraction": {"name": "Fraction", "value": 1.5, "weight": 1, "chance": 1},
+        "negative_weight": {"name": "Negative", "value": 1, "weight": -1, "chance": 1},
+        "negative_chance": {"name": "Negative", "value": 1, "weight": 1, "chance": -0.5},
+        "text_chance": {"name": "Text", "value": 1, "weight": 1, "chance": "often"}
     })";
     std::string log;
     const ItemCatalog catalog = parse(kJson, log);
     ASSERT_EQ(catalog.items().size(), 1U);
-    EXPECT_EQ(catalog.at(0).key, "GOOD");
+    EXPECT_EQ(catalog.at(0).key, "good");
     for (const char* message :
-         {"NOT_AN_OBJECT is 5, not an object", "NO_NAME has no name, not a name that isn't empty",
-          R"(EMPTY_NAME has a name "", not)", "FREE has a value 0, not a positive integer value",
-          "FRACTION has a value 1.5", "NEGATIVE_WEIGHT has a weight -1, not a weight of 0",
-          "NEGATIVE_CHANCE has a chance -0.5, not a chance of 0 or more", R"(TEXT_CHANCE has a chance "often")"}) {
+         {"not_an_object is 5, not an object", "no_name has no name, not a name that isn't empty",
+          R"(empty_name has a name "", not)", "free has a value 0, not a positive integer value",
+          "fraction has a value 1.5", "negative_weight has a weight -1, not a weight of 0",
+          "negative_chance has a chance -0.5, not a chance of 0 or more", R"(text_chance has a chance "often")"}) {
         EXPECT_NE(log.find(message), std::string::npos) << message << "\n" << log;
     }
 }
 
 TEST(ItemCatalogTest, TextThatIsNotAnObjectGivesNoItems) {
-    for (const std::string_view json : {"", "not json", R"(["SMALL_RUBY"])"}) {
+    for (const std::string_view json : {"", "not json", R"(["small_ruby"])"}) {
         std::string log;
         EXPECT_TRUE(parse(json, log).items().empty()) << json;
         EXPECT_NE(log.find("[warning] Items test.json are not"), std::string::npos) << log;
@@ -124,14 +124,14 @@ TEST(GameItemsTest, ItemsOfTheGameLoadAndEachHasAnIcon) {
 TEST(GameItemsTest, LargeGemsAreWorthAndWeighFourTimesTheSmallOnes) {
     std::string log;
     const ItemCatalog catalog = load_game_items(log);
-    for (const char* gem : {"DIAMOND", "RUBY", "EMERALD", "SAPPHIRE", "AMETHYST"}) {
-        const std::optional<ItemId> small = catalog.find(std::string("SMALL_") + gem);
-        const std::optional<ItemId> large = catalog.find(std::string("LARGE_") + gem);
+    for (const char* gem : {"diamond", "ruby", "emerald", "sapphire", "amethyst"}) {
+        const std::optional<ItemId> small = catalog.find(std::string("small_") + gem);
+        const std::optional<ItemId> large = catalog.find(std::string("large_") + gem);
         ASSERT_TRUE(small && large) << gem;
         EXPECT_EQ(catalog.at(*large).value, 4 * catalog.at(*small).value) << gem;
         EXPECT_EQ(catalog.at(*large).weight, 4 * catalog.at(*small).weight) << gem;
     }
-    EXPECT_EQ(catalog.at(*catalog.find("LARGE_DIAMOND")).value, 5000);
+    EXPECT_EQ(catalog.at(*catalog.find("large_diamond")).value, 5000);
 }
 
 }  // namespace

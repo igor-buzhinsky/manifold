@@ -44,12 +44,12 @@ TEST(SavedGameTest, JsonRoundTripKeepsAllFields) {
                          .time = 12.25,
                          .party = make_party(),
                          .magic = make_magic(),
-                         .inventory = {"SMALL_RUBY", "LARGE_DIAMOND", "SMALL_RUBY"}};
+                         .inventory = {"small_ruby", "large_diamond", "small_ruby"}};
     EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
     EXPECT_NE(save_to_json(save).find(R"("inventory": [
-    "SMALL_RUBY",
-    "LARGE_DIAMOND",
-    "SMALL_RUBY"
+    "small_ruby",
+    "large_diamond",
+    "small_ruby"
   ])"),
               std::string::npos)
         << save_to_json(save);

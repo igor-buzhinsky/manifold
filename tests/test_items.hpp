@@ -7,9 +7,9 @@ namespace manifold {
 /// Items for tests: a cheap one, a dear one, and one that is never put into containers.
 inline ItemCatalog make_test_items() {
     return ItemCatalog({
-        {.key = "PEBBLE", .name = "Pebble", .value = 100, .weight = 250, .chance = 1.0},
-        {.key = "GOLD_BAR", .name = "Gold bar", .value = 1500, .weight = 1000, .chance = 2.0},
-        {.key = "CROWN", .name = "Crown", .value = 200, .weight = 1500, .chance = 0.0},
+        {.key = "pebble", .name = "Pebble", .value = 100, .weight = 250, .chance = 1.0},
+        {.key = "gold_bar", .name = "Gold bar", .value = 1500, .weight = 1000, .chance = 2.0},
+        {.key = "crown", .name = "Crown", .value = 200, .weight = 1500, .chance = 0.0},
     });
 }
 
