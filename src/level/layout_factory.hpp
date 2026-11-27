@@ -31,7 +31,8 @@ struct LevelConfig {
     /// How the torches and chests of every layout are chosen.
     LevelObjectChances object_chances;
     DebugLayoutConfig debug;
-    float debug_probability = 0.0f;  ///< Only for testing, so it is never chosen at random.
+    /// 0 by default and in the data files: the debug layout is for testing, and is used when it is asked for.
+    float debug_probability = 0.0f;
     RoomLayoutConfig rooms;
     float rooms_probability = 1.0f;
 };

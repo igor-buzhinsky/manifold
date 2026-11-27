@@ -4,7 +4,7 @@ Files that define the game rather than how it looks and sounds, so that they can
 again: restarting it is enough. The game reads them from the `data` directory next to its executable in a copy of the
 game (see `cmake --install` in [README.md](../README.md)), otherwise from this one. The movement simulation
 (`manifold_sim`) reads the ones in this directory; the unit tests use the defaults in code instead, so tuning a value
-here doesn't break them.
+here doesn't break them, except a test that these files load without problems or warnings.
 
 - `items.json`: all kinds of items, with their names, values, weights and chances, see the Items section of
   [DEBUGGING.md](../DEBUGGING.md#items). Their icons are listed under `ITEM_ICONS` of `assets/asset_mapping.json`. An
@@ -36,9 +36,11 @@ here doesn't break them.
 
 Unlike `items.json`, `spells.json`, `level_layouts.json` and `constants.json` must be complete and right: each field
 must be there, with a value of the right type and range, and an unknown field, such as a misspelt one, is an error too.
-The game also generates a level of each layout at the start, since some settings only fail together, such as tiles too
-narrow for the player. If anything is wrong, the game doesn't start, and the log lists every problem with its file and
-field, e.g. `data/spells.json: levitate.duration is -1, not a positive number`.
+Settings of several files must fit together: the player must be lower than a layer of rooms, the party's `max_mana` must
+pay for every spell, and the walk can't be faster than the run. The game also generates a level of each layout at the
+start, from one seed, since some settings only fail together, such as tiles too narrow for the player. If anything is
+wrong, the game doesn't start, and the log lists every problem with its file and field, e.g. `data/spells.json:
+levitate.duration is -1, not a positive number`.
 
 A save keeps the party's mana and spells but not the level, which is generated again from its seed. So a saved game
 gives another level once `level_layouts.json` or the torch flames, the golden chest chance or the loot of chests in

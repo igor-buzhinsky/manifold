@@ -45,8 +45,10 @@ void parse_spells(std::string_view json, std::string_view source, MagicConfig& m
 /// DebugLayoutConfig by their names, e.g. `{"rooms": {"probability": 1, "grid_width": 80, ...}, "debug": {...}}`.
 ///
 /// Besides the type and range of each field, it checks that the smallest of a range isn't above its largest (such as
-/// `min_holes` and `max_holes`), that `min_ramps` isn't above `min_holes`, that the debug level isn't empty, and that
-/// not all probabilities are 0. load_game_data() also generates a level of each layout, which finds the rest.
+/// `min_holes` and `max_holes`), that `min_ramps` isn't above `min_holes`, that the largest room fits into the grid
+/// with its walls, that the debug level isn't empty, and that not all probabilities are 0. Counts and attempts have
+/// upper limits (1000 and 1000000), so that a typo can't take all memory or time. load_game_data() also generates a
+/// level of each layout, which finds most of the rest.
 ///
 /// \throws GameDataError if a field is missing, unknown or wrong. Then `level` may be partly changed.
 void parse_level_layouts(std::string_view json, std::string_view source, LevelConfig& level);
@@ -64,9 +66,10 @@ void parse_level_layouts(std::string_view json, std::string_view source, LevelCo
 ///   player's light of LightSettings; `torch` and `exit`, each with `intensity` and `range`; `fade_distance` and
 ///   `level_ambient_luminance`.
 ///
-/// Besides the type and range of each field, it checks that the smallest of a range of the loot isn't above its
-/// largest, and that not all torch flames have a weight of 0. A loot whose largest total is below its dearest item
-/// only gets a warning, see check_container_loot().
+/// Besides the type and range of each field, it checks that the walk isn't faster than the run, that the smallest of a
+/// range of the loot isn't above its largest, and that not all torch flames have a weight of 0. A party has at most 6
+/// characters, which the HUD has room for, the ranges of lights are at least 0.1 m, and the draws of loot at most 1000.
+/// A loot whose largest total is below its dearest item only gets a warning, see check_container_loot().
 ///
 /// \throws GameDataError if a field is missing, unknown or wrong. Then `game` and `lights` may be partly changed.
 void parse_constants(std::string_view json, std::string_view source, GameConfig& game, LightSettings& lights);
@@ -79,9 +82,11 @@ struct GameData {
 };
 
 /// Reads all data files of `data_dir`: the items (see ItemCatalog::load(), which only warns about problems),
-/// kSpellsFileName, kLevelLayoutsFileName and kConstantsFileName. Then it checks that each layout can generate a level,
-/// with the seed 1 and the player's radius as the clearance, since some settings only fail together, such as tiles too
-/// small for the player.
+/// kSpellsFileName, kLevelLayoutsFileName and kConstantsFileName. Then it checks the settings of several files that
+/// must fit together: the player must be lower than a layer of rooms, and the party's mana must pay for every spell.
+/// Last, it checks that each layout can generate a level, with the seed 1 and the player's radius as the clearance,
+/// since some settings only fail together, such as tiles too small for the player. Settings that fail only for some
+/// seeds, such as too few `max_plan_attempts`, can still pass, and stop the game later when such a level is generated.
 ///
 /// \throws GameDataError with all problems of all files if one is missing or has a problem, or a layout can't generate
 ///         a level.

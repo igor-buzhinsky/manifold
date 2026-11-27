@@ -58,16 +58,23 @@ constexpr Range kNonNegative{.min = 0.0, .max = kFloatMax};
 constexpr Range kPositive{.min = 0.0, .max = kFloatMax, .above_min = true};
 /// A chance, from 0 to 1.
 constexpr Range kFraction{.min = 0.0, .max = 1.0};
-/// An integer of 1 or more.
+/// A number of things or of attempts: an integer from 0 to 1000, or 1000000 for attempts. The limits keep huge
+/// values, such as a typo with too many zeros, from taking all memory or time.
+constexpr Range kSmallCount{.min = 0.0, .max = 1000.0};
+/// Like kSmallCount, but at least 1.
+constexpr Range kPositiveSmallCount{.min = 1.0, .max = 1000.0};
+constexpr Range kAttempts{.min = 1.0, .max = 1e6};
+/// A positive integer, e.g. hit points or the value of an item.
 constexpr Range kCount{.min = 1.0, .max = kIntMax};
+/// Range of a light, at least 0.1 m: shadow maps need it beyond their near plane, see kShadowNearPlane.
+constexpr Range kLightRange{.min = 0.1, .max = kFloatMax};
+/// Most characters of a party: as many as the HUD has room for, see layout_party_hud().
+constexpr Range kPartySize{.min = 1.0, .max = 6.0};
 
 /// What a field with numbers in `range` must be, for messages, e.g. "a number from 0 to 1".
 std::string describe(const Range& range, bool integer) {
     const char* kind = integer ? "an integer" : "a number";
-    if (range.min <= -kIntMax) {
-        return integer ? "an integer" : "a finite number";
-    }
-    if (range.max >= kIntMax) {
+    if (range.max >= kIntMax && range.min > -kIntMax) {
         if (range.above_min && range.min == 0.0) {
             return integer ? "a positive integer" : "a positive number";
         }
@@ -103,7 +110,11 @@ public:
             range.max = std::min(range.max, kIntMax);
         }
         const bool is_number = kInteger ? value->is_number_integer() : value->is_number();
-        const double number = is_number ? value->get<double>() : 0.0;
+        // A float can't hold every double: a tiny positive number would become 0, so the stored value is checked.
+        double number = 0.0;
+        if (is_number) {
+            number = kInteger ? value->get<double>() : static_cast<double>(static_cast<T>(value->get<double>()));
+        }
         const bool valid = is_number && std::isfinite(number) && number >= range.min && number <= range.max &&
                            (!range.above_min || number != range.min);
         if (!valid) {
@@ -256,21 +267,21 @@ void throw_problems(const std::vector<std::string>& problems) {
 }
 
 void read_rooms(FieldReader& reader, RoomLayoutConfig& rooms) {
-    reader.number("grid_width", rooms.grid_width, kCount);
-    reader.number("grid_height", rooms.grid_height, kCount);
+    reader.number("grid_width", rooms.grid_width, kPositiveSmallCount);
+    reader.number("grid_height", rooms.grid_height, kPositiveSmallCount);
     reader.number("tile_size", rooms.tile_size, kPositive);
     reader.number("height", rooms.height, kPositive);
-    reader.number("min_room_size", rooms.min_room_size, kCount);
-    reader.number("max_room_size", rooms.max_room_size, kCount);
-    reader.number("placement_attempts", rooms.placement_attempts, kNonNegative);
-    reader.number("layer_count", rooms.layer_count, kCount);
+    reader.number("min_room_size", rooms.min_room_size, kPositiveSmallCount);
+    reader.number("max_room_size", rooms.max_room_size, kPositiveSmallCount);
+    reader.number("placement_attempts", rooms.placement_attempts, kAttempts);
+    reader.number("layer_count", rooms.layer_count, kPositiveSmallCount);
     reader.number("slab_thickness", rooms.slab_thickness, kPositive);
-    reader.number("hole_length", rooms.hole_length, kCount);
-    reader.number("min_holes", rooms.min_holes, kNonNegative);
-    reader.number("max_holes", rooms.max_holes, kNonNegative);
-    reader.number("min_ramps", rooms.min_ramps, kNonNegative);
-    reader.number("max_ramps", rooms.max_ramps, kNonNegative);
-    reader.number("max_plan_attempts", rooms.max_plan_attempts, kCount);
+    reader.number("hole_length", rooms.hole_length, kPositiveSmallCount);
+    reader.number("min_holes", rooms.min_holes, kSmallCount);
+    reader.number("max_holes", rooms.max_holes, kSmallCount);
+    reader.number("min_ramps", rooms.min_ramps, kSmallCount);
+    reader.number("max_ramps", rooms.max_ramps, kSmallCount);
+    reader.number("max_plan_attempts", rooms.max_plan_attempts, kAttempts);
     reader.number("min_torch_chance", rooms.min_torch_chance, kFraction);
     reader.number("max_torch_chance", rooms.max_torch_chance, kFraction);
     reader.number("torch_height", rooms.torch_height, kNonNegative);
@@ -283,6 +294,11 @@ void read_rooms(FieldReader& reader, RoomLayoutConfig& rooms) {
     reader.order("min_ramps", rooms.min_ramps, "min_holes", rooms.min_holes);
     reader.order("min_torch_chance", rooms.min_torch_chance, "max_torch_chance", rooms.max_torch_chance);
     reader.order("min_door_chance", rooms.min_door_chance, "max_door_chance", rooms.max_door_chance);
+    // A room needs a tile for its wall on each side.
+    reader.check(
+        rooms.max_room_size + 2 <= std::min(rooms.grid_width, rooms.grid_height),
+        std::format("has rooms of up to {} tiles, which don't fit with their walls into a grid of {} x {} tiles",
+                    rooms.max_room_size, rooms.grid_width, rooms.grid_height));
 }
 
 void read_debug(FieldReader& reader, DebugLayoutConfig& debug) {
@@ -290,25 +306,25 @@ void read_debug(FieldReader& reader, DebugLayoutConfig& debug) {
     reader.number("x_max", debug.x_max, kFinite);
     reader.number("y_min", debug.y_min, kFinite);
     reader.number("y_max", debug.y_max, kFinite);
-    reader.number("obstacle_count", debug.obstacle_count, kNonNegative);
+    reader.number("obstacle_count", debug.obstacle_count, kSmallCount);
     reader.number("obstacle_size", debug.obstacle_size, kPositive);
     reader.number("obstacle_height", debug.obstacle_height, kPositive);
     reader.number("ceiling_thickness", debug.ceiling_thickness, kPositive);
-    reader.number("ramp_count", debug.ramp_count, kNonNegative);
+    reader.number("ramp_count", debug.ramp_count, kSmallCount);
     reader.number("ramp_length", debug.ramp_length, kPositive);
     reader.number("ramp_width", debug.ramp_width, kPositive);
-    reader.number("max_attempts_per_block", debug.max_attempts_per_block, kCount);
+    reader.number("max_attempts_per_block", debug.max_attempts_per_block, kAttempts);
     reader.number("torch_spacing", debug.torch_spacing, kPositive);
     reader.number("torch_height", debug.torch_height, kNonNegative);
-    reader.number("torches_per_chest", debug.torches_per_chest, kNonNegative);
+    reader.number("torches_per_chest", debug.torches_per_chest, kSmallCount);
     reader.order("x_min", debug.x_min, "x_max", debug.x_max, true);
     reader.order("y_min", debug.y_min, "y_max", debug.y_max, true);
 }
 
 /// Reads how a kind of chest is filled, and warns about limits that can leave it empty, see check_container_loot().
 void read_loot(FieldReader reader, ContainerLoot& loot, std::string_view name) {
-    reader.number("min_draws", loot.min_draws, kNonNegative);
-    reader.number("max_draws", loot.max_draws, kNonNegative);
+    reader.number("min_draws", loot.min_draws, kSmallCount);
+    reader.number("max_draws", loot.max_draws, kSmallCount);
     reader.number("min_item_value", loot.min_item_value, kNonNegative);
     reader.number("max_item_value", loot.max_item_value, kNonNegative);
     reader.number("max_total_value", loot.max_total_value, kNonNegative);
@@ -324,7 +340,7 @@ void read_loot(FieldReader reader, ContainerLoot& loot, std::string_view name) {
 template <typename Params>
 void read_light(FieldReader reader, Params& params) {
     reader.number("intensity", params.intensity, kNonNegative);
-    reader.number("range", params.range, kPositive);
+    reader.number("range", params.range, kLightRange);
     reader.finish();
 }
 
@@ -386,11 +402,12 @@ void parse_constants(std::string_view json, std::string_view source, GameConfig&
     game.look_speed = look_degrees * kRadiansPerDegree;
     player.number("jump_height", game.jump_height, kNonNegative);
     player.number("max_snap_slope", game.max_snap_slope, kNonNegative);
+    player.order("walk_speed", game.walk_speed, "run_speed", game.run_speed);
     player.finish();
 
     FieldReader party = file.object("party");
     int size = static_cast<int>(game.party.size);
-    party.number("size", size, kCount);
+    party.number("size", size, kPartySize);
     game.party.size = static_cast<std::size_t>(size);
     party.number("max_hp", game.party.max_hp, kCount);
     party.number("max_mana", game.magic.max_mana, kPositive);
@@ -416,7 +433,7 @@ void parse_constants(std::string_view json, std::string_view source, GameConfig&
     FieldReader candlelight = lighting.object("candlelight");
     candlelight.color("color", lights.player_color);
     candlelight.number("intensity", lights.player_intensity, kNonNegative);
-    candlelight.number("range", lights.player_range, kPositive);
+    candlelight.number("range", lights.player_range, kLightRange);
     candlelight.finish();
     read_light(lighting.object("torch"), lights.torch);
     read_light(lighting.object("exit"), lights.exit);
@@ -450,6 +467,22 @@ GameData load_game_data(const std::filesystem::path& data_dir) {
     read(kConstantsFileName, [&data](std::string_view json, std::string_view source) {
         parse_constants(json, source, data.game, data.lights);
     });
+    if (problems.empty()) {
+        // Settings of several files that must fit together.
+        const std::string constants = (data_dir / kConstantsFileName).string();
+        const RoomLayoutConfig& rooms = data.game.level.rooms;
+        if (data.game.player.height >= rooms.height) {
+            problems.push_back(std::format("{}: player.height {:g} is not below rooms.height {:g} of {}", constants,
+                                           data.game.player.height, rooms.height, kLevelLayoutsFileName));
+        }
+        for (const Spell spell : kAllSpells) {
+            const SpellType& type = data.game.magic.spell(spell);
+            if (type.cost > data.game.magic.max_mana) {
+                problems.push_back(std::format("{}: party.max_mana {:g} is below {}.cost {:g} of {}", constants,
+                                               data.game.magic.max_mana, spell_key(spell), type.cost, kSpellsFileName));
+            }
+        }
+    }
     if (problems.empty()) {
         const std::string layouts = (data_dir / kLevelLayoutsFileName).string();
         for (const LayoutKind kind : {LayoutKind::kRooms, LayoutKind::kDebug}) {
