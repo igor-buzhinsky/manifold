@@ -128,7 +128,7 @@ it types can't be typed.
 | `load` | Load the saved game, as F9 does. The commands after it run in the next frame, in the loaded level. Fails if there is no save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` or `run` goes on in the loaded level |
 | `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait (its key in the asset mapping and its index there) |
 | `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
-| `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells in [GAME_MANUAL.md](GAME_MANUAL.md#spells)). Fails if the party has less mana than it costs |
+| `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells in [GAME_MANUAL.md](GAME_MANUAL.md#spells)), with its sound. Fails if the party has less mana than it costs |
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
 | `items` | List all kinds of items: their keys, names, weights, values and chances, see [Items](#items) |
 | `inventory` | List the party's items, each with its index, key, name, weight and value, and their total weight and value |

@@ -125,7 +125,8 @@ The numbers of this section and of the chests below are those of the game's data
 The party shares its mana: 100 at the start of a game, which is also the most it can have. It regains 1 mana per second,
 also while spells are in effect, but not while the game is paused. Each spell costs mana when it is cast and lasts 60
 seconds of game time. Casting a spell that is in effect starts its 60 seconds again; the time that was left is not
-added. If the party has less mana than a spell costs, nothing happens.
+added. Casting a spell plays its sound. If the party has less mana than a spell costs, nothing happens, without a
+sound.
 
 | Spell | Key | Cost | Effect |
 |---|---|---|---|

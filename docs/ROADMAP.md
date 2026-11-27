@@ -340,9 +340,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   or a layout that can't generate a level, stops the game with a list of all problems. The movement simulation reads
   them too; the tests use the defaults in code.
 - **Casting sounds**: `SPELL_SOUNDS` of the asset mapping gives each spell, by its key (`candlelight`, `levitate`),
-  the sound that plays when it is cast, with C or L or with the `cast` command; a cast that fails for want of mana is
-  silent
-  (`Game::take_casts()`, `SpellSounds`). For now both spells play "Shimmer glitter magic" (CC-BY 3.0) from
+  the sound that plays when it is cast (`Game::take_casts()`, `SpellSounds`), with C or L or with the `cast` command;
+  a cast that fails for want of mana is silent. For now both spells play "Shimmer glitter magic" (CC-BY 3.0) from
   `assets/sounds/spells/`.
 
 ## Later (unordered)
