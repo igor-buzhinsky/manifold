@@ -350,6 +350,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   time, the party, its magic and items, the player's position, view and velocity, the state of each door and the items
   of each chest, which `Game::load()` puts back after generating the level again. Continue and Continue from level
   start in the start menu, Load game (F9) and Restart level in the game menu, and `load [level_start]` load them.
+  Loading the start of the level leaves `save.json` until the next autosave or the exit, so F9 undoes a restart.
   Each file is written to a `.tmp` file first, which then replaces it.
 
 ## Later (unordered)
