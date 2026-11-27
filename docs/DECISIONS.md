@@ -902,9 +902,10 @@ Gains:
 - Speeds, chances, layouts and lights can be tuned by editing a file and restarting, without building the game.
 - A misspelt or forgotten field is an error rather than a silent default, so a tuned value can't be lost unnoticed,
   and all problems of all files are listed at once.
-- The trial levels catch combinations that each field's range can't, such as tiles too narrow for the player or more
-  ramps than holes, at the start instead of when a level is generated in the middle of a game.
-- The defaults in code keep tests independent of tuning: changing a value in `data/` doesn't break them.
+- The trial levels catch most combinations that each field's range can't, such as tiles too narrow for the player, at
+  the start instead of when a level is generated in the middle of a game.
+- The defaults in code keep tests independent of tuning: changing a value in `data/` doesn't break them, except the
+  test that the files load without problems or warnings.
 - The movement simulation checks the movement with the values the game uses.
 
 Rejected alternatives:
@@ -926,6 +927,7 @@ Drawbacks:
 
 - The values are in two places, the files and the defaults in code, which can drift apart; the tests then check other
   values than the game plays with.
-- The trial levels take about 80 ms at the start.
+- The trial levels take about 80 ms at the start, and try only one seed: settings that fail for some seeds, such as too
+  few attempts to plan a level, can still stop the game when such a level comes.
 - A field added to a struct must also be added to the reader and to the file.
 - Saved games give other levels after the layouts or the chances of objects change.

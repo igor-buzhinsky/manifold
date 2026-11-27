@@ -121,7 +121,7 @@ TEST(GameDataTest, ListsEveryProblemOfTheLevelLayouts) {
     json["debug"].erase("ramp_width");
     LevelConfig level;
     const std::string problems = problems_of([&] { parse_level_layouts(json.dump(), "layouts.json", level); });
-    EXPECT_TRUE(contains(problems, "layouts.json: rooms.layer_count is 1.5, not an integer of 1 or more"));
+    EXPECT_TRUE(contains(problems, "layouts.json: rooms.layer_count is 1.5, not an integer from 1 to 1000"));
     // The orders of an object are checked only once all its fields are right.
     EXPECT_FALSE(contains(problems, "min_holes"));
     EXPECT_TRUE(contains(problems, "layouts.json: debug.ramp_width is missing"));
@@ -171,14 +171,16 @@ TEST(GameDataTest, ListsEveryProblemOfTheConstants) {
     json["party"]["size"] = "three";
     json["level_objects"]["torch_flames"] = {{"orange", 0}, {"blue", 0}, {"green", 0}};
     json["level_objects"]["wooden_chest"]["min_draws"] = 4;
+    json["level_objects"]["wooden_chest"]["max_draws"] = 3;
     json["lighting"]["candlelight"]["color"] = {1, 1};
     json["lighting"]["exit"].erase("range");
     json["lighting"]["shadows"] = true;
+    json["lighting"]["torch"]["range"] = 0.05;
     GameConfig game;
     LightSettings lights;
     const std::string problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
     EXPECT_TRUE(contains(problems, "constants.json: player.radius is 0, not a positive number"));
-    EXPECT_TRUE(contains(problems, "constants.json: party.size is \"three\", not an integer of 1 or more"));
+    EXPECT_TRUE(contains(problems, "constants.json: party.size is \"three\", not an integer from 1 to 6"));
     EXPECT_TRUE(contains(problems, "constants.json: level_objects.torch_flames has no flame with a positive weight"));
     EXPECT_TRUE(contains(problems,
                          "constants.json: level_objects.wooden_chest.min_draws 4 is above "
@@ -186,6 +188,43 @@ TEST(GameDataTest, ListsEveryProblemOfTheConstants) {
     EXPECT_TRUE(contains(problems, "constants.json: lighting.candlelight.color is [1,1], not an array of 3 numbers"));
     EXPECT_TRUE(contains(problems, "constants.json: lighting.exit.range is missing"));
     EXPECT_TRUE(contains(problems, "constants.json: lighting.shadows is unknown"));
+    EXPECT_TRUE(contains(problems, "constants.json: lighting.torch.range is 0.05, not a number of 0.1 or more"));
+}
+
+TEST(GameDataTest, ChecksTheLimitsOfTheConstants) {
+    Json json = shipped(kConstantsFileName);
+    json["player"]["walk_speed"] = 5;
+    json["player"]["run_speed"] = 4;
+    // Positive, but 0 as a float.
+    json["player"]["radius"] = 1e-50;
+    json["party"]["size"] = 7;
+    GameConfig game;
+    LightSettings lights;
+    std::string problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
+    EXPECT_TRUE(contains(problems, "constants.json: player.radius is 1e-50, not a positive number"));
+    EXPECT_TRUE(contains(problems, "constants.json: party.size is 7, not an integer from 1 to 6"));
+
+    json["player"]["radius"] = 0.5;
+    json["party"]["size"] = 6;
+    problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
+    EXPECT_EQ(problems, "constants.json: player.walk_speed 5 is above player.run_speed 4");
+}
+
+TEST(GameDataTest, ChecksTheLimitsOfTheLevelLayouts) {
+    Json json = shipped(kLevelLayoutsFileName);
+    json["rooms"]["grid_width"] = 20;
+    json["rooms"]["grid_height"] = 30;
+    json["rooms"]["min_room_size"] = 1;
+    json["rooms"]["max_room_size"] = 19;
+    json["debug"]["obstacle_count"] = 1000000;
+    json["debug"]["x_max"] = 1e300;
+    LevelConfig level;
+    const std::string problems = problems_of([&] { parse_level_layouts(json.dump(), "layouts.json", level); });
+    EXPECT_TRUE(contains(problems,
+                         "layouts.json: rooms has rooms of up to 19 tiles, which don't fit with their walls "
+                         "into a grid of 20 x 30 tiles"));
+    EXPECT_TRUE(contains(problems, "layouts.json: debug.obstacle_count is 1000000, not an integer from 0 to 1000"));
+    EXPECT_TRUE(contains(problems, "layouts.json: debug.x_max is 1e+300, not a number from -3.40282e+38 to "));
 }
 
 TEST(GameDataTest, WarnsAboutLootThatCanLeaveAChestEmpty) {
@@ -233,11 +272,31 @@ TEST_F(GameDataDirTest, ListsTheProblemsOfAllFiles) {
     EXPECT_TRUE(contains(problems, "player.height is missing"));
 }
 
+TEST_F(GameDataDirTest, ChecksSettingsOfSeveralFilesTogether) {
+    Json constants = shipped(kConstantsFileName);
+    constants["player"]["height"] = 3.5;
+    constants["party"]["max_mana"] = 4;
+    write(kConstantsFileName, constants);
+    Json layouts = shipped(kLevelLayoutsFileName);
+    layouts["rooms"]["height"] = 3.0;
+    write(kLevelLayoutsFileName, layouts);
+    Json spells = shipped(kSpellsFileName);
+    spells["levitate"]["cost"] = 10;
+    write(kSpellsFileName, spells);
+    const std::string problems = problems_of([&] { static_cast<void>(load_game_data(dir())); });
+    EXPECT_TRUE(contains(problems, "player.height 3.5 is not below rooms.height 3 of level_layouts.json"));
+    EXPECT_TRUE(contains(problems, "party.max_mana 4 is below levitate.cost 10 of spells.json"));
+}
+
 TEST_F(GameDataDirTest, NeedsLayoutsThatCanGenerateALevel) {
     // Each setting is right on its own, but the tiles are too narrow for the player.
     Json layouts = shipped(kLevelLayoutsFileName);
     layouts["rooms"]["tile_size"] = 1.0;
     write(kLevelLayoutsFileName, layouts);
+    Json constants = shipped(kConstantsFileName);
+    constants["player"]["radius"] = 0.6;
+    constants["player"]["height"] = 1.8;
+    write(kConstantsFileName, constants);
     const std::string problems = problems_of([&] { static_cast<void>(load_game_data(dir())); });
     EXPECT_TRUE(contains(problems, "the rooms layout can't generate a level"));
     EXPECT_FALSE(contains(problems, "the debug layout"));
