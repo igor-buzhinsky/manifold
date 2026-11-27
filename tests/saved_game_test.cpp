@@ -308,6 +308,15 @@ TEST(SavedGameTest, ProgressKeepsTheExactFloatsOfThePlayer) {
     EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
 }
 
+TEST(SavedGameTest, ProgressOfAPlayerWhoTurnedATinyBitRightFromZeroCanBeRead) {
+    Player player({.yaw = 0.0f});
+    player.rotate(-1e-8f, 0.0f);
+    SavedGame save = make_level_start();
+    save.progress = make_progress();
+    save.progress->player.yaw = player.yaw();
+    EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
+}
+
 TEST(SavedGameTest, ParsingRejectsInvalidProgress) {
     SavedGame save = make_level_start();
     save.progress = make_progress();

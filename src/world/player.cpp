@@ -14,6 +14,10 @@ void Player::rotate(float delta_yaw, float delta_pitch) {
     if (yaw_ < 0.0f) {
         yaw_ += kFullTurn;
     }
+    // A tiny negative yaw rounds up to a full turn when it is added.
+    if (yaw_ >= kFullTurn) {
+        yaw_ = 0.0f;
+    }
     pitch_ = std::clamp(pitch_ + delta_pitch, -kMaxPitch, kMaxPitch);
 }
 

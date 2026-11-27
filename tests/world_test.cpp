@@ -172,6 +172,17 @@ TEST(PlayerTest, YawWrapsAround) {
     EXPECT_NEAR(player.yaw(), 0.5f, 1e-4f);
 }
 
+TEST(PlayerTest, YawStaysBelowAFullTurnAfterATinyTurnRightFromZero) {
+    constexpr float kFullTurn = 2.0f * std::numbers::pi_v<float>;
+    // The yaw becomes a tiny negative number, and adding a full turn to it rounds to a full turn.
+    Player player({.yaw = 0.0f});
+    player.rotate(-1e-8f, 0.0f);
+    EXPECT_GE(player.yaw(), 0.0f);
+    EXPECT_LT(player.yaw(), kFullTurn);
+    player.set_view(-1e-8f, 0.0f);
+    EXPECT_LT(player.yaw(), kFullTurn);
+}
+
 TEST(LevelExitTest, BodyTouchesCubeFromTheSideAndBelow) {
     const LevelExit exit{.floor_point = {1.0f, 2.0f, 3.3f}};
     EXPECT_EQ(exit.base_center(), glm::vec3(1.0f, 2.0f, 3.3f + LevelExit::kHoverHeight));

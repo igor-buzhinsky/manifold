@@ -252,7 +252,7 @@ SavedPlayer parse_player(const nlohmann::json& object) {
     SavedPlayer player;
     const std::array<float, 3> position = parse_floats<3>(object, "position");
     player.position = {position[0], position[1], position[2]};
-    // The yaw is below 2 pi as a float, which may round up to 2 pi as a double, so the limit is a float.
+    // Player::yaw() is below 2 pi, while is_number_in() includes its bounds, so the limit is the float before 2 pi.
     player.yaw = parse_float(object, "yaw", 0.0f, std::nextafter(2.0f * std::numbers::pi_v<float>, 0.0f));
     player.pitch = parse_float(object, "pitch", -Player::kMaxPitch, Player::kMaxPitch);
     player.vertical_speed = parse_float(object, "vertical_speed");
