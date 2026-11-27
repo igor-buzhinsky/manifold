@@ -224,7 +224,7 @@ TEST(SavedGameTest, ParsingRejectsInvalidMagic) {
         R"("mana": 1, "max_mana": 10, "spells": [{"spell": "fireball", "remaining": 1}])",
         R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate"}])",
         R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 0}])",
-        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 61}])",
+        R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": -1}])",
         R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": "1"}])",
         R"("mana": 1, "max_mana": 10, "spells": [{"spell": "levitate", "remaining": 1}, )"
         R"({"spell": "levitate", "remaining": 2}])",

@@ -32,7 +32,8 @@ changes nothing.
 
 `data/items.json` lists all kinds of items, so they can be added and changed without building the game again. Like
 `assets/`, the `data/` directory is found next to the executable in a copy of the game, otherwise in the source tree; it
-holds what defines the game rather than how it looks and sounds. Each field is the key of an item, such as `SMALL_RUBY`,
+holds what defines the game rather than how it looks and sounds, also the spells, the settings of the level layouts and
+other constants, see [data/README.md](data/README.md). Each field is the key of an item, such as `SMALL_RUBY`,
 which saves store and `ITEM_ICONS` of the asset mapping gives the icon of, with an object of:
 
 - `name`: what the player sees, e.g. `"Small ruby"`.
@@ -58,8 +59,10 @@ item 14%, 2 items 28%, 3 items 35%, 4 items 17% and 5 items 6%:
 | Wooden | 1 to 3 | 100 to 2000 | At most 2000 |
 | Golden | 3 to 5 | 100 to 5000 | At most 6000 |
 
-The limits are in code for now (`kWoodenChestLoot`, `kGoldenChestLoot`); the game warns at the start about limits that
-make no sense, such as a total below the largest value of an item, with which a dear first draw leaves a chest empty.
+The limits are `wooden_chest` and `golden_chest` under `level_objects` in `data/constants.json`, see
+[data/README.md](data/README.md), and a chest is golden with the `golden_chest_chance` there. The game refuses limits
+whose smallest is above their largest, and warns at the start about a total below the largest value of an item, with
+which a dear first draw leaves a chest empty.
 The gems are worth 5000 (diamond), 4000 (ruby), 3000 (emerald), 2500 (sapphire) and 500 (amethyst) when large, a quarter
 of that when small, and weigh 4 grams when large and 1 gram when small. All have the same chance. Large gems other than
 amethysts are worth more than 2000, so they are found only in golden chests.
@@ -160,7 +163,8 @@ F3 or the `imgui` command shows a window in the top right corner that is used wi
 - **Lights**: the ambient light; the color, intensity and range of the player's light; the intensity and
   range of the torches; the intensity and range of the exit's light; the most lights drawn at once, the
   distance over which they fade out before they are left out, and the shadow bias. Reset lights puts them
-  back to the defaults, with the level's ambient light. Each new level sets the ambient light again.
+  back as `data/constants.json` sets them (the most lights and the shadow bias to their defaults in code), with the
+  level's ambient light. Each new level sets the ambient light again.
 
 Ctrl+click on a slider to type a value. While a value is typed, or a control is held with the mouse, the
 keys don't move the player and don't open the console; only F3 still works. Clicks on the overlay don't

@@ -50,12 +50,15 @@ struct DebugLayoutConfig {
 /// info lists all obstacles, ceiling blocks, ramps, the exit and the chests.
 class DebugLayout final : public LevelLayout {
 public:
-    explicit DebugLayout(const DebugLayoutConfig& config) : config_(config) {}
+    /// A layout with the settings `config`, whose torches and chests are chosen with `chances`.
+    explicit DebugLayout(const DebugLayoutConfig& config, const LevelObjectChances& chances = {})
+        : config_(config), chances_(chances) {}
 
     Level generate(float clearance, LevelRng& rng) const override;
 
 private:
     DebugLayoutConfig config_;
+    LevelObjectChances chances_;
 };
 
 }  // namespace manifold

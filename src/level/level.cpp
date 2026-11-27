@@ -13,14 +13,13 @@
 
 namespace manifold {
 
-TorchFlame choose_torch_flame(LevelRng& rng) {
+TorchFlame choose_torch_flame(LevelRng& rng, const LevelObjectChances& chances) {
     constexpr std::array<TorchFlame, 3> kFlames{TorchFlame::kOrange, TorchFlame::kBlue, TorchFlame::kGreen};
-    constexpr std::array<double, 3> kWeights{0.5, 0.25, 0.25};
-    return kFlames.at(random_weighted_index(rng, kWeights));
+    return kFlames.at(random_weighted_index(rng, chances.torch_flames));
 }
 
-ChestLook choose_chest_look(LevelRng& rng) {
-    return random_chance(rng, kGoldenChestChance) ? ChestLook::kGold : ChestLook::kWood;
+ChestLook choose_chest_look(LevelRng& rng, const LevelObjectChances& chances) {
+    return random_chance(rng, chances.golden_chest) ? ChestLook::kGold : ChestLook::kWood;
 }
 
 bool level_has_ambient_light(std::uint64_t level_seed) {

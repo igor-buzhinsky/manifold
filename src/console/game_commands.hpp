@@ -30,6 +30,9 @@ struct ViewSettings {
     std::optional<float> cutaway;
     /// The lights, which only the debug overlay changes, except that each level sets the ambient light.
     LightSettings lights;
+    /// The lights as the data files set them, see load_game_data(), which resetting the lights in the debug overlay
+    /// puts back.
+    LightSettings data_lights;
     /// The ambient light of the level, see level_ambient(), which resetting the lights in the debug overlay
     /// puts back.
     glm::vec3 level_ambient{0.0f};

@@ -69,6 +69,7 @@ add_library(manifold_core STATIC
     src/console/console.cpp
     src/console/console_window.cpp
     src/console/game_commands.cpp
+    src/data/game_data.cpp
     src/game.cpp
     src/items/inventory.cpp
     src/items/item_catalog.cpp
@@ -145,6 +146,8 @@ target_compile_options(manifold PRIVATE ${MANIFOLD_WARNINGS})
 add_executable(manifold_sim src/sim/sim_main.cpp)
 target_link_libraries(manifold_sim PRIVATE manifold_core)
 target_compile_options(manifold_sim PRIVATE ${MANIFOLD_WARNINGS})
+# The simulation plays with the settings of the game's data files in the source tree.
+target_compile_definitions(manifold_sim PRIVATE MANIFOLD_DATA_DIR="${CMAKE_SOURCE_DIR}/data")
 # Textures and sounds are read from `assets`, and the game's data such as its items from `data`, next to the executable
 # if they are there, as in a copy of the game made by `cmake --install`, and otherwise from the source tree, so that
 # the game in the build directory finds them too.
@@ -196,6 +199,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
         tests/frame_times_test.cpp
+        tests/game_data_test.cpp
         tests/layout_factory_test.cpp
         tests/level_test.cpp
         tests/lighting_test.cpp
@@ -228,7 +232,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/world_mesh_test.cpp
         tests/world_test.cpp
     )
-    target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main)
+    target_link_libraries(manifold_tests PRIVATE manifold_core GTest::gtest_main nlohmann_json::nlohmann_json)
     target_compile_options(manifold_tests PRIVATE ${MANIFOLD_WARNINGS})
     # The sound tests decode a sound of the game, since no OGG encoder is at hand to make one, the asset mapping tests
     # check the game's mapping and its files, and the item tests the game's items.

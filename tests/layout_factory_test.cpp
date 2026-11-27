@@ -234,8 +234,8 @@ TEST(LayoutFactoryTest, ChestsHoldItemsWithinTheirValuesThatDependOnlyOnTheSeed)
                 EXPECT_EQ(chest.look, without.world.chests()[i].look);
                 EXPECT_EQ(chest.open_sound, without.world.chests()[i].open_sound);
                 EXPECT_TRUE(without.world.chests()[i].items.empty());
-                EXPECT_LE(chest.items.size(), static_cast<std::size_t>(chest_loot(chest.look).max_draws));
-                EXPECT_LE(Inventory(chest.items).value(config.items), chest_loot(chest.look).max_total_value);
+                EXPECT_LE(chest.items.size(), static_cast<std::size_t>(config.chest_loot.of(chest.look).max_draws));
+                EXPECT_LE(Inventory(chest.items).value(config.items), config.chest_loot.of(chest.look).max_total_value);
                 items += chest.items.size();
             }
             chests += level.world.chests().size();

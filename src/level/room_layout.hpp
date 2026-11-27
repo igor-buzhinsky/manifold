@@ -204,7 +204,9 @@ std::string draw_plan(const LayeredPlan& plan);
 /// doors, where the chests are, and draws the plan, see draw_plan().
 class RoomLayout final : public LevelLayout {
 public:
-    explicit RoomLayout(const RoomLayoutConfig& config) : config_(config) {}
+    /// A layout with the settings `config`, whose torches and chests are chosen with `chances`.
+    explicit RoomLayout(const RoomLayoutConfig& config, const LevelObjectChances& chances = {})
+        : config_(config), chances_(chances) {}
 
     /// \copydoc LevelLayout::generate
     /// \throws std::runtime_error also if the tiles are too narrow for the clearance, or if doors can appear and the
@@ -215,6 +217,7 @@ public:
 
 private:
     RoomLayoutConfig config_;
+    LevelObjectChances chances_;
 };
 
 }  // namespace manifold

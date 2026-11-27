@@ -174,14 +174,15 @@ void place_torches(const DebugLayoutConfig& config, TorchFlame flame, World& wor
 }
 
 /// Puts small chests below some torches, see DebugLayout. The exit must be placed already.
-void place_chests(const DebugLayoutConfig& config, World& world, LevelRng& rng) {
+void place_chests(const DebugLayoutConfig& config, const LevelObjectChances& chances, World& world, LevelRng& rng) {
     if (config.torches_per_chest <= 0) {
         return;
     }
     const std::span<const Torch> torches = world.torches();
     for (std::size_t i = 0; i < torches.size(); i += static_cast<std::size_t>(config.torches_per_chest)) {
         const Torch& torch = torches[i];
-        const Chest chest = Chest::at_wall({torch.mount.x, torch.mount.y, 0.0f}, torch.yaw, choose_chest_look(rng));
+        const Chest chest =
+            Chest::at_wall({torch.mount.x, torch.mount.y, 0.0f}, torch.yaw, choose_chest_look(rng, chances));
         const RotatedRectangle footprint = chest.footprint();
         const auto overlaps = [&footprint](const auto& thing) { return intersects(footprint, thing.footprint()); };
         // Ceiling blocks are far above the chests, so only obstacles on the floor can be in the way.
@@ -245,10 +246,10 @@ Level DebugLayout::generate(float clearance, LevelRng& rng) const {
     // Ceiling blocks are above the obstacles, so they may be placed anywhere, whatever is below them.
     place_blocks(config_, keep_clear, config_.obstacle_height, config_.ceiling_thickness, world, rng);
     place_ramps(config_, keep_clear, world, rng);
-    place_torches(config_, choose_torch_flame(rng), world);
+    place_torches(config_, choose_torch_flame(rng, chances_), world);
     place_exit(config_, keep_clear, world, rng);
     // Chests come last, so they don't change the other random choices of a seed.
-    place_chests(config_, world, rng);
+    place_chests(config_, chances_, world, rng);
     std::string info = describe(world);
     return {.layout = LayoutKind::kDebug, .world = std::move(world), .player_start = start, .info = std::move(info)};
 }

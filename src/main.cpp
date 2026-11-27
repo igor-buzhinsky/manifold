@@ -35,9 +35,9 @@
 #include "console/console.hpp"
 #include "console/console_window.hpp"
 #include "console/game_commands.hpp"
+#include "data/game_data.hpp"
 #include "game.hpp"
 #include "items/item_catalog.hpp"
-#include "items/loot.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
@@ -152,12 +152,14 @@ std::uint64_t random_seed() {
 /// What the game reads from the directories of its assets and its data.
 struct GameAssets {
     manifold::AssetMapping mapping;  ///< Which files the game uses for what.
-    manifold::ItemCatalog items;     ///< All kinds of items.
+    manifold::GameData data;         ///< The settings of the game, with all kinds of items.
 };
 
 /// Finds the game's assets and data, see manifold::find_game_dir(): the `assets` and `data` directories next to the
 /// executable, or else those in the source tree, whose paths CMake sets, and reads the mapping of the assets, see
-/// manifold::AssetMapping::load(), and the items, see manifold::ItemCatalog::load(). Logs which directories are used.
+/// manifold::AssetMapping::load(), and the data, see manifold::load_game_data(). Logs which directories are used.
+///
+/// \throws manifold::GameDataError if the data files are missing or wrong.
 GameAssets load_assets() {
     // SDL keeps the string, so it isn't freed.
     const char* base_path = SDL_GetBasePath();
@@ -170,9 +172,7 @@ GameAssets load_assets() {
     const std::filesystem::path data =
         manifold::find_game_dir(executable_dir, manifold::kDataDirName, MANIFOLD_DATA_DIR);
     manifold::log_info("Assets: {}, data: {}", assets.string(), data.string());
-    manifold::check_container_loot(manifold::kWoodenChestLoot, "wooden chests");
-    manifold::check_container_loot(manifold::kGoldenChestLoot, "golden chests");
-    return {.mapping = manifold::AssetMapping::load(assets), .items = manifold::ItemCatalog::load(data)};
+    return {.mapping = manifold::AssetMapping::load(assets), .data = manifold::load_game_data(data)};
 }
 
 /// Loads the texture of the game's current level, see manifold::Level::texture. If it can't be used, a plain grey one
@@ -261,7 +261,8 @@ private:
 void start_level(std::optional<manifold::Renderer>& renderer, const manifold::Game& game, manifold::ViewSettings& view,
                  const manifold::AssetMapping& assets) {
     const manifold::Image texture = load_texture_of_level(game, assets);
-    view.level_ambient = manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture));
+    view.level_ambient =
+        manifold::level_ambient(game.seed(), manifold::mean_linear_color(texture), view.lights.level_ambient_luminance);
     view.lights.ambient = view.level_ambient;
     renderer.emplace(game.world(), texture);
 }
@@ -850,7 +851,7 @@ void handle_mouse_event(const SDL_Event& event, const manifold::Window& window, 
             const glm::vec2 size{static_cast<float>(ui.picture.width), static_cast<float>(ui.picture.height)};
             if (point.x >= 0.0f && point.y >= 0.0f && point.x < size.x && point.y < size.y &&
                 !manifold::party_hud_contains(ui.picture, game.party().size(), point) &&
-                !manifold::spell_hud_contains(ui.picture, game.magic(), point)) {
+                !manifold::spell_hud_contains(ui.picture, game.magic(), game.magic_config(), point)) {
                 ui.game_click = point / size;
             }
         }
@@ -1044,7 +1045,8 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
     }
     portraits.draw(game.party(), overlay_renderer, viewport);
     manifold::OverlayMesh magic;
-    manifold::add_spell_hud(magic, {.width = viewport.width, .height = viewport.height}, game.magic());
+    manifold::add_spell_hud(magic, {.width = viewport.width, .height = viewport.height}, game.magic(),
+                            game.magic_config());
     overlay_renderer.draw(magic, viewport);
 }
 
@@ -1232,9 +1234,8 @@ void run(const Options& options) {
 
     const GameAssets game_assets = load_assets();
     const manifold::AssetMapping& assets = game_assets.mapping;
-    manifold::GameConfig config;
+    manifold::GameConfig config = game_assets.data.game;
     config.level.assets = assets.counts();
-    config.level.items = game_assets.items;
     manifold::Game game(config, options.seed.value_or(random_seed()), options.layout);
 
     const std::optional<std::filesystem::path> data_dir = user_data_dir();
@@ -1247,6 +1248,8 @@ void run(const Options& options) {
     const auto window_height = static_cast<int>(std::lround(kWindowWidth / manifold::kAspectRatio));
     manifold::Window window("Manifold", kWindowWidth, window_height, fullscreen);
     manifold::ConsoleState state;
+    state.view.lights = game_assets.data.lights;
+    state.view.data_lights = game_assets.data.lights;
     manifold::AudioOutput audio;
     const ObjectSounds object_sounds(assets);
     FootstepSounds footsteps(assets);

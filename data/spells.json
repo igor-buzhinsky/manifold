@@ -1,0 +1,12 @@
+{
+  "candlelight": {
+    "name": "Candlelight",
+    "cost": 5,
+    "duration": 60
+  },
+  "levitate": {
+    "name": "Levitate",
+    "cost": 10,
+    "duration": 60
+  }
+}

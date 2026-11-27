@@ -91,11 +91,14 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       max_snap_slope_(config.max_snap_slope),
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       party_config_(config.party),
+      magic_config_(config.magic),
       seed_(seed),
       level_(std::move(level)),
       player_(at_start(config.player, level_)),
       party_(make_new_party(seed)),
       level_start_party_(party_),
+      magic_(PartyMagic::fresh(config.magic)),
+      level_start_magic_(magic_),
       chest_inventories_(level_chest_inventories(level_)),
       doors_(level_.world.doors().size()) {}
 
@@ -130,7 +133,7 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
     Level level = generate_game_level(level_config_, layout, player_params_.radius, seed, 0);
     time_ = 0.0;
     party_ = make_new_party(seed);
-    magic_ = PartyMagic{};
+    magic_ = PartyMagic::fresh(magic_config_);
     inventory_ = Inventory{};
     start_level(std::move(level), seed, 0, layout);
 }
@@ -140,6 +143,10 @@ void Game::load(const SavedGame& save) {
     time_ = save.time;
     party_ = save.party;
     magic_ = save.magic;
+    // The data files may have shortened a spell since the save was made.
+    for (ActiveSpell& active : magic_.spells) {
+        active.remaining = std::min(active.remaining, magic_config_.spell(active.spell).duration);
+    }
     inventory_ = Inventory{};
     for (const std::string& key : save.inventory) {
         if (const std::optional<ItemId> item = level_config_.items.find(key)) {
@@ -189,7 +196,7 @@ float Game::animation_time() const { return static_cast<float>(std::fmod(time_, 
 
 void Game::update(const PlayerInput& input, float dt) {
     time_ += dt;
-    magic_.advance(dt);
+    magic_.advance(dt, magic_config_.mana_regeneration);
     for (const Spell spell : input.casts) {
         cast(spell);
     }

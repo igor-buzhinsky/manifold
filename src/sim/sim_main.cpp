@@ -1,5 +1,6 @@
 // manifold_sim: plays levels with random input and checks invariants of the player's movement, see
-// run_movement_sim(). Prints a report to stdout; the logs of level generation go to stderr.
+// run_movement_sim(), with the settings of the game's data files in the source tree, see load_game_data(). Prints a
+// report to stdout; the logs of level generation go to stderr.
 
 #include <charconv>
 #include <cstdint>
@@ -12,6 +13,7 @@
 #include <string>
 #include <system_error>
 
+#include "data/game_data.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "sim/movement_sim.hpp"
@@ -27,7 +29,8 @@ constexpr const char* kUsage =
     "Plays N seeds from S of each layout (default 40 from 1, both layouts) for T seconds each (default 30), in\n"
     "frames of DT seconds (default 1/60, at most 0.35), with random walking, running, stepping aside, standing,\n"
     "turning, looking and jumping, and opening and closing doors near the player, and checks the player's movement\n"
-    "after every frame. Shows K examples of each kind of violation (default 5).\n"
+    "after every frame. Shows K examples of each kind of violation (default 5). Uses the settings of the game's\n"
+    "data files in the source tree.\n"
     "Exits with 0 if all invariants hold, 1 if one is broken, and 2 on a wrong command line or another error.\n";
 
 /// Parses a whole argument as a number of type T.
@@ -88,11 +91,12 @@ std::optional<manifold::MovementSimConfig> parse_options(std::span<char*> args) 
 
 int main(int argc, char* argv[]) {
     try {
-        const std::optional<manifold::MovementSimConfig> config = parse_options(std::span(argv, argc));
+        std::optional<manifold::MovementSimConfig> config = parse_options(std::span(argv, argc));
         if (!config) {
             std::cout << kUsage;
             return EXIT_SUCCESS;
         }
+        config->game = manifold::load_game_data(MANIFOLD_DATA_DIR).game;
         const manifold::MovementSimReport report = manifold::run_movement_sim(*config);
         std::cout << manifold::format_movement_sim_report(report);
         return report.ok() ? EXIT_SUCCESS : EXIT_FAILURE;

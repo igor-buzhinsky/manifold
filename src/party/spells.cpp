@@ -7,7 +7,7 @@
 
 namespace manifold {
 
-const char* spell_name(Spell spell) {
+const char* spell_key(Spell spell) {
     switch (spell) {
         case Spell::kCandlelight:
             return "candlelight";
@@ -17,44 +17,27 @@ const char* spell_name(Spell spell) {
     return "unknown";
 }
 
-const char* spell_title(Spell spell) {
-    switch (spell) {
-        case Spell::kCandlelight:
-            return "Candlelight";
-        case Spell::kLevitate:
-            return "Levitate";
-    }
-    return "Unknown";
-}
-
-std::optional<Spell> parse_spell_name(std::string_view name) {
+std::optional<Spell> parse_spell_key(std::string_view key) {
     for (const Spell spell : kAllSpells) {
-        if (name == spell_name(spell)) {
+        if (key == spell_key(spell)) {
             return spell;
         }
     }
     return std::nullopt;
 }
 
-float spell_cost(Spell spell) {
-    switch (spell) {
-        case Spell::kCandlelight:
-            return 5.0f;
-        case Spell::kLevitate:
-            return 10.0f;
-    }
-    return 0.0f;
+PartyMagic PartyMagic::fresh(const MagicConfig& config) {
+    return {.mana = config.max_mana, .max_mana = config.max_mana, .spells = {}};
 }
 
-float spell_duration(Spell /*spell*/) { return 60.0f; }
-
-bool PartyMagic::cast(Spell spell) {
-    const float cost = spell_cost(spell);
+bool PartyMagic::cast(Spell spell, const MagicConfig& config) {
+    const SpellType& type = config.spell(spell);
+    const float cost = type.cost;
     if (mana < cost) {
         return false;
     }
     mana -= cost;
-    const float duration = spell_duration(spell);
+    const float duration = type.duration;
     const auto found = std::ranges::find(spells, spell, &ActiveSpell::spell);
     if (found != spells.end()) {
         found->remaining = duration;
@@ -64,8 +47,8 @@ bool PartyMagic::cast(Spell spell) {
     return true;
 }
 
-void PartyMagic::advance(float dt) {
-    mana = std::min(mana + (kManaRegeneration * dt), max_mana);
+void PartyMagic::advance(float dt, float regeneration) {
+    mana = std::min(mana + (regeneration * dt), max_mana);
     for (ActiveSpell& active : spells) {
         active.remaining -= dt;
     }
