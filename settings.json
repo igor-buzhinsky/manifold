@@ -1,5 +1,7 @@
 {
   "fullscreen": true,
   "mouse_look": false,
-  "mouse_sensitivity": 0.1
+  "mouse_sensitivity": 0.1,
+  "autosave": true,
+  "autosave_interval": 10
 }

@@ -537,7 +537,7 @@ TEST(GameTest, NoclipTurnedOffInTheAirFallsStraightDown) {
 TEST(GameTest, TheNextAndTheLoadedLevelStartOnTheGround) {
     Game game(make_config(), 1, LayoutKind::kDebug);
     EXPECT_TRUE(game.player().on_ground());
-    const SavedGame save = game.save_point();
+    const SavedGame save = game.level_start_save();
     game.teleport({0.0f, 0.0f, 2.0f});
     game.next_level();
     EXPECT_TRUE(game.player().on_ground());
@@ -754,29 +754,29 @@ TEST(GameTest, NextLevelChoosesLayoutAtRandomAndFollowsSeeds) {
 /// The characters of the game's party.
 std::vector<Character> party_of(const Game& game) { return {game.party().begin(), game.party().end()}; }
 
-TEST(GameTest, SavePointIsTheStartOfTheLevel) {
+TEST(GameTest, LevelStartSaveIsTheStartOfTheLevel) {
     Game game(make_config(), 3, LayoutKind::kDebug);
     const std::vector<Character> start_party = party_of(game);
     game.update({.forward = 1.0f}, 0.5f);
     game.set_hp(1, 40);
-    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 3,
-                                            .level_number = 0,
-                                            .layout = LayoutKind::kDebug,
-                                            .time = 0.0,
-                                            .party = start_party,
-                                            .magic = {}}));
+    EXPECT_EQ(game.level_start_save(), (SavedGame{.seed = 3,
+                                                  .level_number = 0,
+                                                  .layout = LayoutKind::kDebug,
+                                                  .time = 0.0,
+                                                  .party = start_party,
+                                                  .magic = {}}));
     game.next_level();
     const std::vector<Character> second_party = party_of(game);
     EXPECT_EQ(second_party[1].hp, 40);
     game.update({.forward = 1.0f}, 0.25f);
     game.set_hp(1, 10);
     // Only the first level has the given layout.
-    EXPECT_EQ(game.save_point(), (SavedGame{.seed = next_level_seed(3),
-                                            .level_number = 1,
-                                            .layout = std::nullopt,
-                                            .time = 0.5,
-                                            .party = second_party,
-                                            .magic = {}}));
+    EXPECT_EQ(game.level_start_save(), (SavedGame{.seed = next_level_seed(3),
+                                                  .level_number = 1,
+                                                  .layout = std::nullopt,
+                                                  .time = 0.5,
+                                                  .party = second_party,
+                                                  .magic = {}}));
 }
 
 TEST(GameTest, LoadStartsTheSavedLevelAgain) {
@@ -784,7 +784,7 @@ TEST(GameTest, LoadStartsTheSavedLevelAgain) {
     original.update({}, 0.5f);
     original.set_hp(0, 25);
     original.next_level();
-    const SavedGame save = original.save_point();
+    const SavedGame save = original.level_start_save();
 
     Game game(make_config(), 11, LayoutKind::kDebug);
     game.set_noclip(true);
@@ -803,7 +803,7 @@ TEST(GameTest, LoadStartsTheSavedLevelAgain) {
     EXPECT_EQ(game.doors().size(), game.world().doors().size());
     EXPECT_EQ(party_of(game), party_of(original));
     EXPECT_EQ(game.party()[0].hp, 25);
-    EXPECT_EQ(game.save_point(), save);
+    EXPECT_EQ(game.level_start_save(), save);
 }
 
 TEST(GameTest, NewGameStartsAgainFromTheFirstLevel) {
@@ -818,12 +818,12 @@ TEST(GameTest, NewGameStartsAgainFromTheFirstLevel) {
     // The new party is unhurt, and the same as a game started with this seed has.
     EXPECT_EQ(party_of(game), party_of(fresh));
     EXPECT_EQ(game.party()[0].hp, game.party()[0].max_hp);
-    EXPECT_EQ(game.save_point(), (SavedGame{.seed = 7,
-                                            .level_number = 0,
-                                            .layout = LayoutKind::kDebug,
-                                            .time = 0.0,
-                                            .party = party_of(fresh),
-                                            .magic = {}}));
+    EXPECT_EQ(game.level_start_save(), (SavedGame{.seed = 7,
+                                                  .level_number = 0,
+                                                  .layout = LayoutKind::kDebug,
+                                                  .time = 0.0,
+                                                  .party = party_of(fresh),
+                                                  .magic = {}}));
     EXPECT_EQ(game.time(), 0.0);
     EXPECT_EQ(game.level_starts(), starts + 1);
     EXPECT_EQ(game.player().position(), game.level().player_start);
@@ -836,10 +836,139 @@ TEST(GameTest, LoadKeepsTheGivenLayoutOfTheFirstLevel) {
     // Without the layout, the seed would choose rooms.
     Game game(make_config(), 3);
     ASSERT_EQ(game.level().layout, LayoutKind::kRooms);
-    game.load(original.save_point());
+    game.load(original.level_start_save());
     EXPECT_EQ(game.level().layout, LayoutKind::kDebug);
     EXPECT_EQ(game.level().info, original.level().info);
-    EXPECT_EQ(game.save_point(), original.save_point());
+    EXPECT_EQ(game.level_start_save(), original.level_start_save());
+}
+
+/// A game in a rooms level, which has doors and chests, with the test items, after the party changed it: walked and
+/// turned, opened a door, which is still opening, lost hit points and mana, cast Levitate, and took an item out of a
+/// chest and put one into another.
+Game make_changed_game() {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Game game(config, 3, LayoutKind::kRooms);
+    if (game.world().doors().empty() || game.world().chests().size() < 2) {
+        throw std::logic_error("the level should have doors and two chests");
+    }
+    game.update({.mouse_rotation = {0.5f, 0.2f}, .forward = 1.0f}, 0.5f);
+    game.set_door_open(0, true);
+    game.update({}, 0.25f);
+    game.set_hp(0, 5);
+    game.set_mana(40.0f);
+    game.cast(Spell::kLevitate);
+    game.update({.rise = 1.0f}, 0.1f);
+    game.chest_inventory(0).add(kCrown);
+    move_item(game.chest_inventory(0), game.chest_inventory(0).size() - 1, game.inventory());
+    game.chest_inventory(1).add(kPebble);
+    return game;
+}
+
+TEST(GameTest, ProgressSaveIsTheLevelStartWithTheGameAsItIs) {
+    const Game game = make_changed_game();
+    SavedGame save = game.progress_save();
+    ASSERT_TRUE(save.progress);
+    const LevelProgress& progress = *save.progress;
+    EXPECT_DOUBLE_EQ(progress.time, game.time());
+    EXPECT_EQ(progress.party, party_of(game));
+    EXPECT_EQ(progress.magic, game.magic());
+    EXPECT_EQ(progress.inventory, std::vector<std::string>{"crown"});
+    EXPECT_EQ(progress.player.position, game.player().position());
+    EXPECT_EQ(progress.player.yaw, game.player().yaw());
+    EXPECT_EQ(progress.player.pitch, game.player().pitch());
+    EXPECT_EQ(progress.player.vertical_speed, game.player().vertical_speed());
+    EXPECT_EQ(progress.player.horizontal_velocity, game.player().horizontal_velocity());
+    EXPECT_EQ(progress.player.on_ground, game.player().on_ground());
+    EXPECT_EQ(progress.doors, std::vector<DoorState>(game.doors().begin(), game.doors().end()));
+    EXPECT_TRUE(progress.doors[0].moving());
+    ASSERT_EQ(progress.chests.size(), game.chest_inventories().size());
+    EXPECT_EQ(progress.chests[1].back(), "pebble");
+    save.progress.reset();
+    EXPECT_EQ(save, game.level_start_save());
+}
+
+TEST(GameTest, LoadingAProgressSavePutsTheLevelAsItWasAndItGoesOnTheSame) {
+    Game game = make_changed_game();
+    const SavedGame save = parse_saved_game(save_to_json(game.progress_save()));
+
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Game loaded(config, 11, LayoutKind::kDebug);
+    loaded.set_noclip(true);
+    loaded.load(save);
+    // Noclip isn't saved, and stays as it was.
+    EXPECT_TRUE(loaded.noclip());
+    loaded.set_noclip(false);
+    EXPECT_EQ(loaded.seed(), game.seed());
+    EXPECT_EQ(loaded.level().info, game.level().info);
+    EXPECT_DOUBLE_EQ(loaded.time(), game.time());
+    EXPECT_EQ(party_of(loaded), party_of(game));
+    EXPECT_EQ(loaded.magic(), game.magic());
+    EXPECT_EQ(loaded.inventory(), game.inventory());
+    EXPECT_TRUE(std::ranges::equal(loaded.chest_inventories(), game.chest_inventories()));
+    EXPECT_TRUE(std::ranges::equal(loaded.doors(), game.doors()));
+    EXPECT_EQ(loaded.player().position(), game.player().position());
+    EXPECT_EQ(loaded.player().yaw(), game.player().yaw());
+    EXPECT_EQ(loaded.player().pitch(), game.player().pitch());
+    EXPECT_EQ(loaded.player().vertical_speed(), game.player().vertical_speed());
+    EXPECT_EQ(loaded.player().horizontal_velocity(), game.player().horizontal_velocity());
+    EXPECT_EQ(loaded.player().on_ground(), game.player().on_ground());
+    EXPECT_EQ(loaded.level_start_save(), game.level_start_save());
+    EXPECT_EQ(loaded.progress_save(), game.progress_save());
+
+    // Both go on the same way, also the door that was opening and the player who levitated.
+    for (int frame = 0; frame < 60; ++frame) {
+        const PlayerInput input{.forward = 1.0f, .strafe = 0.5f};
+        game.update(input, 1.0f / 30.0f);
+        loaded.update(input, 1.0f / 30.0f);
+    }
+    EXPECT_EQ(loaded.player().position(), game.player().position());
+    EXPECT_TRUE(std::ranges::equal(loaded.doors(), game.doors()));
+    EXPECT_EQ(loaded.magic(), game.magic());
+}
+
+TEST(GameTest, LoadingTheLevelStartAfterAProgressSaveStartsTheLevelAgain) {
+    Game game = make_changed_game();
+    const SavedGame start = game.level_start_save();
+    game.load(game.progress_save());
+    game.load(start);
+    EXPECT_EQ(game.player().position(), game.level().player_start);
+    EXPECT_DOUBLE_EQ(game.time(), 0.0);
+    EXPECT_TRUE(game.inventory().empty());
+    EXPECT_TRUE(std::ranges::all_of(game.doors(), [](const DoorState& door) { return door == DoorState{}; }));
+    for (std::size_t i = 0; i < game.world().chests().size(); ++i) {
+        EXPECT_EQ(game.chest_inventories()[i], Inventory(game.world().chests()[i].items));
+    }
+}
+
+TEST(GameTest, LoadingAProgressOfAnotherLevelFailsAndKeepsTheLevel) {
+    Game game = make_changed_game();
+    const glm::vec3 position = game.player().position();
+    const int starts = game.level_starts();
+    for (const bool doors : {true, false}) {
+        SavedGame save = game.progress_save();
+        if (doors) {
+            save.progress->doors.pop_back();
+        } else {
+            save.progress->chests.emplace_back();
+        }
+        EXPECT_THROW(game.load(save), std::runtime_error);
+        EXPECT_EQ(game.level_starts(), starts);
+        EXPECT_EQ(game.player().position(), position);
+        EXPECT_EQ(game.inventory(), Inventory({kCrown}));
+    }
+}
+
+TEST(GameTest, LoadingAProgressLeavesOutUnknownItemsOfChests) {
+    Game game = make_changed_game();
+    SavedGame save = game.progress_save();
+    save.progress->chests[0] = {"unicorn", "gold_bar"};
+    testing::internal::CaptureStderr();
+    game.load(save);
+    const std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_EQ(game.chest_inventories()[0], Inventory({kGoldBar}));
+    EXPECT_NE(log.find("[warning] The saved item unicorn is unknown, so a chest loses it"), std::string::npos) << log;
 }
 
 TEST(GameTest, PartyIsMadeFromThePortraitsAndTheSeed) {
@@ -899,7 +1028,7 @@ TEST(GameTest, FirstLevelGetsATorchOnTheNearestWall) {
     }
     Game game(config, 3, LayoutKind::kRooms);
     EXPECT_EQ(game.world().torches().size(), 1U);
-    const SavedGame first = game.save_point();
+    const SavedGame first = game.level_start_save();
     // The levels after the first get none.
     game.next_level();
     EXPECT_TRUE(game.world().torches().empty());
@@ -1013,10 +1142,10 @@ TEST(GameTest, MagicIsKeptBetweenLevelsAndSavedAtTheirStart) {
     const PartyMagic start_magic = game.magic();
     EXPECT_TRUE(start_magic.active(Spell::kCandlelight));
     game.cast(Spell::kLevitate);
-    EXPECT_EQ(game.save_point().magic, start_magic);
+    EXPECT_EQ(game.level_start_save().magic, start_magic);
 
     Game loaded(make_config(), 11, LayoutKind::kDebug);
-    loaded.load(game.save_point());
+    loaded.load(game.level_start_save());
     EXPECT_EQ(loaded.magic(), start_magic);
     loaded.new_game(5, LayoutKind::kDebug);
     EXPECT_EQ(loaded.magic(), PartyMagic{});
@@ -1156,10 +1285,10 @@ TEST(GameTest, ItemsAreSavedAtTheStartOfTheLevelAndANewGameHasNone) {
     Game game(config, 3, LayoutKind::kDebug);
     EXPECT_TRUE(game.inventory().empty());
     game.inventory().add(kGoldBar);
-    EXPECT_TRUE(game.save_point().inventory.empty());
+    EXPECT_TRUE(game.level_start_save().inventory.empty());
     game.next_level();
     game.inventory().add(kPebble);
-    const SavedGame save = game.save_point();
+    const SavedGame save = game.level_start_save();
     EXPECT_EQ(save.inventory, std::vector<std::string>{"gold_bar"});
 
     Game loaded(config, 5, LayoutKind::kDebug);
@@ -1174,7 +1303,7 @@ TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
     GameConfig config = make_config();
     config.level.items = make_test_items();
     Game game(config, 3, LayoutKind::kDebug);
-    SavedGame save = game.save_point();
+    SavedGame save = game.level_start_save();
     save.inventory = {"pebble", "unicorn", "crown"};
     testing::internal::CaptureStderr();
     game.load(save);
@@ -1190,7 +1319,7 @@ TEST(GameTest, LoadingCutsSpellsToTheirDurationAndMagicFollowsTheConfig) {
     config.magic.spell(Spell::kLevitate).duration = 10.0f;
     Game game(config, 3, LayoutKind::kDebug);
     EXPECT_EQ(game.magic(), (PartyMagic{.mana = 50.0f, .max_mana = 50.0f, .spells = {}}));
-    SavedGame save = game.save_point();
+    SavedGame save = game.level_start_save();
     // Saved while Levitate lasted longer.
     save.magic = {
         .mana = 20.0f,

@@ -14,6 +14,7 @@
 #include "render/lighting.hpp"
 #include "render/shadow_map.hpp"
 #include "render/viewport.hpp"
+#include "save/saved_game.hpp"
 #include "world/player.hpp"
 
 namespace manifold {
@@ -78,9 +79,9 @@ struct ConsoleState {
     int walk_frames = 0;
     /// Whether the player runs during walk_frames, as if Shift were held too, see the `run` command.
     bool walk_runs = false;
-    /// Whether to load the saved game at the start of the next frame, as the load key (F9) does and the `load` command
-    /// asks. The main loop does it and resets this.
-    bool load = false;
+    /// Which save to load at the start of the next frame, if any: `save.json`, as the load key (F9) and the `load`
+    /// command ask, or `save_level_start.json`, as `load level_start` asks. The main loop does it and resets this.
+    std::optional<SaveKind> load;
     /// Whether failing to load should stop the game, as it does for the commands of `--exec`, or only be logged.
     bool load_stops_on_error = false;
     /// The menu to show instead of those that are open, as the `menu` command asks, or nothing to leave them. The main

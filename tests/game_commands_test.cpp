@@ -17,6 +17,7 @@
 #include "level/level.hpp"
 #include "party/spells.hpp"
 #include "render/camera.hpp"
+#include "save/saved_game.hpp"
 #include "test_items.hpp"
 #include "util/log.hpp"
 #include "world/door.hpp"
@@ -112,18 +113,25 @@ TEST(GameCommandsTest, CommandsAfterNextLevelWaitAFrame) {
 TEST(GameCommandsTest, LoadAsksTheMainLoopAndTheNextCommandsWait) {
     Fixture fixture;
     fixture.run("load; teleport 1 2 3");
-    EXPECT_TRUE(fixture.state.load);
+    EXPECT_EQ(fixture.state.load, SaveKind::kProgress);
     EXPECT_TRUE(fixture.state.load_stops_on_error);
     EXPECT_EQ(fixture.game.player().position(), fixture.game.level().player_start);
     fixture.queue.run_frame(fixture.console);
     EXPECT_EQ(fixture.game.player().position(), glm::vec3(1.0f, 2.0f, 3.0f));
 
-    fixture.state.load = false;
+    fixture.state.load.reset();
     fixture.queue.add("load", false);
     fixture.queue.run_frame(fixture.console);
-    EXPECT_TRUE(fixture.state.load);
+    EXPECT_EQ(fixture.state.load, SaveKind::kProgress);
     EXPECT_FALSE(fixture.state.load_stops_on_error);
     fixture.expect_error("load now");
+    fixture.expect_error("load level_start now");
+}
+
+TEST(GameCommandsTest, LoadLevelStartAsksForTheSaveOfTheLevelStart) {
+    Fixture fixture;
+    fixture.run("load level_start");
+    EXPECT_EQ(fixture.state.load, SaveKind::kLevelStart);
 }
 
 TEST(GameCommandsTest, MenuAsksTheMainLoopAndTheNextCommandsWait) {

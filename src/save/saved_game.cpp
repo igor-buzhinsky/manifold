@@ -1,11 +1,14 @@
 #include "save/saved_game.hpp"
 
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <ios>
 #include <limits>
+#include <numbers>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -23,6 +26,8 @@
 #include "util/asset_index.hpp"
 #include "util/asset_mapping.hpp"
 #include "util/text_file.hpp"
+#include "world/door.hpp"
+#include "world/player.hpp"
 
 namespace manifold {
 
@@ -173,17 +178,151 @@ PartyMagic parse_magic(const nlohmann::json& object) {
     return magic;
 }
 
-}  // namespace
+/// Reads the party of a save, or of its progress, from the field `party` of `object`.
+///
+/// \throws std::runtime_error if it isn't an array of at least one valid character.
+std::vector<Character> parse_party(const nlohmann::json& object) {
+    const nlohmann::json& party = field(object, "party");
+    if (!party.is_array() || party.empty()) {
+        throw_invalid("party", party, "an array of at least one character");
+    }
+    std::vector<Character> characters;
+    for (const nlohmann::json& character : party) {
+        characters.push_back(parse_character(character));
+    }
+    return characters;
+}
 
-std::string save_to_json(const SavedGame& save) {
-    nlohmann::ordered_json json = {
-        {"version", kSaveFormatVersion},
-        {"seed", save.seed},
-        {"level_number", save.level_number},
-        {"time", save.time},
-    };
+/// Reads an array of item keys, such as the party's items or those of a chest.
+///
+/// \param name The name of the field, for the message of an error.
+/// \throws std::runtime_error if `value` isn't an array of strings.
+std::vector<std::string> parse_item_keys(const nlohmann::json& value, const char* name) {
+    if (!value.is_array()) {
+        throw_invalid(name, value, "an array of item keys");
+    }
+    std::vector<std::string> keys;
+    for (const nlohmann::json& item : value) {
+        if (!item.is_string()) {
+            throw_invalid("item", item, "an item key");
+        }
+        keys.push_back(item.get<std::string>());
+    }
+    return keys;
+}
+
+/// The finite float of the field `name` of `object`, within [min, max].
+///
+/// \throws std::runtime_error if there is no such field or it is something else.
+float parse_float(const nlohmann::json& object, const char* name, float min = std::numeric_limits<float>::lowest(),
+                  float max = std::numeric_limits<float>::max()) {
+    const nlohmann::json& value = field(object, name);
+    if (!is_number_in(value, min, max)) {
+        throw_invalid(name, value, "a finite number in range");
+    }
+    return value.get<float>();
+}
+
+/// Reads an array of `Count` finite floats, such as a position.
+///
+/// \throws std::runtime_error if the field `name` of `object` is something else.
+template <std::size_t Count>
+std::array<float, Count> parse_floats(const nlohmann::json& object, const char* name) {
+    const nlohmann::json& value = field(object, name);
+    if (!value.is_array() || value.size() != Count) {
+        throw_invalid(name, value, (std::string("an array of ") + std::to_string(Count) + " numbers").c_str());
+    }
+    std::array<float, Count> numbers{};
+    for (std::size_t i = 0; i < Count; ++i) {
+        if (!is_number_in(value[i], std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max())) {
+            throw_invalid(name, value, (std::string("an array of ") + std::to_string(Count) + " numbers").c_str());
+        }
+        numbers.at(i) = value[i].get<float>();
+    }
+    return numbers;
+}
+
+/// Reads the player of the progress of a save.
+///
+/// \throws std::runtime_error if a field is missing or wrong.
+SavedPlayer parse_player(const nlohmann::json& object) {
+    if (!object.is_object()) {
+        throw_invalid("player", object, "an object");
+    }
+    SavedPlayer player;
+    const std::array<float, 3> position = parse_floats<3>(object, "position");
+    player.position = {position[0], position[1], position[2]};
+    // The yaw is below 2 pi as a float, which may round up to 2 pi as a double, so the limit is a float.
+    player.yaw = parse_float(object, "yaw", 0.0f, std::nextafter(2.0f * std::numbers::pi_v<float>, 0.0f));
+    player.pitch = parse_float(object, "pitch", -Player::kMaxPitch, Player::kMaxPitch);
+    player.vertical_speed = parse_float(object, "vertical_speed");
+    const std::array<float, 2> velocity = parse_floats<2>(object, "horizontal_velocity");
+    player.horizontal_velocity = {velocity[0], velocity[1]};
+    const nlohmann::json& on_ground = field(object, "on_ground");
+    if (!on_ground.is_boolean()) {
+        throw_invalid("on_ground", on_ground, "true or false");
+    }
+    player.on_ground = on_ground.get<bool>();
+    return player;
+}
+
+/// Reads the state of a door of the progress of a save.
+///
+/// \throws std::runtime_error if a field is missing or wrong.
+DoorState parse_door(const nlohmann::json& object) {
+    if (!object.is_object()) {
+        throw_invalid("door", object, "an object");
+    }
+    DoorState door;
+    door.openness = parse_float(object, "openness", 0.0f, 1.0f);
+    const nlohmann::json& target = field(object, "target");
+    if (!target.is_number() || (target.get<double>() != 0.0 && target.get<double>() != 1.0)) {
+        throw_invalid("target", target, "0 or 1");
+    }
+    door.target = target.get<float>();
+    return door;
+}
+
+/// Reads the progress of a save made in the middle of a level.
+///
+/// \param level_time The game time at the start of the level, which the progress can't be before.
+/// \throws std::runtime_error if a field is missing or wrong.
+LevelProgress parse_progress(const nlohmann::json& object, double level_time) {
+    if (!object.is_object()) {
+        throw_invalid("progress", object, "an object");
+    }
+    LevelProgress progress;
+    const nlohmann::json& time = field(object, "time");
+    if (!is_number_in(time, level_time, std::numeric_limits<double>::max())) {
+        throw_invalid("progress time", time, "a number not less than the time of the level");
+    }
+    progress.time = time.get<double>();
+    progress.party = parse_party(object);
+    progress.magic = parse_magic(object);
+    progress.inventory = parse_item_keys(field(object, "inventory"), "inventory");
+    progress.player = parse_player(field(object, "player"));
+    const nlohmann::json& doors = field(object, "doors");
+    if (!doors.is_array()) {
+        throw_invalid("doors", doors, "an array");
+    }
+    for (const nlohmann::json& door : doors) {
+        progress.doors.push_back(parse_door(door));
+    }
+    const nlohmann::json& chests = field(object, "chests");
+    if (!chests.is_array()) {
+        throw_invalid("chests", chests, "an array");
+    }
+    for (const nlohmann::json& chest : chests) {
+        progress.chests.push_back(parse_item_keys(chest, "chest"));
+    }
+    return progress;
+}
+
+/// Writes a party, its magic and its items into `json`, as save_to_json() does, for a save or its progress.
+void add_party(nlohmann::ordered_json& json, const std::vector<Character>& characters, const PartyMagic& magic,
+               const std::vector<std::string>& inventory) {
     nlohmann::ordered_json party = nlohmann::ordered_json::array();
-    for (const Character& character : save.party) {
+    for (const Character& character : characters) {
         nlohmann::ordered_json portrait = nullptr;
         if (character.portrait) {
             portrait = {{"key", std::string(asset_key_name(character.portrait->key))},
@@ -197,16 +336,63 @@ std::string save_to_json(const SavedGame& save) {
         });
     }
     json["party"] = std::move(party);
-    json["mana"] = save.magic.mana;
-    json["max_mana"] = save.magic.max_mana;
+    json["mana"] = magic.mana;
+    json["max_mana"] = magic.max_mana;
     nlohmann::ordered_json spells = nlohmann::ordered_json::array();
-    for (const ActiveSpell& active : save.magic.spells) {
+    for (const ActiveSpell& active : magic.spells) {
         spells.push_back({{"spell", spell_key(active.spell)}, {"remaining", active.remaining}});
     }
     json["spells"] = std::move(spells);
-    json["inventory"] = save.inventory;
+    json["inventory"] = inventory;
+}
+
+/// The progress of a save as JSON, see save_to_json().
+nlohmann::ordered_json progress_to_json(const LevelProgress& progress) {
+    nlohmann::ordered_json json = {{"time", progress.time}};
+    add_party(json, progress.party, progress.magic, progress.inventory);
+    const SavedPlayer& player = progress.player;
+    json["player"] = {
+        {"position", {player.position.x, player.position.y, player.position.z}},
+        {"yaw", player.yaw},
+        {"pitch", player.pitch},
+        {"vertical_speed", player.vertical_speed},
+        {"horizontal_velocity", {player.horizontal_velocity.x, player.horizontal_velocity.y}},
+        {"on_ground", player.on_ground},
+    };
+    nlohmann::ordered_json doors = nlohmann::ordered_json::array();
+    for (const DoorState& door : progress.doors) {
+        doors.push_back({{"openness", door.openness}, {"target", door.target}});
+    }
+    json["doors"] = std::move(doors);
+    json["chests"] = progress.chests;
+    return json;
+}
+
+}  // namespace
+
+const char* save_file_name(SaveKind kind) {
+    switch (kind) {
+        case SaveKind::kProgress:
+            return "save.json";
+        case SaveKind::kLevelStart:
+            return "save_level_start.json";
+    }
+    return "save.json";
+}
+
+std::string save_to_json(const SavedGame& save) {
+    nlohmann::ordered_json json = {
+        {"version", kSaveFormatVersion},
+        {"seed", save.seed},
+        {"level_number", save.level_number},
+        {"time", save.time},
+    };
+    add_party(json, save.party, save.magic, save.inventory);
     if (save.layout) {
         json["layout"] = std::string(layout_name(*save.layout));
+    }
+    if (save.progress) {
+        json["progress"] = progress_to_json(*save.progress);
     }
     return json.dump(kJsonIndent) + "\n";
 }
@@ -248,26 +434,12 @@ SavedGame parse_saved_game(std::string_view json) {
     }
     save.time = time.get<double>();
 
-    const nlohmann::json& party = field(object, "party");
-    if (!party.is_array() || party.empty()) {
-        throw_invalid("party", party, "an array of at least one character");
-    }
-    for (const nlohmann::json& character : party) {
-        save.party.push_back(parse_character(character));
-    }
+    save.party = parse_party(object);
     save.magic = parse_magic(object);
 
     // Saves made before the party had items have no inventory, and the meaning of the other fields is the same.
     if (const auto inventory = object.find("inventory"); inventory != object.end()) {
-        if (!inventory->is_array()) {
-            throw_invalid("inventory", *inventory, "an array of item keys");
-        }
-        for (const nlohmann::json& item : *inventory) {
-            if (!item.is_string()) {
-                throw_invalid("item", item, "an item key");
-            }
-            save.inventory.push_back(item.get<std::string>());
-        }
+        save.inventory = parse_item_keys(*inventory, "inventory");
     }
 
     if (const auto layout = object.find("layout"); layout != object.end()) {
@@ -277,6 +449,9 @@ SavedGame parse_saved_game(std::string_view json) {
         if (!save.layout) {
             throw_invalid("layout", *layout, "debug or rooms");
         }
+    }
+    if (const auto progress = object.find("progress"); progress != object.end()) {
+        save.progress = parse_progress(*progress, save.time);
     }
     return save;
 }

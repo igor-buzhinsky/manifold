@@ -387,7 +387,9 @@ Drawbacks:
 
 ## 2026-11-17: Save games as plain JSON in the user's data directory
 
-Status: **ACCEPTED**. Done in v0.3.
+Status: **ACCEPTED**. Done in v0.3. Since v0.4, saves are also made in the middle of a level, in a second file, see
+"Save the middle of a level too" below; what is said here of saves made only at the start of a level holds for
+`save_level_start.json`.
 
 Decision: a save is a small JSON file, `save.json`, written with nlohmann/json to the directory that
 `SDL_GetPrefPath()` gives: `$XDG_DATA_HOME/manifold/` on Linux, by default `~/.local/share/manifold/`. It holds only
@@ -932,3 +934,53 @@ Drawbacks:
   few attempts to plan a level, can still stop the game when such a level comes.
 - A field added to a struct must also be added to the reader and to the file.
 - Saved games give other levels after the layouts or the chances of objects change.
+
+## 2026-11-27: Save the middle of a level too, every 10 s of play and on exit, besides its start
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: the game keeps two saves in the user's data directory, in the same JSON format (version 5).
+`save_level_start.json` is the save of the start of the level, as `save.json` was before, written when a level starts.
+`save.json` holds the game as it is: written when a level starts, every `autosave_interval` seconds of game time (10 by
+default, in `settings.json`, with `autosave` to turn it off) and when the game quits. It is the start of the level with
+an optional `progress` object: the game time, the party, its magic and items, the player's position, view, velocity and
+whether they stand, the state of each door (openness and target) and the item keys of each chest, by their index in the
+level. Loading generates the level again from its seed, as before, and then puts the progress back; a progress whose
+numbers of doors or chests differ from the level's is refused. The start menu offers Continue (`save.json`) and
+Continue from level start; the game menu has Load game (also F9) and Restart level, and the console `load
+[level_start]`. Loading the start of the level replaces `save.json` too. Saves are written on the main thread, each to
+a `.tmp` file that is then renamed over the old one; autosaves aren't logged.
+
+Gains:
+
+- Quitting and coming back continues where the player was, with what they did in the level, and a crash loses at most
+  10 s of play.
+- The format stays the same, and the progress is optional: old saves load as saves of the start of a level, and older
+  versions of the game ignore the progress, so the version needn't change.
+- A save of the start of the level is always there, so a level can be restarted, e.g. after a mistake that the last
+  autosave already holds.
+- Doors and chests are saved by their index, without ids of their own, since the level generated again from the same
+  seed has them in the same order.
+- Game time doesn't advance while a menu is open, so autosaves don't rewrite the same state while the game is paused.
+
+Rejected alternatives:
+
+- **Two formats, or a new version**: the progress only adds to what a save of the start of a level holds, so one format
+  with an optional object reads both, and keeps the old saves.
+- **Saving only the progress in `save.json`, without the start of its level**: loading it couldn't give the start of
+  the level for the next `save_level_start.json` or Restart level, unless both files were always read together.
+- **Writing on a worker thread**: the file is 20 to 60 KB in a rooms level (most of it the doors), which takes well
+  under a millisecond to write, and a thread would need a copy of the state and care when the game quits while writing.
+- **Timing autosaves by wall-clock time**: they would rewrite the same state while the game is paused.
+- **`fsync` before the rename**: it can take tens of milliseconds on a slow disk, every 10 s on the main thread. The
+  rename alone keeps the old save if the game stops while writing; only a power loss right after it can lose both.
+- **Saving by hand (quick save)**: autosaves and the save on exit make it less needed; it can be added later.
+
+Drawbacks:
+
+- The save of the middle of a level grows with the number of doors and chests, and with what later changes during play
+  (monsters), which must be added to the progress.
+- A save made by a game whose level generation changed in a way that keeps the numbers of doors and chests is loaded,
+  but puts the doors, chests and player into another level, e.g. into a wall.
+- Noclip and footstep timing aren't saved, so a player who flew with noclip falls after loading.
+- Without `fsync`, a power loss right after saving can leave an empty or old save, depending on the file system.

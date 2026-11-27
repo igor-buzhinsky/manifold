@@ -81,6 +81,8 @@ struct DoorState {
     ///
     /// \param dt Duration of the frame in seconds.
     void advance(float dt);
+
+    bool operator==(const DoorState&) const = default;
 };
 
 }  // namespace manifold

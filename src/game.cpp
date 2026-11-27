@@ -4,8 +4,10 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <format>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
@@ -138,39 +140,109 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
     start_level(std::move(level), seed, 0, layout);
 }
 
-void Game::load(const SavedGame& save) {
-    Level level = generate_game_level(level_config_, save.layout, player_params_.radius, save.seed, save.level_number);
-    time_ = save.time;
-    party_ = save.party;
-    magic_ = save.magic;
-    // The data files may have shortened a spell since the save was made.
-    for (ActiveSpell& active : magic_.spells) {
-        active.remaining = std::min(active.remaining, magic_config_.spell(active.spell).duration);
-    }
-    inventory_ = Inventory{};
-    for (const std::string& key : save.inventory) {
-        if (const std::optional<ItemId> item = level_config_.items.find(key)) {
-            inventory_.add(*item);
+namespace {
+
+/// The items of `keys` that `catalog` has, in order. Unknown keys are left out, after a warning.
+///
+/// \param owner Whose items they are, for the warning, e.g. "the party".
+Inventory items_of_keys(const ItemCatalog& catalog, const std::vector<std::string>& keys, const char* owner) {
+    Inventory inventory;
+    for (const std::string& key : keys) {
+        if (const std::optional<ItemId> item = catalog.find(key)) {
+            inventory.add(*item);
         } else {
-            log_warning("The saved item {} is unknown, so the party loses it", key);
+            log_warning("The saved item {} is unknown, so {} loses it", key, owner);
         }
     }
-    start_level(std::move(level), save.seed, save.level_number, save.layout);
+    return inventory;
 }
 
-SavedGame Game::save_point() const {
-    std::vector<std::string> items;
-    items.reserve(level_start_inventory_.size());
-    for (const ItemId item : level_start_inventory_.items()) {
-        items.push_back(level_config_.items.at(item).key);
+/// The keys of the items of `inventory`, see SavedGame::inventory.
+std::vector<std::string> keys_of_items(const ItemCatalog& catalog, const Inventory& inventory) {
+    std::vector<std::string> keys;
+    keys.reserve(inventory.size());
+    for (const ItemId item : inventory.items()) {
+        keys.push_back(catalog.at(item).key);
     }
+    return keys;
+}
+
+/// `magic` with its spells cut to their durations of `config`, which the data files may have shortened since a save was
+/// made.
+PartyMagic cut_spells(PartyMagic magic, const MagicConfig& config) {
+    for (ActiveSpell& active : magic.spells) {
+        active.remaining = std::min(active.remaining, config.spell(active.spell).duration);
+    }
+    return magic;
+}
+
+}  // namespace
+
+void Game::load(const SavedGame& save) {
+    Level level = generate_game_level(level_config_, save.layout, player_params_.radius, save.seed, save.level_number);
+    if (save.progress) {
+        const std::size_t doors = level.world.doors().size();
+        const std::size_t chests = level.world.chests().size();
+        if (save.progress->doors.size() != doors || save.progress->chests.size() != chests) {
+            throw std::runtime_error(std::format(
+                "the saved level has {} doors and {} chests, but the level generated from its seed has {} and {}",
+                save.progress->doors.size(), save.progress->chests.size(), doors, chests));
+        }
+    }
+    time_ = save.time;
+    party_ = save.party;
+    magic_ = cut_spells(save.magic, magic_config_);
+    inventory_ = items_of_keys(level_config_.items, save.inventory, "the party");
+    start_level(std::move(level), save.seed, save.level_number, save.layout);
+    if (!save.progress) {
+        return;
+    }
+    const LevelProgress& progress = *save.progress;
+    time_ = progress.time;
+    party_ = progress.party;
+    magic_ = cut_spells(progress.magic, magic_config_);
+    inventory_ = items_of_keys(level_config_.items, progress.inventory, "the party");
+    for (std::size_t i = 0; i < progress.chests.size(); ++i) {
+        chest_inventories_[i] = items_of_keys(level_config_.items, progress.chests[i], "a chest");
+    }
+    doors_ = progress.doors;
+    player_.set_position(progress.player.position);
+    player_.set_view(progress.player.yaw, progress.player.pitch);
+    player_.set_vertical_speed(progress.player.vertical_speed);
+    player_.set_horizontal_velocity(progress.player.horizontal_velocity);
+    player_.set_on_ground(progress.player.on_ground);
+}
+
+SavedGame Game::level_start_save() const {
     return {.seed = seed_,
             .level_number = level_number_,
             .layout = given_layout_,
             .time = level_start_time_,
             .party = level_start_party_,
             .magic = level_start_magic_,
-            .inventory = std::move(items)};
+            .inventory = keys_of_items(level_config_.items, level_start_inventory_)};
+}
+
+SavedGame Game::progress_save() const {
+    SavedGame save = level_start_save();
+    LevelProgress progress{.time = time_,
+                           .party = party_,
+                           .magic = magic_,
+                           .inventory = keys_of_items(level_config_.items, inventory_),
+                           .player = {.position = player_.position(),
+                                      .yaw = player_.yaw(),
+                                      .pitch = player_.pitch(),
+                                      .vertical_speed = player_.vertical_speed(),
+                                      .horizontal_velocity = player_.horizontal_velocity(),
+                                      .on_ground = player_.on_ground()},
+                           .doors = doors_,
+                           .chests = {}};
+    progress.chests.reserve(chest_inventories_.size());
+    for (const Inventory& chest : chest_inventories_) {
+        progress.chests.push_back(keys_of_items(level_config_.items, chest));
+    }
+    save.progress = std::move(progress);
+    return save;
 }
 
 void Game::start_level(Level level, std::uint64_t seed, int level_number, std::optional<LayoutKind> layout) {

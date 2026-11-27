@@ -24,6 +24,7 @@
 #include "party/spells.hpp"
 #include "render/camera.hpp"
 #include "render/viewport.hpp"
+#include "save/saved_game.hpp"
 #include "util/asset_mapping.hpp"
 #include "util/log.hpp"
 #include "world/chest.hpp"
@@ -192,14 +193,20 @@ void add_player_commands(Console& console, CommandQueue& queue, Game& game, Cons
                     queue.wait(1);
                 });
 
-    console.add("load", "load", "Loads the saved game, as F9 does: the saved level starts again.",
-                [&queue, &state](std::span<const std::string> arguments) {
-                    expect_count(arguments, 0, "load");
-                    state.load = true;
-                    state.load_stops_on_error = queue.running_stops_on_error();
-                    // The main loop loads at the start of the next frame, before the next commands run.
-                    queue.wait(1);
-                });
+    const std::string load_usage = "load [level_start]";
+    console.add(
+        "load", load_usage,
+        "Loads the saved game as it was at the last autosave or exit, as F9 does, or with level_start, from the "
+        "start of its level.",
+        [&queue, &state, load_usage](std::span<const std::string> arguments) {
+            if (arguments.size() > 1 || (arguments.size() == 1 && arguments[0] != "level_start")) {
+                throw CommandError("usage: " + load_usage);
+            }
+            state.load = arguments.empty() ? SaveKind::kProgress : SaveKind::kLevelStart;
+            state.load_stops_on_error = queue.running_stops_on_error();
+            // The main loop loads at the start of the next frame, before the next commands run.
+            queue.wait(1);
+        });
 
     add_switch(
         console, "noclip", "Noclip", "Lets the player fly through everything (Page Up / Page Down), or not.",

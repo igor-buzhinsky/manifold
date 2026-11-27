@@ -20,6 +20,12 @@ struct Settings {
     bool mouse_look = false;
     /// How far the view turns with mouse look, in degrees per unit of mouse motion. Greater than 0.
     float mouse_sensitivity = 0.1f;
+    /// Whether the game is saved to `save.json` every `autosave_interval`, besides when the player quits and when a
+    /// level starts, see SaveKind::kProgress.
+    bool autosave = true;
+    /// Seconds of game time between autosaves, which don't count while the game is paused, e.g. by a menu. Greater
+    /// than 0.
+    float autosave_interval = 10.0f;
 
     bool operator==(const Settings&) const = default;
 };
@@ -27,8 +33,8 @@ struct Settings {
 /// Reads the settings of a JSON object over `base`: the fields that `json` has replace those of `base`, the others
 /// stay.
 ///
-/// The fields are `fullscreen` and `mouse_look` (booleans), and `mouse_sensitivity` (a number greater than 0). Unknown
-/// fields are ignored with a warning, so a misspelled one is noticed.
+/// The fields are `fullscreen`, `mouse_look` and `autosave` (booleans), and `mouse_sensitivity` and `autosave_interval`
+/// (numbers greater than 0). Unknown fields are ignored with a warning, so a misspelled one is noticed.
 ///
 /// \throws std::runtime_error if `json` is not a valid JSON object or a field has a wrong type or value.
 Settings parse_settings(std::string_view json, const Settings& base);

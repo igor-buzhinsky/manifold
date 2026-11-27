@@ -65,6 +65,16 @@ public:
     /// \param delta_pitch Change of pitch in radians. Positive looks up.
     void rotate(float delta_yaw, float delta_pitch);
 
+    /// Sets the view, e.g. from a save: the yaw is wrapped and the pitch clamped as by rotate().
+    ///
+    /// \param yaw   Radians counter-clockwise from +x.
+    /// \param pitch Radians, positive is up.
+    void set_view(float yaw, float pitch) {
+        yaw_ = 0.0f;
+        pitch_ = 0.0f;
+        rotate(yaw, pitch);
+    }
+
     /// Where the camera is: kEyeDepth below the top of the head.
     glm::vec3 eye_position() const { return position_ + glm::vec3(0.0f, 0.0f, height_ - kEyeDepth); }
 
