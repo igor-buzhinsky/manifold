@@ -991,4 +991,7 @@ Drawbacks:
 - Noclip and footstep timing aren't saved, so a player who flew with noclip falls after loading.
 - After a restart, quitting before the next autosave still replaces `save.json`, since the game always saves on exit,
   so the progress before the restart is then lost.
+- A restart no longer makes the two files agree at once: an unreadable `save.json` stays until the next autosave, so F9
+  fails until then, and if writing `save_level_start.json` failed when a level started, F9 after a restart goes to the
+  level of `save.json`, which may be another one.
 - Without `fsync`, a power loss right after saving can leave an empty or old save, depending on the file system.
