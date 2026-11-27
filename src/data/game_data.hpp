@@ -47,8 +47,9 @@ void parse_spells(std::string_view json, std::string_view source, MagicConfig& m
 /// Besides the type and range of each field, it checks that the smallest of a range isn't above its largest (such as
 /// `min_holes` and `max_holes`), that `min_ramps` isn't above `min_holes`, that the largest room fits into the grid
 /// with its walls, that the debug level isn't empty, and that not all probabilities are 0. Counts and attempts have
-/// upper limits (1000 and 1000000), so that a typo can't take all memory or time. load_game_data() also generates a
-/// level of each layout, which finds most of the rest.
+/// upper limits (1000 and 1000000), and the debug level must lie within 10 km of the origin and get at most 1000
+/// torches, so that a typo can't take all memory or time. load_game_data() also generates a level of each layout,
+/// which finds most of the rest.
 ///
 /// \throws GameDataError if a field is missing, unknown or wrong. Then `level` may be partly changed.
 void parse_level_layouts(std::string_view json, std::string_view source, LevelConfig& level);

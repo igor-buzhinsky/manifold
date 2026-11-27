@@ -33,8 +33,8 @@ changes nothing.
 `data/items.json` lists all kinds of items, so they can be added and changed without building the game again. Like
 `assets/`, the `data/` directory is found next to the executable in a copy of the game, otherwise in the source tree; it
 holds what defines the game rather than how it looks and sounds, also the spells, the settings of the level layouts and
-other constants, see [data/README.md](data/README.md). Each field is the key of an item, such as `SMALL_RUBY`,
-which saves store and `ITEM_ICONS` of the asset mapping gives the icon of, with an object of:
+other constants, see [data/README.md](data/README.md). Each field of `items.json` is the key of an item, such as
+`SMALL_RUBY`, which saves store and `ITEM_ICONS` of the asset mapping gives the icon of, with an object of:
 
 - `name`: what the player sees, e.g. `"Small ruby"`.
 - `value`: what the item is worth, a positive integer. The player never sees it.
