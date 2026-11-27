@@ -1147,7 +1147,7 @@ TEST(GameTest, ItemsAreSavedAtTheStartOfTheLevelAndANewGameHasNone) {
     game.next_level();
     game.inventory().add(kPebble);
     const SavedGame save = game.save_point();
-    EXPECT_EQ(save.inventory, std::vector<std::string>{"GOLD_BAR"});
+    EXPECT_EQ(save.inventory, std::vector<std::string>{"gold_bar"});
 
     Game loaded(config, 5, LayoutKind::kDebug);
     loaded.inventory().add(kCrown);
@@ -1162,12 +1162,12 @@ TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
     config.level.items = make_test_items();
     Game game(config, 3, LayoutKind::kDebug);
     SavedGame save = game.save_point();
-    save.inventory = {"PEBBLE", "UNICORN", "CROWN"};
+    save.inventory = {"pebble", "unicorn", "crown"};
     testing::internal::CaptureStderr();
     game.load(save);
     const std::string log = testing::internal::GetCapturedStderr();
     EXPECT_EQ(game.inventory(), Inventory({kPebble, kCrown}));
-    EXPECT_NE(log.find("[warning] The saved item UNICORN is unknown"), std::string::npos) << log;
+    EXPECT_NE(log.find("[warning] The saved item unicorn is unknown"), std::string::npos) << log;
 }
 
 TEST(GameTest, LoadingCutsSpellsToTheirDurationAndMagicFollowsTheConfig) {

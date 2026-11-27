@@ -122,16 +122,16 @@ TEST(AssetMappingTest, WrongEntriesKeepThePositionsOfTheOthers) {
 TEST(AssetMappingTest, ParsesTheIconsOfItems) {
     constexpr const char* kJson = R"({
         "EXIT_SOUNDS": ["a.ogg"],
-        "ITEM_ICONS": {"SMALL_RUBY": "icons/ruby.png", "LARGE_RUBY": "/elsewhere/large.png", "SMALL_OPAL": 3}
+        "ITEM_ICONS": {"small_ruby": "icons/ruby.png", "large_ruby": "/elsewhere/large.png", "small_opal": 3}
     })";
     std::string log;
     const AssetMapping mapping = parse(kJson, log);
-    EXPECT_EQ(mapping.item_icon("SMALL_RUBY"), std::filesystem::path("/assets/icons/ruby.png"));
-    EXPECT_EQ(mapping.item_icon("LARGE_RUBY"), std::filesystem::path("/elsewhere/large.png"));
-    EXPECT_FALSE(mapping.item_icon("SMALL_OPAL").has_value());
-    EXPECT_FALSE(mapping.item_icon("LARGE_OPAL").has_value());
+    EXPECT_EQ(mapping.item_icon("small_ruby"), std::filesystem::path("/assets/icons/ruby.png"));
+    EXPECT_EQ(mapping.item_icon("large_ruby"), std::filesystem::path("/elsewhere/large.png"));
+    EXPECT_FALSE(mapping.item_icon("small_opal").has_value());
+    EXPECT_FALSE(mapping.item_icon("large_opal").has_value());
     EXPECT_EQ(mapping.item_icons().size(), 2U);
-    EXPECT_NE(log.find("ITEM_ICONS has an icon 3 for SMALL_OPAL that is not a path"), std::string::npos) << log;
+    EXPECT_NE(log.find("ITEM_ICONS has an icon 3 for small_opal that is not a path"), std::string::npos) << log;
     EXPECT_EQ(log.find("unknown key"), std::string::npos) << log;
 
     const AssetMapping wrong = parse(R"({"ITEM_ICONS": ["a.png"]})", log);

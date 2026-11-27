@@ -18,7 +18,7 @@ one file can be listed under several keys:
 | `FOOTSTEP_SOUNDS_GRASS`, `_WOOD`, `_METAL`, `_STONE` | OGG footsteps in levels of each texture kind |
 | `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
 | `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
-| `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"SMALL_RUBY": "inventory/gems/.../ruby-small.png"`. An item without one is drawn without an icon, after a warning in the log |
+| `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"small_ruby": "inventory/gems/.../ruby-small.png"`. An item without one is drawn without an icon, after a warning in the log |
 
 Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives
@@ -33,8 +33,9 @@ changes nothing.
 `data/items.json` lists all kinds of items, so they can be added and changed without building the game again. Like
 `assets/`, the `data/` directory is found next to the executable in a copy of the game, otherwise in the source tree; it
 holds what defines the game rather than how it looks and sounds, also the spells, the settings of the level layouts and
-other constants, see [data/README.md](data/README.md). Each field of `items.json` is the key of an item, such as
-`SMALL_RUBY`, which saves store and `ITEM_ICONS` of the asset mapping gives the icon of, with an object of:
+other constants, see [data/README.md](data/README.md). Each field of `items.json` is the key of an item, in lower case
+with underscores like the keys of spells, such as `small_ruby`, which saves store and `ITEM_ICONS` of the asset mapping
+gives the icon of, with an object of:
 
 - `name`: what the player sees, e.g. `"Small ruby"`.
 - `value`: what the item is worth, a positive integer. The player never sees it.

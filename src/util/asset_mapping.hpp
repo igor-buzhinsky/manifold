@@ -108,7 +108,7 @@ inline constexpr std::string_view kAssetMappingFileName = "asset_mapping.json";
 ///
 /// Besides these, the field kItemIconsKey (`ITEM_ICONS`) is an object from the keys of items, see ItemCatalog, to the
 /// paths of their icons: PNG files with a transparent background, e.g.
-/// `{"ITEM_ICONS": {"SMALL_RUBY": "inventory/gems/ruby-small.png"}}`.
+/// `{"ITEM_ICONS": {"small_ruby": "inventory/gems/ruby-small.png"}}`.
 class AssetMapping {
 public:
     /// A mapping in which no key has files.
@@ -143,7 +143,7 @@ public:
     /// How many files each key has.
     AssetCounts counts() const;
 
-    /// The icon of the item with the key `item_key`, e.g. `SMALL_RUBY`, from `ITEM_ICONS`, with a relative path made
+    /// The icon of the item with the key `item_key`, e.g. `small_ruby`, from `ITEM_ICONS`, with a relative path made
     /// absolute, or nothing if it has none.
     std::optional<std::filesystem::path> item_icon(std::string_view item_key) const;
 
