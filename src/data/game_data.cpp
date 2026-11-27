@@ -52,8 +52,8 @@ struct Range {
     bool above_min = false;  ///< Whether `min` itself is left out.
 };
 
-/// Any finite number.
-constexpr Range kFinite{.min = -kFloatMax, .max = kFloatMax};
+/// A coordinate of a level, in metres: within 10 km of the origin, far more than any level needs.
+constexpr Range kCoordinate{.min = -1e4, .max = 1e4};
 constexpr Range kNonNegative{.min = 0.0, .max = kFloatMax};
 constexpr Range kPositive{.min = 0.0, .max = kFloatMax, .above_min = true};
 /// A chance, from 0 to 1.
@@ -71,6 +71,15 @@ constexpr Range kLightRange{.min = 0.1, .max = kFloatMax};
 /// Most characters of a party: as many as the HUD has room for, see layout_party_hud().
 constexpr Range kPartySize{.min = 1.0, .max = 6.0};
 
+/// A limit of a Range for messages: without an exponent if it is a whole number, e.g. "1000000" rather than "1e+06".
+std::string format_limit(double limit) {
+    constexpr double kLargestPlain = 1e15;
+    if (limit == std::floor(limit) && std::abs(limit) < kLargestPlain) {
+        return std::format("{}", static_cast<std::int64_t>(limit));
+    }
+    return std::format("{:g}", limit);
+}
+
 /// What a field with numbers in `range` must be, for messages, e.g. "a number from 0 to 1".
 std::string describe(const Range& range, bool integer) {
     const char* kind = integer ? "an integer" : "a number";
@@ -78,10 +87,10 @@ std::string describe(const Range& range, bool integer) {
         if (range.above_min && range.min == 0.0) {
             return integer ? "a positive integer" : "a positive number";
         }
-        return std::format("{} {} {:g}", kind, range.above_min ? "above" : "of", range.min) +
+        return std::format("{} {} {}", kind, range.above_min ? "above" : "of", format_limit(range.min)) +
                (range.above_min ? "" : " or more");
     }
-    return std::format("{} from {:g} to {:g}", kind, range.min, range.max);
+    return std::format("{} from {} to {}", kind, format_limit(range.min), format_limit(range.max));
 }
 
 /// Reads the fields of an object of a data file, and collects what is wrong with them as messages, see
@@ -110,10 +119,11 @@ public:
             range.max = std::min(range.max, kIntMax);
         }
         const bool is_number = kInteger ? value->is_number_integer() : value->is_number();
-        // A float can't hold every double: a tiny positive number would become 0, so the stored value is checked.
-        double number = 0.0;
-        if (is_number) {
-            number = kInteger ? value->get<double>() : static_cast<double>(static_cast<T>(value->get<double>()));
+        double number = is_number ? value->get<double>() : 0.0;
+        // A float can't hold every double: a tiny positive number would become 0, so the stored value is checked. A
+        // number beyond the largest float can't be converted at all, and is out of every range anyway.
+        if (!kInteger && std::isfinite(number) && std::abs(number) <= kFloatMax) {
+            number = static_cast<double>(static_cast<T>(number));
         }
         const bool valid = is_number && std::isfinite(number) && number >= range.min && number <= range.max &&
                            (!range.above_min || number != range.min);
@@ -177,6 +187,9 @@ public:
         add(std::format("{} {:g} is {} {} {:g}", field_path(low_name), low, strict ? "not below" : "above",
                         field_path(high_name), high));
     }
+
+    /// Whether the object is there and no problem was found in it yet.
+    bool right() const { return object_ != nullptr && fields_right_; }
 
     /// Reports a problem with this object, e.g. a check of several fields, once all were read right.
     void check(bool valid, std::string_view message) {
@@ -302,10 +315,10 @@ void read_rooms(FieldReader& reader, RoomLayoutConfig& rooms) {
 }
 
 void read_debug(FieldReader& reader, DebugLayoutConfig& debug) {
-    reader.number("x_min", debug.x_min, kFinite);
-    reader.number("x_max", debug.x_max, kFinite);
-    reader.number("y_min", debug.y_min, kFinite);
-    reader.number("y_max", debug.y_max, kFinite);
+    reader.number("x_min", debug.x_min, kCoordinate);
+    reader.number("x_max", debug.x_max, kCoordinate);
+    reader.number("y_min", debug.y_min, kCoordinate);
+    reader.number("y_max", debug.y_max, kCoordinate);
     reader.number("obstacle_count", debug.obstacle_count, kSmallCount);
     reader.number("obstacle_size", debug.obstacle_size, kPositive);
     reader.number("obstacle_height", debug.obstacle_height, kPositive);
@@ -319,6 +332,12 @@ void read_debug(FieldReader& reader, DebugLayoutConfig& debug) {
     reader.number("torches_per_chest", debug.torches_per_chest, kSmallCount);
     reader.order("x_min", debug.x_min, "x_max", debug.x_max, true);
     reader.order("y_min", debug.y_min, "y_max", debug.y_max, true);
+    // Each wall gets a torch every torch_spacing, see DebugLayout.
+    constexpr float kMaxTorches = 1000.0f;
+    const float torches = 2.0f * ((debug.x_max - debug.x_min) + (debug.y_max - debug.y_min)) / debug.torch_spacing;
+    reader.check(torches <= kMaxTorches,
+                 std::format("has a torch_spacing of {:g} m, which gives about {:.0f} torches, more than {:.0f}",
+                             debug.torch_spacing, torches, kMaxTorches));
 }
 
 /// Reads how a kind of chest is filled, and warns about limits that can leave it empty, see check_container_loot().
@@ -330,10 +349,11 @@ void read_loot(FieldReader reader, ContainerLoot& loot, std::string_view name) {
     reader.number("max_total_value", loot.max_total_value, kNonNegative);
     reader.order("min_draws", loot.min_draws, "max_draws", loot.max_draws);
     reader.order("min_item_value", loot.min_item_value, "max_item_value", loot.max_item_value);
-    reader.finish();
-    if (loot.min_draws <= loot.max_draws && loot.min_item_value <= loot.max_item_value) {
+    // A loot with a problem is an error already, which a warning about the defaults in code would only confuse.
+    if (reader.right()) {
         check_container_loot(loot, name);
     }
+    reader.finish();
 }
 
 /// Reads how bright and how far a light shines.

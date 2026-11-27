@@ -36,11 +36,12 @@ here doesn't break them, except a test that these files load without problems or
 
 Unlike `items.json`, `spells.json`, `level_layouts.json` and `constants.json` must be complete and right: each field
 must be there, with a value of the right type and range, and an unknown field, such as a misspelt one, is an error too.
-Settings of several files must fit together: the player must be lower than a layer of rooms, the party's `max_mana` must
-pay for every spell, and the walk can't be faster than the run. The game also generates a level of each layout at the
-start, from one seed, since some settings only fail together, such as tiles too narrow for the player. If anything is
-wrong, the game doesn't start, and the log lists every problem with its file and field, e.g. `data/spells.json:
-levitate.duration is -1, not a positive number`.
+Some fields must fit together, such as the walk, which can't be faster than the run, also across files: the player must
+be lower than a layer of rooms, and the party's `max_mana` must pay for every spell. Counts, attempts and the size of
+the debug level have upper limits, so that a typo with too many zeros can't take all memory or time. The game also
+generates a level of each layout at the start, from one seed, since some settings only fail together, such as tiles too
+narrow for the player. If anything is wrong, the game doesn't start, and the log lists every problem with its file and
+field, e.g. `data/spells.json: levitate.duration is -1, not a positive number`.
 
 A save keeps the party's mana and spells but not the level, which is generated again from its seed. So a saved game
 gives another level once `level_layouts.json` or the torch flames, the golden chest chance or the loot of chests in

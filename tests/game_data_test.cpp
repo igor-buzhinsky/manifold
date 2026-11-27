@@ -218,13 +218,41 @@ TEST(GameDataTest, ChecksTheLimitsOfTheLevelLayouts) {
     json["rooms"]["max_room_size"] = 19;
     json["debug"]["obstacle_count"] = 1000000;
     json["debug"]["x_max"] = 1e300;
+    json["debug"]["max_attempts_per_block"] = 0;
     LevelConfig level;
     const std::string problems = problems_of([&] { parse_level_layouts(json.dump(), "layouts.json", level); });
     EXPECT_TRUE(contains(problems,
                          "layouts.json: rooms has rooms of up to 19 tiles, which don't fit with their walls "
                          "into a grid of 20 x 30 tiles"));
     EXPECT_TRUE(contains(problems, "layouts.json: debug.obstacle_count is 1000000, not an integer from 0 to 1000"));
-    EXPECT_TRUE(contains(problems, "layouts.json: debug.x_max is 1e+300, not a number from -3.40282e+38 to "));
+    EXPECT_TRUE(contains(problems, "layouts.json: debug.x_max is 1e+300, not a number from -10000 to 10000"));
+    EXPECT_TRUE(
+        contains(problems, "layouts.json: debug.max_attempts_per_block is 0, not an integer from 1 to 1000000"));
+}
+
+TEST(GameDataTest, NeedsAFewTorchesInTheDebugLayout) {
+    Json json = shipped(kLevelLayoutsFileName);
+    json["debug"]["x_min"] = -20;
+    json["debug"]["x_max"] = 20;
+    json["debug"]["y_min"] = -20;
+    json["debug"]["y_max"] = 20;
+    json["debug"]["torch_spacing"] = 0.01;
+    LevelConfig level;
+    EXPECT_EQ(problems_of([&] { parse_level_layouts(json.dump(), "layouts.json", level); }),
+              "layouts.json: debug has a torch_spacing of 0.01 m, which gives about 16000 torches, more than 1000");
+}
+
+TEST(GameDataTest, DoesNotWarnAboutTheLootOfAChestWithAProblem) {
+    Json json = shipped(kConstantsFileName);
+    json["level_objects"]["golden_chest"].erase("max_total_value");
+    GameConfig game;
+    game.level.chest_loot.golden.max_total_value = 0;
+    LightSettings lights;
+    testing::internal::CaptureStderr();
+    const std::string problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
+    const std::string log = testing::internal::GetCapturedStderr();
+    EXPECT_TRUE(contains(problems, "level_objects.golden_chest.max_total_value is missing"));
+    EXPECT_EQ(log.find("golden chests"), std::string::npos) << log;
 }
 
 TEST(GameDataTest, WarnsAboutLootThatCanLeaveAChestEmpty) {
