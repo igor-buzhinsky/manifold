@@ -125,8 +125,8 @@ public:
     /// Problems don't stop it, but are logged as warnings, with `source` (e.g. the file's path): text that isn't a
     /// JSON object gives a mapping without files; an unknown key, or a value that isn't a string or an array, is left
     /// out; an entry of an array that isn't a string gives an empty path, which can't be loaded, so that the entries
-    /// after it keep their positions; and a key that is missing or has no files gets none. In `ITEM_ICONS`, a value
-    /// that isn't an object gives no icons, and an entry that isn't a string is left out; so it is in `SPELL_SOUNDS`.
+    /// after it keep their positions; and a key that is missing or has no files gets none. In `ITEM_ICONS` and
+    /// `SPELL_SOUNDS`, a value that isn't an object gives no files, and an entry that isn't a string is left out.
     ///
     /// \param assets_dir What relative paths are relative to.
     static AssetMapping parse(std::string_view json, const std::filesystem::path& assets_dir, std::string_view source);
