@@ -29,6 +29,19 @@ bool read_bool(const std::string& name, const nlohmann::json& value) {
     return value.get<bool>();
 }
 
+/// The value of the field `name`, a number greater than 0 that fits a float.
+///
+/// \throws std::runtime_error if `value` is something else. A number too large or too small for a float is rejected
+///         too, rather than becoming infinite or 0.
+float read_positive_float(const std::string& name, const nlohmann::json& value) {
+    const double number = value.is_number() ? value.get<double>() : 0.0;
+    if (number < std::numeric_limits<float>::min() || number > std::numeric_limits<float>::max()) {
+        throw std::runtime_error("invalid " + name + ": " + value.dump() +
+                                 " (expected a number > 0 that fits a float)");
+    }
+    return static_cast<float>(number);
+}
+
 }  // namespace
 
 Settings parse_settings(std::string_view json, const Settings& base) {
@@ -50,13 +63,11 @@ Settings parse_settings(std::string_view json, const Settings& base) {
         } else if (name == "mouse_look") {
             settings.mouse_look = read_bool(name, value);
         } else if (name == "mouse_sensitivity") {
-            // A number too large or too small for a float is rejected too, rather than becoming infinite or 0.
-            const double sensitivity = value.is_number() ? value.get<double>() : 0.0;
-            if (sensitivity < std::numeric_limits<float>::min() || sensitivity > std::numeric_limits<float>::max()) {
-                throw std::runtime_error("invalid mouse_sensitivity: " + value.dump() +
-                                         " (expected a number > 0 that fits a float)");
-            }
-            settings.mouse_sensitivity = static_cast<float>(sensitivity);
+            settings.mouse_sensitivity = read_positive_float(name, value);
+        } else if (name == "autosave") {
+            settings.autosave = read_bool(name, value);
+        } else if (name == "autosave_interval") {
+            settings.autosave_interval = read_positive_float(name, value);
         } else {
             unknown.push_back(name);
         }

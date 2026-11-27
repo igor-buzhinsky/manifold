@@ -176,21 +176,32 @@ public:
     /// \throws std::runtime_error if the level can't be generated. The current level then stays.
     void new_game(std::uint64_t seed, std::optional<LayoutKind> layout);
 
-    /// Starts the saved level again from its start, as next_level() starts a level.
+    /// Starts the saved level again, as next_level() starts a level, and if the save has SavedGame::progress, puts the
+    /// level and the party as they were when it was made.
     ///
     /// The level is generated from the saved seed, with the saved layout if one was given, and the level number and
     /// the game time, the party, its magic and its items become the saved ones. Noclip stays as it is. Saved items
-    /// whose keys LevelConfig::items doesn't have are left out, after a warning.
+    /// whose keys LevelConfig::items doesn't have are left out, after a warning, also those of chests. Spells in effect
+    /// are cut to their durations, which the data files may have shortened.
     ///
-    /// \throws std::runtime_error if the level can't be generated. The current level then stays.
+    /// With progress, level_start_save() still gives the save's start of the level, and the game time, the party, its
+    /// magic and items, the player, the doors and what the chests hold become those of the progress. The player
+    /// moves on as they moved then, e.g. falling, but footsteps start again as at the start of a level.
+    ///
+    /// \throws std::runtime_error if the level can't be generated, or if the progress has another number of doors or
+    ///         chests than the level, e.g. since level generation changed. The current level then stays.
     void load(const SavedGame& save);
 
-    /// What a save of this level holds, to start it again with load(): the level, the party, its magic and its items
-    /// as they were at its start.
+    /// What a save of the start of this level holds, to start it again with load(): the level, the party, its magic
+    /// and its items as they were at its start, without SavedGame::progress.
     ///
     /// A level that was not generated, but given to the constructor, is saved with its seed, so loading it gives the
     /// level generated from that seed instead.
-    SavedGame save_point() const;
+    SavedGame level_start_save() const;
+
+    /// What a save of the game as it is now holds: level_start_save() with SavedGame::progress, the game time, the
+    /// party, its magic and its items, the player, the doors and what the chests hold now. Noclip isn't saved.
+    SavedGame progress_save() const;
 
     /// Activates what the center of the player's view points at, or what is in another direction from the eyes, within
     /// kActivationReach of the eyes.
@@ -277,8 +288,8 @@ public:
     const Inventory& inventory() const { return inventory_; }
     Inventory& inventory() { return inventory_; }
     /// What each chest of World::chests() holds, in the same order. At the start of a level, what the chest holds then,
-    /// see Chest::items; the party can take items out and put items in. Not saved: a level that starts again, e.g.
-    /// after loading, has its chests full again.
+    /// see Chest::items; the party can take items out and put items in. Saved by progress_save(), while a level that
+    /// starts again from its start has its chests full again.
     std::span<const Inventory> chest_inventories() const { return chest_inventories_; }
     /// What chest `index` of World::chests() holds, see chest_inventories().
     ///
@@ -370,11 +381,11 @@ private:
     Level level_;
     Player player_;
     std::vector<Character> party_;
-    std::vector<Character> level_start_party_;    ///< The party when the level started, see save_point().
+    std::vector<Character> level_start_party_;    ///< The party when the level started, see level_start_save().
     PartyMagic magic_;                            ///< See magic().
-    PartyMagic level_start_magic_;                ///< The party's magic when the level started, see save_point().
+    PartyMagic level_start_magic_;                ///< The party's magic when the level started, see level_start_save().
     Inventory inventory_;                         ///< See inventory().
-    Inventory level_start_inventory_;             ///< The party's items when the level started, see save_point().
+    Inventory level_start_inventory_;             ///< The party's items when the level started, see level_start_save().
     std::vector<Inventory> chest_inventories_;    ///< See chest_inventories().
     std::vector<DoorState> doors_;                ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;            ///< See take_door_moves().

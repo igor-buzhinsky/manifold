@@ -16,8 +16,10 @@ namespace manifold {
 enum class UiCommand : std::uint8_t {
     kResume,   ///< Close the screen and go back to the game.
     kNewGame,  ///< Start a new game, which replaces the save.
-    kLoad,     ///< Load the saved game.
-    kExit,     ///< Quit the game.
+    kLoad,     ///< Load the saved game as it was at the last autosave or exit, see SaveKind::kProgress.
+    /// Load the save of the start of the level, see SaveKind::kLevelStart.
+    kLoadLevelStart,
+    kExit,  ///< Quit the game.
 };
 
 /// The icon of an item that a screen shows, see Screen::add_icons(). The main loop draws it over the shapes of the

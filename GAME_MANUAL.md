@@ -18,7 +18,7 @@
 | M | Turn mouse look on or off, see Mouse look below |
 | C | Cast Candlelight, see Spells below |
 | L | Cast Levitate, see Spells below |
-| F9 | Load the saved game: start the saved level again from its start, see Saving below |
+| F9 | Load the saved game as it was at the last autosave or exit (`save.json`), see Saving below |
 | `/~ (left of 1) | Open or close the console, see [DEBUGGING.md](DEBUGGING.md#console) |
 | F3 | Show or hide the debug overlay, see [DEBUGGING.md](DEBUGGING.md#debug-overlay) |
 | Escape | Close the console if it is open, otherwise open the game menu, or close it to resume, see Menus below |
@@ -30,15 +30,20 @@ Escape opens the game menu over the darkened game, which is paused while the men
 portal stand still. It has these items:
 
 - **Resume**: close the menu and go on playing, as Escape does.
-- **New game**: start a new game with a random level, which replaces the save. A layout given with `--layout` is used
-  for its first level.
-- **Load game**: load the save, as F9 does. It is greyed out if there is no save.
-- **Exit game**: quit the game.
+- **New game**: start a new game with a random level, which replaces both saves. A layout given with `--layout` is
+  used for its first level.
+- **Load game**: load the game as it was at the last autosave or exit, as F9 does. It is greyed out if there is no
+  `save.json`.
+- **Restart level**: start the saved level again from its start (`save_level_start.json`), which replaces
+  `save.json` too. It is greyed out if there is no such save.
+- **Exit game**: quit the game, which saves it.
 
-When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game, start
-a **New game**, which replaces the save once it is chosen, or **Exit game**. Escape doesn't leave this menu. Closing
-it otherwise, with the `menu` command, also starts the new game and replaces the save. A save that can't be read,
-e.g. one of an older version of the game, isn't offered: a new game starts, as without a save, and replaces it.
+When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game where it
+was left, to **Continue from level start**, to start a **New game**, which replaces both saves once it is chosen, or
+to **Exit game**, which keeps them. Escape doesn't leave this menu. Closing it otherwise, with the `menu` command, also
+starts the new game and replaces the saves. A save that can't be read, e.g. one of an older version of the game, isn't
+offered: its item is greyed out, and if neither save can be read, a new game starts, as without a save, and replaces
+them.
 
 Menus are used with the keys or the mouse:
 
@@ -91,7 +96,9 @@ The game reads its settings from two JSON files, if they exist:
 {
   "fullscreen": true,
   "mouse_look": false,
-  "mouse_sensitivity": 0.1
+  "mouse_sensitivity": 0.1,
+  "autosave": true,
+  "autosave_interval": 10
 }
 ```
 
@@ -105,6 +112,10 @@ The game reads its settings from two JSON files, if they exist:
 - `mouse_sensitivity`: how far mouse look turns the view, in degrees per unit of mouse motion, a number greater than
   0. By default 0.1, so moving the mouse by 900 units turns the view by 90°. The units are those of the mouse, often
   its counts, so the same setting turns more with a mouse of a higher resolution.
+- `autosave`: `true` saves the game to `save.json` every `autosave_interval` while playing, `false` only when a
+  level starts and when the game quits, see Saving below. By default `true`.
+- `autosave_interval`: seconds of play between autosaves, a number greater than 0, by default 10. Time in a menu or
+  another screen that pauses the game doesn't count.
 
 Unknown settings are ignored with a warning in the log. A file that isn't valid JSON or has a setting of a wrong
 type or value is skipped as a whole, with an error in the log. The settings are read only when the game starts.
@@ -190,19 +201,31 @@ chest holds more items than a wooden one on average, and more valuable ones.
 
 ## Saving
 
-The game saves itself when it starts and when the player reaches a new level. There is only one save, of the
-level the player is in, so a level that is left can't be returned to, and there are no saves made by hand. F9 loads
-the save: the saved level starts again from its start. When the game starts and there is a save, it asks
-whether to continue it or to start a new game, which replaces the save, see Menus above. New game in the game menu
-also replaces it.
+The game keeps two saves, both in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
+`~/.local/share/manifold/`.
 
-The save is `save.json` in the game's data directory: `$XDG_DATA_HOME/manifold/` on Linux, by default
-`~/.local/share/manifold/`. It holds the seed of the level, how many levels came before it, the game time at its start, the
-party as it was then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets), gender and hit points, the party's mana and the spells in effect
-with the time left of each, and the keys of the items it carried, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with
-`--layout`. Levels are generated again from their seed, so a save of an older
-version of the game may give another level, or be refused if the save format changed.
+- `save.json` holds the game as it was when it was last saved: when a level starts, every 10 seconds of play (see
+  `autosave` and `autosave_interval` in Settings above) and when the game quits, by Exit game, Ctrl+Q or closing the
+  window. F9, Load game and Continue load it.
+- `save_level_start.json` holds the start of the level the player is in, and is written only when a level starts.
+  Restart level and Continue from level start load it, and then `save.json` holds the start of the level too.
+
+A level that is left can't be returned to, and there are no saves made by hand. When the game starts and there is a
+save, it asks which one to continue or whether to start a new game, which replaces both, see Menus above. New game in
+the game menu also replaces them. A game that stops without quitting, e.g. when it crashes, loses at most the play
+since the last autosave. Each save is written to a temporary file next to it first, which then replaces it, so a game
+that stops while saving keeps the old save.
+
+Both saves hold the seed of the level, how many levels came before it, the game time at its start, the party as it was
+then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets),
+gender and hit points, the party's mana and the spells in effect with the time left of each, and the keys of the items
+it carried, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with `--layout`. `save.json` also
+holds the progress in the level: the game time, the party, its mana, spells and items when it was saved, where the
+player was, where they looked and how they moved, how far each door was open and where it moved, and what each chest
+held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older version of the game may
+give another level, or be refused if the save format changed; a `save.json` whose level has other numbers of doors or
+chests than the level generated again can't be loaded.
 
 A run with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) never saves,
-not even the levels reached after its commands, so that test runs don't replace the player's save. They can still load it. They also don't ask whether to continue the save,
-but start a new game.
+not even the levels reached after its commands or when it quits, so that test runs don't replace the player's saves.
+They can still load them. They also don't ask whether to continue a save, but start a new game.

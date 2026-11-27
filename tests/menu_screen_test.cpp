@@ -36,15 +36,18 @@ TEST(UiStyleTest, ScaleIsTheHeightOver300) {
     EXPECT_FLOAT_EQ(ui_scale({.width = 1920, .height = 1080}), 3.6f);
 }
 
+/// Both saves there are.
+constexpr SavesToLoad kBothSaves{.progress = true, .level_start = true};
+
 TEST(MenuScreenTest, PanelIsCenteredAroundTheButtons) {
-    const auto menu = make_game_menu(true);
+    const auto menu = make_game_menu(kBothSaves);
     const Rect panel = menu->panel(kPicture);
     const Placement buttons = menu->buttons_placement(kPicture);
     EXPECT_EQ(buttons.scale, 3.0f);
     // Centered to within an interface pixel.
     EXPECT_NEAR(panel.top_left.x + (panel.size.x / 2.0f), 800.0f, 3.0f);
     EXPECT_NEAR(panel.top_left.y + (panel.size.y / 2.0f), 450.0f, 3.0f);
-    EXPECT_EQ(buttons.area.size.y, ButtonList::height(4, 3.0f));
+    EXPECT_EQ(buttons.area.size.y, ButtonList::height(5, 3.0f));
     EXPECT_GE(buttons.area.size.x, MenuScreen::kMinButtonWidth * 3.0f);
     EXPECT_TRUE(panel.contains(buttons.area.top_left));
     EXPECT_TRUE(panel.contains(buttons.area.top_left + buttons.area.size - glm::vec2(1.0f)));
@@ -58,38 +61,58 @@ TEST(MenuScreenTest, ButtonsAreAsWideAsTheLongestLabelNeeds) {
 }
 
 TEST(MenuScreenTest, GameMenuChoosesByKeysAndMouseAndEscapeResumes) {
-    const auto menu = make_game_menu(true);
+    const auto menu = make_game_menu(kBothSaves);
     EXPECT_FALSE(menu->hides_game());
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kResume);
     menu->handle(NavKey::kDown, kPicture);
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kNewGame);
     EXPECT_EQ(click(*menu, 2), UiCommand::kLoad);
-    EXPECT_EQ(click(*menu, 3), UiCommand::kExit);
+    EXPECT_EQ(click(*menu, 3), UiCommand::kLoadLevelStart);
+    EXPECT_EQ(click(*menu, 4), UiCommand::kExit);
     EXPECT_EQ(menu->handle(NavKey::kCancel, kPicture), UiCommand::kResume);
 }
 
 TEST(MenuScreenTest, GameMenuWithoutASaveCantLoad) {
-    const auto menu = make_game_menu(false);
+    const auto menu = make_game_menu({});
     EXPECT_EQ(click(*menu, 2), std::nullopt);
+    EXPECT_EQ(click(*menu, 3), std::nullopt);
     menu->handle(NavKey::kDown, kPicture);
-    menu->handle(NavKey::kDown, kPicture);  // Over Load game to Exit game.
+    menu->handle(NavKey::kDown, kPicture);  // Over Load game and Restart level to Exit game.
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kExit);
 }
 
+TEST(MenuScreenTest, GameMenuLoadsOnlyTheSavesThereAre) {
+    const auto progress = make_game_menu({.progress = true});
+    EXPECT_EQ(click(*progress, 2), UiCommand::kLoad);
+    EXPECT_EQ(click(*progress, 3), std::nullopt);
+    const auto level_start = make_game_menu({.level_start = true});
+    EXPECT_EQ(click(*level_start, 2), std::nullopt);
+    EXPECT_EQ(click(*level_start, 3), UiCommand::kLoadLevelStart);
+}
+
 TEST(MenuScreenTest, StartMenuHidesTheGameAndCantBeLeftWithEscape) {
-    const auto menu = make_start_menu(true);
+    const auto menu = make_start_menu(kBothSaves);
     EXPECT_TRUE(menu->hides_game());
     EXPECT_EQ(menu->handle(NavKey::kCancel, kPicture), std::nullopt);
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kLoad);
-    EXPECT_EQ(click(*menu, 1), UiCommand::kNewGame);
-    EXPECT_EQ(click(*menu, 2), UiCommand::kExit);
+    EXPECT_EQ(click(*menu, 1), UiCommand::kLoadLevelStart);
+    EXPECT_EQ(click(*menu, 2), UiCommand::kNewGame);
+    EXPECT_EQ(click(*menu, 3), UiCommand::kExit);
 }
 
 TEST(MenuScreenTest, StartMenuWithoutASaveCantContinue) {
-    const auto menu = make_start_menu(false);
+    const auto menu = make_start_menu({});
+    EXPECT_EQ(menu->buttons().focus(), 2U);
+    EXPECT_EQ(click(*menu, 0), std::nullopt);
+    EXPECT_EQ(click(*menu, 1), std::nullopt);
+    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kNewGame);
+}
+
+TEST(MenuScreenTest, StartMenuCanContinueFromTheLevelStartAlone) {
+    const auto menu = make_start_menu({.level_start = true});
     EXPECT_EQ(menu->buttons().focus(), 1U);
     EXPECT_EQ(click(*menu, 0), std::nullopt);
-    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kNewGame);
+    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kLoadLevelStart);
 }
 
 TEST(MenuScreenTest, BackgroundCoversThePicture) {

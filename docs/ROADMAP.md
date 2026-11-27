@@ -189,8 +189,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   metre (every 1.5 m running, since v0.4). Since v0.4, the files of each use are listed in the asset mapping, and the
   texture's key there gives its kind.
 - **Saving and loading**: the game saves itself when it starts and when the player reaches a new level, in one save
-  (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux), so a level that is left can't be
-  returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
+  (`save.json` in the user's data directory, `~/.local/share/manifold/` on Linux; since v0.4 there is also a save of
+  the middle of the level, see there), so a level that is left can't be returned to. F9 or the `load` command starts the saved level again from its start. A save holds the level seed, the
   level number, the game time at the level's start and a layout given with `--layout`; the level is generated again from them. Runs with `--exec` don't save, so test runs keep the player's save.
 - **Game menu and start menu**: Escape opens a vertical menu over the dimmed game, which is paused while it is open:
   Resume, New game, Load game and Exit game. Ctrl+Q quits at once. When the game starts and there is a save, a menu of
@@ -343,6 +343,14 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   the sound that plays when it is cast (`Game::take_casts()`, `SpellSounds`), with C or L or with the `cast` command;
   a cast that fails for want of mana is silent. For now both spells play "Shimmer glitter magic" (CC-BY 3.0) from
   `assets/sounds/spells/`.
+- **Saving in the middle of a level** (see [DECISIONS.md](DECISIONS.md)): there are two saves. `save.json` holds the
+  game as it is, written when a level starts, every 10 s of play (`autosave` and `autosave_interval` in
+  `settings.json`) and when the game quits; `save_level_start.json` holds the start of the level, as the one save did
+  before. Both have the same format, version 5: `save.json` adds a `progress` object (`LevelProgress`) with the game
+  time, the party, its magic and items, the player's position, view and velocity, the state of each door and the items
+  of each chest, which `Game::load()` puts back after generating the level again. Continue and Continue from level
+  start in the start menu, Load game (F9) and Restart level in the game menu, and `load [level_start]` load them.
+  Each file is written to a `.tmp` file first, which then replaces it.
 
 ## Later (unordered)
 

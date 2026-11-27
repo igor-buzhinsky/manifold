@@ -35,6 +35,17 @@ TEST(ParseSettingsTest, RejectsAMouseSensitivityThatIsNotAPositiveFloat) {
     }
 }
 
+TEST(ParseSettingsTest, ReadsAutosave) {
+    EXPECT_TRUE(Settings{}.autosave);
+    EXPECT_FLOAT_EQ(Settings{}.autosave_interval, 10.0f);
+    EXPECT_FALSE(parse_settings(R"({"autosave": false})", {}).autosave);
+    EXPECT_FLOAT_EQ(parse_settings(R"({"autosave_interval": 2.5})", {}).autosave_interval, 2.5f);
+    for (const char* json : {R"({"autosave": 1})", R"({"autosave_interval": 0})", R"({"autosave_interval": -1})",
+                             R"({"autosave_interval": "10"})", R"({"autosave_interval": 1e100})"}) {
+        EXPECT_THROW(parse_settings(json, {}), std::runtime_error) << json;
+    }
+}
+
 TEST(ParseSettingsTest, KeepsMissingFieldsOfTheBase) {
     EXPECT_TRUE(parse_settings("{}", {.fullscreen = true}).fullscreen);
     EXPECT_FALSE(parse_settings("{}", {}).fullscreen);

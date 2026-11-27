@@ -8,10 +8,13 @@
 
 namespace manifold {
 
-std::unique_ptr<MenuScreen> make_start_menu(bool can_load) {
+std::unique_ptr<MenuScreen> make_start_menu(SavesToLoad saves) {
     return std::make_unique<MenuScreen>(MenuConfig{
         .title = "A saved game was found",
-        .items = {{.label = "Continue", .command = UiCommand::kLoad, .enabled = can_load},
+        .items = {{.label = "Continue", .command = UiCommand::kLoad, .enabled = saves.progress},
+                  {.label = "Continue from level start",
+                   .command = UiCommand::kLoadLevelStart,
+                   .enabled = saves.level_start},
                   {.label = "New game", .command = UiCommand::kNewGame},
                   {.label = "Exit game", .command = UiCommand::kExit}},
         .cancel = std::nullopt,
@@ -19,12 +22,13 @@ std::unique_ptr<MenuScreen> make_start_menu(bool can_load) {
     });
 }
 
-std::unique_ptr<MenuScreen> make_game_menu(bool can_load) {
+std::unique_ptr<MenuScreen> make_game_menu(SavesToLoad saves) {
     return std::make_unique<MenuScreen>(MenuConfig{
         .title = "Paused",
         .items = {{.label = "Resume", .command = UiCommand::kResume},
                   {.label = "New game", .command = UiCommand::kNewGame},
-                  {.label = "Load game", .command = UiCommand::kLoad, .enabled = can_load},
+                  {.label = "Load game", .command = UiCommand::kLoad, .enabled = saves.progress},
+                  {.label = "Restart level", .command = UiCommand::kLoadLevelStart, .enabled = saves.level_start},
                   {.label = "Exit game", .command = UiCommand::kExit}},
         .cancel = UiCommand::kResume,
         .hides_game = false,

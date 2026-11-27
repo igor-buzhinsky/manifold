@@ -408,15 +408,35 @@ std::optional<std::filesystem::path> user_data_dir() {
     return path;
 }
 
-/// Where the game is saved: `save.json` in the game's directory for user data, see user_data_dir().
+/// Where the two saves are, see manifold::SaveKind: in the game's directory for user data, see user_data_dir().
+struct SavePaths {
+    std::filesystem::path progress;     ///< `save.json`.
+    std::filesystem::path level_start;  ///< `save_level_start.json`.
+
+    /// The path of the save of `kind`.
+    const std::filesystem::path& of(manifold::SaveKind kind) const {
+        return kind == manifold::SaveKind::kProgress ? progress : level_start;
+    }
+};
+
+/// Where the game is saved, see SavePaths.
 ///
-/// \return The path, or nothing (after logging a warning) if there is no such directory.
-std::optional<std::filesystem::path> save_file_path(const std::optional<std::filesystem::path>& data_dir) {
+/// \return The paths, or nothing (after logging a warning) if there is no directory for user data.
+std::optional<SavePaths> save_file_paths(const std::optional<std::filesystem::path>& data_dir) {
     if (!data_dir) {
         manifold::log_warning("The game can't be saved or loaded");
         return std::nullopt;
     }
-    return *data_dir / "save.json";
+    return SavePaths{.progress = *data_dir / manifold::save_file_name(manifold::SaveKind::kProgress),
+                     .level_start = *data_dir / manifold::save_file_name(manifold::SaveKind::kLevelStart)};
+}
+
+/// The autosave interval of `settings` for LevelSession, in seconds, or nothing if autosave is off.
+std::optional<double> autosave_interval(const manifold::Settings& settings) {
+    if (!settings.autosave) {
+        return std::nullopt;
+    }
+    return settings.autosave_interval;
 }
 
 /// Reads the settings: the game's own (see manifold::find_game_settings_file()), with the player's in the game's
@@ -434,11 +454,15 @@ manifold::Settings read_settings(const std::optional<std::filesystem::path>& dat
     return manifold::load_settings(files);
 }
 
-/// Saves the game at the start of its current level, see manifold::Game::save_point(). A failure is only logged.
-void save_game(const manifold::Game& game, const std::filesystem::path& path) {
+/// Writes a save to `path`, see manifold::write_save_file(). A failure is only logged.
+///
+/// \param quiet Whether a save that succeeds isn't logged, e.g. an autosave, which would fill the log.
+void write_save(const manifold::SavedGame& save, const std::filesystem::path& path, bool quiet = false) {
     try {
-        manifold::write_save_file(path, game.save_point());
-        manifold::log_info("Saved the game to {}", path.string());
+        manifold::write_save_file(path, save);
+        if (!quiet) {
+            manifold::log_info("Saved the game to {}", path.string());
+        }
     } catch (const std::runtime_error& error) {
         manifold::log_error("Can't save the game: {}", error.what());
     }
@@ -473,40 +497,55 @@ bool load_game(manifold::Game& game, const std::optional<std::filesystem::path>&
 
 /// Whether there is a save at `path` that can be read, e.g. to offer to continue it. A save that can't be read is
 /// logged as a warning.
-bool has_readable_save(const std::optional<std::filesystem::path>& path) {
+bool has_readable_save(const std::filesystem::path& path) {
     std::error_code error;
-    if (!path || !std::filesystem::exists(*path, error)) {
+    if (!std::filesystem::exists(path, error)) {
         return false;
     }
     try {
-        manifold::read_save_file(*path);
+        manifold::read_save_file(path);
         return true;
     } catch (const std::runtime_error& read_error) {
-        manifold::log_warning("The saved game can't be read, so a new game starts: {}", read_error.what());
+        manifold::log_warning("The saved game can't be read, so it can't be continued: {}", read_error.what());
         return false;
     }
 }
 
+/// Which saves there are that can be read, see has_readable_save(), to offer to continue them when the game starts.
+///
+/// \param paths  Where the saves are, or nothing if there is no directory for saves, which has none.
+/// \param saving Whether this run saves the game. If not, no save is offered, since the run doesn't play it.
+manifold::SavesToLoad saves_to_continue(const std::optional<SavePaths>& paths, bool saving) {
+    if (!paths || !saving) {
+        return {};
+    }
+    return {.progress = has_readable_save(paths->progress), .level_start = has_readable_save(paths->level_start)};
+}
+
 /// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
-/// each level that starts is saved. The saved game can be loaded either way.
+/// each level that starts is saved, to both saves, and the game is saved to `save.json` every autosave interval and by
+/// save_on_exit(). The saved game can be loaded either way.
 class LevelSession {
 public:
     /// Sets up the game's current level.
     ///
-    /// \param game      The game, whose level is set up.
-    /// \param view      Where the level's ambient light is set.
-    /// \param assets    Where the files of the level's texture and exit sound are. It must outlive the object.
-    /// \param save_path Where the game is saved, or nothing if there is no directory for saves.
-    /// \param saving    Whether to save each level that starts. If not, the save can still be loaded.
-    /// \param defer     Whether to save the game's level only when save_deferred() is called, e.g. after the player
-    ///                  chose not to continue the save that is there, instead of now.
+    /// \param game              The game, whose level is set up.
+    /// \param view              Where the level's ambient light is set.
+    /// \param assets            Where the files of the level's texture and exit sound are. It must outlive the object.
+    /// \param save_paths        Where the game is saved, or nothing if there is no directory for saves.
+    /// \param saving            Whether to save the game. If not, the saves can still be loaded.
+    /// \param autosave_interval Seconds of game time between saves to `save.json`, or nothing to save it only when a
+    ///                          level starts and on exit.
+    /// \param defer             Whether to save the game's level only when save_deferred() is called, e.g. after the
+    ///                          player chose not to continue the save that is there, instead of now.
     LevelSession(manifold::Game& game, manifold::ViewSettings& view, const manifold::AssetMapping& assets,
-                 std::optional<std::filesystem::path> save_path, bool saving, bool defer)
+                 std::optional<SavePaths> save_paths, bool saving, std::optional<double> autosave_interval, bool defer)
         : assets_(&assets),
           exit_sounds_(assets, manifold::AssetKey::kExitSounds),
-          save_path_(std::move(save_path)),
-          saving_(saving) {
-        if (save_path_ && !saving_) {
+          save_paths_(std::move(save_paths)),
+          saving_(saving),
+          autosave_interval_(autosave_interval) {
+        if (save_paths_ && !saving_) {
             manifold::log_info(
                 "The game isn't saved in this run, since it runs console commands from the command line");
         }
@@ -530,20 +569,23 @@ public:
         set_up(game, view, !deferred_);
     }
 
-    /// Loads the saved game into `game` and sets up its level. Unless `stop_on_error` is set, a failure is only logged,
-    /// and the level stays.
+    /// Loads a save into `game` and sets up its level, which saves it to both saves, see set_up(). So loading the save
+    /// of the level's start replaces `save.json` too. Unless `stop_on_error` is set, a failure is only logged, and the
+    /// level stays.
     ///
     /// \return Whether the game was loaded.
     /// \throws std::runtime_error if loading fails and `stop_on_error` is set.
-    bool load(manifold::Game& game, manifold::ViewSettings& view, bool stop_on_error) {
-        if (!load_game(game, save_path_, stop_on_error)) {
+    bool load(manifold::Game& game, manifold::ViewSettings& view, manifold::SaveKind kind, bool stop_on_error) {
+        const std::optional<std::filesystem::path> path =
+            save_paths_ ? std::optional(save_paths_->of(kind)) : std::nullopt;
+        if (!load_game(game, path, stop_on_error)) {
             return false;
         }
         set_up(game, view);
         return true;
     }
 
-    /// Starts a new game, which replaces the save, with a random seed and `layout` for its first level, see
+    /// Starts a new game, which replaces the saves, with a random seed and `layout` for its first level, see
     /// manifold::Game::new_game(), and sets up its level.
     ///
     /// If the level of the game was set up without saving it (see the constructor), nothing has happened in it yet, so
@@ -569,14 +611,34 @@ public:
     /// Saves the game's level if it was set up without saving it (see the constructor) and saving is on.
     void save_deferred(const manifold::Game& game) {
         if (std::exchange(deferred_, false)) {
-            save(game);
+            save_level_start(game);
         }
     }
 
-    /// Whether there is a save to load. It may still fail to load.
-    bool has_save() const {
+    /// Saves the game to `save.json` if the autosave interval of game time has passed since it was last saved there,
+    /// unless the level waits for save_deferred().
+    void autosave(const manifold::Game& game) {
+        if (autosave_interval_ && !deferred_ && game.time() - last_save_time_ >= *autosave_interval_) {
+            save_progress(game, true);
+        }
+    }
+
+    /// Saves the game to `save.json` when the game ends, unless the level waits for save_deferred(): then the player
+    /// hasn't chosen yet whether to continue the save, which stays.
+    void save_on_exit(const manifold::Game& game) {
+        if (!deferred_) {
+            save_progress(game);
+        }
+    }
+
+    /// Which saves there are to load. They may still fail to load.
+    manifold::SavesToLoad saves() const {
+        if (!save_paths_) {
+            return {};
+        }
         std::error_code error;
-        return save_path_ && std::filesystem::exists(*save_path_, error);
+        const bool progress = std::filesystem::exists(save_paths_->progress, error);
+        return {.progress = progress, .level_start = std::filesystem::exists(save_paths_->level_start, error)};
     }
 
     /// Draws the current level. It is made by the constructor.
@@ -591,7 +653,7 @@ public:
 
 private:
     /// Logs the game's current level, makes its renderer, see start_level(), notes its exit sound, and saves the
-    /// game if saving is on, now or, if `save_now` is false, when save_deferred() is called.
+    /// game to both saves if saving is on, now or, if `save_now` is false, when save_deferred() is called.
     void set_up(manifold::Game& game, manifold::ViewSettings& view, bool save_now = true) {
         log_game(game);
         start_level(renderer_, game, view, *assets_);
@@ -600,21 +662,35 @@ private:
         level_starts_ = game.level_starts();
         deferred_ = !save_now;
         if (save_now) {
-            save(game);
+            save_level_start(game);
         }
     }
 
-    /// Saves the game if saving is on.
-    void save(const manifold::Game& game) const {
-        if (saving_ && save_path_) {
-            save_game(game, *save_path_);
+    /// Saves the start of the game's level to `save_level_start.json`, and the game as it is to `save.json`, if saving
+    /// is on.
+    void save_level_start(const manifold::Game& game) {
+        if (saving_ && save_paths_) {
+            write_save(game.level_start_save(), save_paths_->level_start);
         }
+        save_progress(game);
+    }
+
+    /// Saves the game as it is to `save.json`, if saving is on.
+    ///
+    /// \param quiet Whether a save that succeeds isn't logged, see write_save().
+    void save_progress(const manifold::Game& game, bool quiet = false) {
+        if (saving_ && save_paths_) {
+            write_save(game.progress_save(), save_paths_->progress, quiet);
+        }
+        last_save_time_ = game.time();
     }
 
     const manifold::AssetMapping* assets_;
     manifold::SoundSet exit_sounds_;  ///< The sounds of exits, loaded once for all levels.
-    std::optional<std::filesystem::path> save_path_;
-    bool saving_;  ///< Whether each level that starts is saved, if there is a directory for saves.
+    std::optional<SavePaths> save_paths_;
+    bool saving_;                              ///< Whether the game is saved, if there is a directory for saves.
+    std::optional<double> autosave_interval_;  ///< See the constructor.
+    double last_save_time_ = 0.0;  ///< manifold::Game::time() when `save.json` was last saved, or would have been.
     std::optional<manifold::Renderer> renderer_;      ///< The renderer has the meshes of one level.
     std::optional<manifold::AssetIndex> exit_sound_;  ///< The sound of the level's exit, if it has one.
     int level_starts_ = 0;                            ///< manifold::Game::level_starts() of the level that is set up.
@@ -630,7 +706,7 @@ constexpr SDL_Keycode kDebugOverlayKey = SDLK_F3;
 constexpr SDL_Scancode kInventoryKey = SDL_SCANCODE_I;
 /// The key that takes all items of an open chest, at the place of T on US keyboards.
 constexpr SDL_Scancode kTakeAllKey = SDL_SCANCODE_T;
-/// The key that loads the saved game.
+/// The key that loads the saved game as it was at the last autosave or exit, see manifold::SaveKind::kProgress.
 constexpr SDL_Keycode kLoadKey = SDLK_F9;
 /// The keys that cast spells. Like the movement keys, they are the keys at the places of C and L on US keyboards.
 constexpr SDL_Scancode kCandlelightKey = SDL_SCANCODE_C;
@@ -813,7 +889,7 @@ void handle_key_down(const SDL_KeyboardEvent& key, manifold::Window& window, man
     } else if (key.repeat) {
         return;
     } else if (key.key == kLoadKey) {
-        state.load = true;
+        state.load = manifold::SaveKind::kProgress;
         state.load_stops_on_error = false;
     } else if (key.scancode == kInventoryKey) {
         state.inventory = manifold::InventoryRequest{};
@@ -1120,15 +1196,15 @@ struct LogListenerReset {
 
 /// Opens the menu that `request` asks for instead of the open screens, or closes them all.
 ///
-/// \param can_load Whether there is a save to load, which the menus offer only then.
-void open_menu(manifold::MenuRequest request, manifold::ScreenStack& screens, bool can_load) {
+/// \param saves The saves there are to load, which the menus offer only then.
+void open_menu(manifold::MenuRequest request, manifold::ScreenStack& screens, manifold::SavesToLoad saves) {
     screens.clear();
     switch (request) {
         case manifold::MenuRequest::kStart:
-            screens.push(manifold::make_start_menu(can_load));
+            screens.push(manifold::make_start_menu(saves));
             break;
         case manifold::MenuRequest::kGame:
-            screens.push(manifold::make_game_menu(can_load));
+            screens.push(manifold::make_game_menu(saves));
             break;
         case manifold::MenuRequest::kClose:
             break;
@@ -1189,7 +1265,12 @@ void apply_ui_command(manifold::UiCommand command, manifold::ScreenStack& screen
             }
             break;
         case manifold::UiCommand::kLoad:
-            if (level.load(game, state.view, false)) {
+            if (level.load(game, state.view, manifold::SaveKind::kProgress, false)) {
+                screens.clear();
+            }
+            break;
+        case manifold::UiCommand::kLoadLevelStart:
+            if (level.load(game, state.view, manifold::SaveKind::kLevelStart, false)) {
                 screens.clear();
             }
             break;
@@ -1212,11 +1293,12 @@ void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, 
         apply_ui_command(*command, ui.screens, level, game, state, layout);
     }
     if (const std::optional<manifold::MenuRequest> menu = std::exchange(state.menu, std::nullopt)) {
-        open_menu(*menu, ui.screens, level.has_save());
+        open_menu(*menu, ui.screens, level.saves());
     }
     // Loading comes before the commands, so that those after `load` run in the loaded level. As from a menu, loading
     // closes the menus.
-    if (std::exchange(state.load, false) && level.load(game, state.view, state.load_stops_on_error)) {
+    if (const std::optional<manifold::SaveKind> load = std::exchange(state.load, std::nullopt);
+        load && level.load(game, state.view, *load, state.load_stops_on_error)) {
         ui.screens.clear();
     }
     // The new game is saved once the start menu is closed without continuing the save, also by the `menu` command.
@@ -1267,19 +1349,21 @@ void run(const Options& options) {
     const manifold::OverlayRenderer overlay_renderer;
     PartyPortraits portraits(assets);
     const ItemIcons icons(assets, game.items());
-    // Each level is saved when it starts, which replaces the save of the level before. Scripts of console commands
-    // mostly test the game, so they leave the player's save alone. If there is a save, the player is asked first
-    // whether to continue it, and the new game is saved only once the start menu is closed without continuing.
+    // Each level is saved when it starts, to both saves, which replaces the saves of the level before, and the game is
+    // saved to save.json every autosave interval and on exit. Scripts of console commands mostly test the game, so
+    // they leave the player's saves alone. If there is a save, the player is asked first whether to continue it, and
+    // the new game is saved only once the start menu is closed without continuing.
     const bool saving = !scripted;
-    std::optional<std::filesystem::path> save_path = save_file_path(data_dir);
-    const bool ask = saving && has_readable_save(save_path);
-    LevelSession level(game, state.view, assets, std::move(save_path), saving, ask);
+    std::optional<SavePaths> save_paths = save_file_paths(data_dir);
+    const manifold::SavesToLoad saves = saves_to_continue(save_paths, saving);
+    const bool ask = saves.progress || saves.level_start;
+    LevelSession level(game, state.view, assets, std::move(save_paths), saving, autosave_interval(settings), ask);
     Ui ui;
     ui.mouse_look = settings.mouse_look && !scripted;
     ui.mouse_sensitivity = settings.mouse_sensitivity;
     ui.level_starts = game.level_starts();
     if (ask) {
-        ui.screens.push(manifold::make_start_menu(true));
+        ui.screens.push(manifold::make_start_menu(saves));
     }
 
     manifold::Console console;
@@ -1323,6 +1407,7 @@ void run(const Options& options) {
         ui.casts.clear();
         // The player reached the exit, or a console command started the next level as if they had.
         level.follow(game, state.view, audio);
+        level.autosave(game);
         close_old_level_screens(ui, game);
         follow_objects(game, ui, object_sounds, audio);
         play_spell_sounds(game, spell_sounds, audio);
@@ -1347,7 +1432,7 @@ void run(const Options& options) {
                          window_size);
         state.screenshots.clear();
         if (state.quit) {
-            return;
+            break;
         }
         window.swap_buffers();
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
@@ -1355,6 +1440,7 @@ void run(const Options& options) {
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());
         update_mouse_look(ui, console_window, state, window);
     } while (handle_events(window, console_window, commands, overlay, state, ui, console_key_held, game));
+    level.save_on_exit(game);
 }
 
 }  // namespace
