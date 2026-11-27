@@ -454,17 +454,27 @@ manifold::Settings read_settings(const std::optional<std::filesystem::path>& dat
     return manifold::load_settings(files);
 }
 
+/// How write_save() logs.
+struct SaveLogging {
+    bool success = true;  ///< Whether a save that succeeds is logged. Autosaves aren't, since they would fill the log.
+    bool failure = true;  ///< Whether a save that fails is logged.
+};
+
 /// Writes a save to `path`, see manifold::write_save_file(). A failure is only logged.
 ///
-/// \param quiet Whether a save that succeeds isn't logged, e.g. an autosave, which would fill the log.
-void write_save(const manifold::SavedGame& save, const std::filesystem::path& path, bool quiet = false) {
+/// \return Whether the save was written.
+bool write_save(const manifold::SavedGame& save, const std::filesystem::path& path, SaveLogging logging = {}) {
     try {
         manifold::write_save_file(path, save);
-        if (!quiet) {
+        if (logging.success) {
             manifold::log_info("Saved the game to {}", path.string());
         }
+        return true;
     } catch (const std::runtime_error& error) {
-        manifold::log_error("Can't save the game: {}", error.what());
+        if (logging.failure) {
+            manifold::log_error("Can't save the game: {}", error.what());
+        }
+        return false;
     }
 }
 
@@ -677,10 +687,17 @@ private:
 
     /// Saves the game as it is to `save.json`, if saving is on.
     ///
-    /// \param quiet Whether a save that succeeds isn't logged, see write_save().
-    void save_progress(const manifold::Game& game, bool quiet = false) {
+    /// \param autosave Whether it is an autosave, which isn't logged if it succeeds, nor if it fails after the save to
+    ///                 `save.json` before it failed too, so that a directory that can't be written doesn't fill the
+    ///                 log with an error every autosave interval.
+    void save_progress(const manifold::Game& game, bool autosave = false) {
         if (saving_ && save_paths_) {
-            write_save(game.progress_save(), save_paths_->progress, quiet);
+            const bool saved = write_save(game.progress_save(), save_paths_->progress,
+                                          {.success = !autosave, .failure = !autosave || !progress_save_failed_});
+            if (!saved && autosave_interval_ && !progress_save_failed_) {
+                manifold::log_warning("Autosaves that fail aren't logged until one succeeds");
+            }
+            progress_save_failed_ = !saved;
         }
         last_save_time_ = game.time();
     }
@@ -691,7 +708,8 @@ private:
     bool saving_;                              ///< Whether the game is saved, if there is a directory for saves.
     std::optional<double> autosave_interval_;  ///< See the constructor.
     double last_save_time_ = 0.0;  ///< manifold::Game::time() when `save.json` was last saved, or would have been.
-    std::optional<manifold::Renderer> renderer_;      ///< The renderer has the meshes of one level.
+    bool progress_save_failed_ = false;           ///< Whether the last save to `save.json` failed, see save_progress().
+    std::optional<manifold::Renderer> renderer_;  ///< The renderer has the meshes of one level.
     std::optional<manifold::AssetIndex> exit_sound_;  ///< The sound of the level's exit, if it has one.
     int level_starts_ = 0;                            ///< manifold::Game::level_starts() of the level that is set up.
     bool deferred_ = false;  ///< Whether the level that is set up waits for save_deferred() to be saved.

@@ -949,7 +949,8 @@ level. Loading generates the level again from its seed, as before, and then puts
 numbers of doors or chests differ from the level's is refused. The start menu offers Continue (`save.json`) and
 Continue from level start; the game menu has Load game (also F9) and Restart level, and the console `load
 [level_start]`. Loading the start of the level replaces `save.json` too. Saves are written on the main thread, each to
-a `.tmp` file that is then renamed over the old one; autosaves aren't logged.
+a `.tmp` file that is then renamed over the old one; autosaves aren't logged, nor are those that fail after a
+failed one.
 
 Gains:
 
@@ -969,7 +970,7 @@ Rejected alternatives:
   with an optional object reads both, and keeps the old saves.
 - **Saving only the progress in `save.json`, without the start of its level**: loading it couldn't give the start of
   the level for the next `save_level_start.json` or Restart level, unless both files were always read together.
-- **Writing on a worker thread**: the file is 20 to 60 KB in a rooms level (most of it the doors), which takes well
+- **Writing on a worker thread**: the file is about 10 to 40 KB in a rooms level (most of it the doors), which takes well
   under a millisecond to write, and a thread would need a copy of the state and care when the game quits while writing.
 - **Timing autosaves by wall-clock time**: they would rewrite the same state while the game is paused.
 - **`fsync` before the rename**: it can take tens of milliseconds on a slow disk, every 10 s on the main thread. The
