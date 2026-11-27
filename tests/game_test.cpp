@@ -1170,6 +1170,29 @@ TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
     EXPECT_NE(log.find("[warning] The saved item UNICORN is unknown"), std::string::npos) << log;
 }
 
+TEST(GameTest, LoadingCutsSpellsToTheirDurationAndMagicFollowsTheConfig) {
+    GameConfig config = make_config();
+    config.magic.max_mana = 50.0f;
+    config.magic.mana_regeneration = 2.0f;
+    config.magic.spell(Spell::kLevitate).duration = 10.0f;
+    Game game(config, 3, LayoutKind::kDebug);
+    EXPECT_EQ(game.magic(), (PartyMagic{.mana = 50.0f, .max_mana = 50.0f, .spells = {}}));
+    SavedGame save = game.save_point();
+    // Saved while Levitate lasted longer.
+    save.magic = {
+        .mana = 20.0f,
+        .max_mana = 50.0f,
+        .spells = {{.spell = Spell::kLevitate, .remaining = 60.0f}, {.spell = Spell::kCandlelight, .remaining = 5.0f}}};
+    game.load(save);
+    ASSERT_EQ(game.magic().spells.size(), 2U);
+    EXPECT_FLOAT_EQ(game.magic().spells[0].remaining, 10.0f);
+    EXPECT_FLOAT_EQ(game.magic().spells[1].remaining, 5.0f);
+    game.update({}, 1.0f);
+    EXPECT_FLOAT_EQ(game.magic().mana, 22.0f);
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    EXPECT_FLOAT_EQ(game.magic().spells[0].remaining, 10.0f);
+}
+
 TEST(GameTest, ActivationNeedsANewPressOfTheKey) {
     Game game(make_config(), make_door_level());
     game.teleport({0.9f, -2.0f, 0.0f});

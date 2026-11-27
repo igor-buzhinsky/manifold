@@ -28,15 +28,25 @@ struct ContainerLoot {
     bool operator==(const ContainerLoot&) const = default;
 };
 
-/// How a wooden chest is filled: 1 to 3 draws of items worth 100 to 2000 each, worth at most 2000 together.
+/// How a wooden chest is filled by default, see ChestLoot: 1 to 3 draws of items worth 100 to 2000 each, worth at most
+/// 2000 together.
 inline constexpr ContainerLoot kWoodenChestLoot{
     .min_draws = 1, .max_draws = 3, .min_item_value = 100, .max_item_value = 2000, .max_total_value = 2000};
-/// How a golden chest is filled: 3 to 5 draws of items worth 100 to 5000 each, worth at most 6000 together.
+/// How a golden chest is filled by default, see ChestLoot: 3 to 5 draws of items worth 100 to 5000 each, worth at most
+/// 6000 together.
 inline constexpr ContainerLoot kGoldenChestLoot{
     .min_draws = 3, .max_draws = 5, .min_item_value = 100, .max_item_value = 5000, .max_total_value = 6000};
 
-/// How a chest of `look` is filled: kWoodenChestLoot or kGoldenChestLoot.
-const ContainerLoot& chest_loot(ChestLook look);
+/// How chests are filled, by what they are made of, read from the constants file, see load_game_data().
+struct ChestLoot {
+    ContainerLoot wooden = kWoodenChestLoot;
+    ContainerLoot golden = kGoldenChestLoot;
+
+    /// How a chest of `look` is filled: `wooden` or `golden`.
+    const ContainerLoot& of(ChestLook look) const { return look == ChestLook::kGold ? golden : wooden; }
+
+    bool operator==(const ChestLoot&) const = default;
+};
 
 /// Chooses items for a container at random.
 ///
@@ -57,7 +67,7 @@ std::vector<ItemId> fill_container(const ItemCatalog& catalog, const ContainerLo
 /// \return Whether there is no problem.
 bool check_container_loot(const ContainerLoot& loot, std::string_view name);
 
-/// Chooses what a chest of `look` holds: fill_container() with chest_loot().
-std::vector<ItemId> fill_chest(const ItemCatalog& catalog, ChestLook look, Rng& rng);
+/// Chooses what a chest of `look` holds: fill_container() with `loot.of(look)`.
+std::vector<ItemId> fill_chest(const ItemCatalog& catalog, const ChestLoot& loot, ChestLook look, Rng& rng);
 
 }  // namespace manifold

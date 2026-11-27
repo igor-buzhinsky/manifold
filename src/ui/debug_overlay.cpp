@@ -117,7 +117,7 @@ void light_section(ViewSettings& view) {
     ImGui::SliderFloat("Shadow bias", &view.shadow_bias, 0.0f, 0.05f, "%.4f m");
 
     if (ImGui::Button("Reset lights")) {
-        view.lights = LightSettings{};
+        view.lights = view.data_lights;
         view.lights.ambient = view.level_ambient;
         view.shadow_bias = kShadowBias;
     }

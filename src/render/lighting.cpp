@@ -96,7 +96,7 @@ std::vector<PointLight> select_lights(std::span<const PointLight> lights, const 
 
 float luminance(const glm::vec3& color) { return glm::dot(color, glm::vec3(0.2126f, 0.7152f, 0.0722f)); }
 
-glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color) {
+glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color, float ambient_luminance) {
     if (!level_has_ambient_light(level_seed)) {
         return glm::vec3(0.0f);
     }
@@ -104,9 +104,9 @@ glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color
     constexpr float kMinLuminance = 3e-3f;
     const float texture_luminance = luminance(texture_color);
     if (texture_luminance < kMinLuminance) {
-        return glm::vec3(kLevelAmbientLuminance);
+        return glm::vec3(ambient_luminance);
     }
-    return texture_color * (kLevelAmbientLuminance / texture_luminance);
+    return texture_color * (ambient_luminance / texture_luminance);
 }
 
 Lighting scene_lighting(const LightSettings& settings, const std::optional<glm::vec3>& eyes,

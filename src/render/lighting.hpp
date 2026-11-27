@@ -145,6 +145,9 @@ inline constexpr float kLightFadeDistance = 2.0f;
 std::vector<PointLight> select_lights(std::span<const PointLight> lights, const glm::vec3& viewer,
                                       std::size_t max_count, float fade_distance = kLightFadeDistance);
 
+/// Luminance of the ambient light of the levels that have it by default, see LightSettings::level_ambient_luminance.
+inline constexpr float kLevelAmbientLuminance = 0.1f;
+
 /// The lights of a scene, which the debug overlay can change while the game runs.
 struct LightSettings {
     glm::vec3 ambient{0.0f};  ///< See Lighting::ambient. Each level sets it, see level_ambient().
@@ -155,6 +158,9 @@ struct LightSettings {
     TorchLightParams torch;
     ExitLightParams exit;
     float fade_distance = kLightFadeDistance;  ///< See select_lights().
+    /// Luminance of the ambient light of the levels that have it, see level_ambient(). Unlike `ambient`, which it sets,
+    /// it changes only at the start of a level.
+    float level_ambient_luminance = kLevelAmbientLuminance;
     /// Most lights drawn at once, including the player's if there is one, from 1 to kMaxLights. Fewer show how lights
     /// fade out, see select_lights().
     std::size_t max_lights = kMaxLights;
@@ -163,20 +169,19 @@ struct LightSettings {
 /// Rec. 709 luminance of a linear RGB color: how bright it looks.
 float luminance(const glm::vec3& color);
 
-/// Luminance of the ambient light of the levels that have it, see level_ambient().
-inline constexpr float kLevelAmbientLuminance = 0.1f;
-
 /// The ambient light of a level: none for half of the seeds (see level_has_ambient_light()), and for the others light
 /// of the hue of the level's texture, so that the level seems lit without a visible source.
 ///
-/// The light has the color of the texture scaled to a luminance of kLevelAmbientLuminance, so that light and dark
+/// The light has the color of the texture scaled to a luminance of `ambient_luminance`, so that light and dark
 /// textures give equally bright light. A near-black texture, whose hue is uncertain, gives grey light. A very
 /// saturated texture can give a light with a component above 1, e.g. pure blue gives about 1.39 blue.
 ///
 /// \param level_seed    The seed of the level. The choice depends only on it.
 /// \param texture_color The mean color of the level's texture, linear RGB, see mean_linear_color().
+/// \param ambient_luminance The luminance of the light, see LightSettings::level_ambient_luminance.
 /// \return The ambient light, linear RGB.
-glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color);
+glm::vec3 level_ambient(std::uint64_t level_seed, const glm::vec3& texture_color,
+                        float ambient_luminance = kLevelAmbientLuminance);
 
 /// The light in the scene at a moment: the ambient light, the player's light if there is one, and the lights of the
 /// torches and the exit that matter most to the viewer.

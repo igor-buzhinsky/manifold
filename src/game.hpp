@@ -45,6 +45,8 @@ struct GameConfig {
     /// How many characters a new party has, and their hit points. Their portraits are chosen among the portrait files
     /// of `level.assets`, see make_party().
     PartyConfig party;
+    /// The mana of a new party, how fast it comes back, and what spells cost and how long they last.
+    MagicConfig magic;
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -220,7 +222,7 @@ public:
     /// Casts a spell for the party, if it has enough mana, see PartyMagic::cast().
     ///
     /// \return False, with nothing changed, if the party has less mana than the spell costs.
-    bool cast(Spell spell) { return magic_.cast(spell); }
+    bool cast(Spell spell) { return magic_.cast(spell, magic_config_); }
 
     /// Sets the party's mana, e.g. as a cheat. It is clamped to [0, PartyMagic::max_mana].
     void set_mana(float mana) { magic_.set_mana(mana); }
@@ -261,6 +263,8 @@ public:
     std::span<const Character> party() const { return party_; }
     /// The party's shared mana, and the spells in effect.
     const PartyMagic& magic() const { return magic_; }
+    /// The settings of the magic, such as the names, costs and durations of the spells, see GameConfig::magic.
+    const MagicConfig& magic_config() const { return magic_config_; }
     /// All kinds of items, which the inventories refer to, see LevelConfig::items.
     const ItemCatalog& items() const { return level_config_.items; }
     /// The items that the party carries, which all its characters share. It has no limit of weight. It is kept from
@@ -348,6 +352,7 @@ private:
     float max_snap_slope_;
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     PartyConfig party_config_;
+    MagicConfig magic_config_;
     bool noclip_ = false;
     bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
     bool activate_held_ = false;  ///< Whether input.activate was true in the previous frame.

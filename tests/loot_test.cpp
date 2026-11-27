@@ -19,11 +19,11 @@ namespace {
 
 TEST(LootTest, ChestsAreFilledAsTheirLookSays) {
     EXPECT_EQ(
-        chest_loot(ChestLook::kWood),
+        ChestLoot{}.of(ChestLook::kWood),
         (ContainerLoot{
             .min_draws = 1, .max_draws = 3, .min_item_value = 100, .max_item_value = 2000, .max_total_value = 2000}));
     EXPECT_EQ(
-        chest_loot(ChestLook::kGold),
+        ChestLoot{}.of(ChestLook::kGold),
         (ContainerLoot{
             .min_draws = 3, .max_draws = 5, .min_item_value = 100, .max_item_value = 5000, .max_total_value = 6000}));
 }
@@ -105,13 +105,14 @@ TEST(LootTest, ItemsAreChosenInProportionToTheirChances) {
 
 TEST(LootTest, ChestsStayWithinTheirLimitsAndTheSameStateGivesTheSameItems) {
     const ItemCatalog items = make_test_items();
+    const ChestLoot chests;
     for (const ChestLook look : {ChestLook::kWood, ChestLook::kGold}) {
-        const ContainerLoot& loot = chest_loot(look);
+        const ContainerLoot& loot = chests.of(look);
         for (int seed = 0; seed < 100; ++seed) {
             Rng rng(static_cast<Rng::result_type>(seed));
             Rng again(static_cast<Rng::result_type>(seed));
-            const std::vector<ItemId> chosen = fill_chest(items, look, rng);
-            EXPECT_EQ(fill_chest(items, look, again), chosen);
+            const std::vector<ItemId> chosen = fill_chest(items, chests, look, rng);
+            EXPECT_EQ(fill_chest(items, chests, look, again), chosen);
             EXPECT_LE(chosen.size(), static_cast<std::size_t>(loot.max_draws));
             EXPECT_LE(Inventory(chosen).value(items), loot.max_total_value);
         }

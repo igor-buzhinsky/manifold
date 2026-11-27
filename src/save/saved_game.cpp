@@ -152,11 +152,11 @@ PartyMagic parse_magic(const nlohmann::json& object) {
             throw_invalid("spell in effect", active, "an object");
         }
         const nlohmann::json& name = field(active, "spell");
-        const std::optional<Spell> spell = name.is_string() ? parse_spell_name(name.get<std::string>()) : std::nullopt;
+        const std::optional<Spell> spell = name.is_string() ? parse_spell_key(name.get<std::string>()) : std::nullopt;
         if (!spell) {
             std::string names;
             for (const Spell known : kAllSpells) {
-                names += std::string(names.empty() ? "" : " or ") + spell_name(known);
+                names += std::string(names.empty() ? "" : " or ") + spell_key(known);
             }
             throw_invalid("spell", name, names.c_str());
         }
@@ -164,8 +164,9 @@ PartyMagic parse_magic(const nlohmann::json& object) {
             throw_invalid("spell", name, "each spell at most once");
         }
         const nlohmann::json& remaining = field(active, "remaining");
-        if (!is_number_in(remaining, 0.0, spell_duration(*spell)) || remaining.get<double>() <= 0.0) {
-            throw_invalid("remaining", remaining, "a positive number of seconds, at most the spell's duration");
+        // The duration of a spell can change in the data files, so a longer time left is only cut, see Game::load().
+        if (!is_number_in(remaining, 0.0, std::numeric_limits<float>::max()) || remaining.get<double>() <= 0.0) {
+            throw_invalid("remaining", remaining, "a positive number of seconds");
         }
         magic.spells.push_back({.spell = *spell, .remaining = remaining.get<float>()});
     }
@@ -200,7 +201,7 @@ std::string save_to_json(const SavedGame& save) {
     json["max_mana"] = save.magic.max_mana;
     nlohmann::ordered_json spells = nlohmann::ordered_json::array();
     for (const ActiveSpell& active : save.magic.spells) {
-        spells.push_back({{"spell", spell_name(active.spell)}, {"remaining", active.remaining}});
+        spells.push_back({{"spell", spell_key(active.spell)}, {"remaining", active.remaining}});
     }
     json["spells"] = std::move(spells);
     json["inventory"] = save.inventory;

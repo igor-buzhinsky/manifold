@@ -260,13 +260,13 @@ void add_door_commands(Console& console, Game& game) {
 }
 
 /// The party's mana and the spells in effect, for the log, e.g. `mana 95.0/100, spells: Candlelight 59.5 s`.
-std::string describe_magic(const PartyMagic& magic) {
+std::string describe_magic(const PartyMagic& magic, const MagicConfig& config) {
     std::string text = std::format("mana {:.1f}/{:.0f}, spells:", magic.mana, magic.max_mana);
     if (magic.spells.empty()) {
         return text + " none";
     }
     for (std::size_t i = 0; i < magic.spells.size(); ++i) {
-        text += std::format("{} {} {:.1f} s", i == 0 ? "" : ",", spell_title(magic.spells[i].spell),
+        text += std::format("{} {} {:.1f} s", i == 0 ? "" : ",", config.spell(magic.spells[i].spell).name,
                             magic.spells[i].remaining);
     }
     return text;
@@ -276,7 +276,7 @@ std::string describe_magic(const PartyMagic& magic) {
 std::string spell_names() {
     std::string names;
     for (const Spell spell : kAllSpells) {
-        names += std::string(names.empty() ? "" : "|") + spell_name(spell);
+        names += std::string(names.empty() ? "" : "|") + spell_key(spell);
     }
     return names;
 }
@@ -296,7 +296,8 @@ void add_party_commands(Console& console, Game& game) {
                             character.max_hp,
                             portrait ? std::format("{} {}", asset_key_name(portrait->key), portrait->index) : "none");
                     }
-                    log_info("Party of {}, {}{}", party.size(), describe_magic(game.magic()), list);
+                    log_info("Party of {}, {}{}", party.size(), describe_magic(game.magic(), game.magic_config()),
+                             list);
                 });
 
     const std::string hp_usage = "hp N VALUE";
@@ -320,15 +321,17 @@ void add_party_commands(Console& console, Game& game) {
     console.add("cast", cast_usage, "Casts a spell, as its key does, if the party has enough mana for it.",
                 [&game, cast_usage](std::span<const std::string> arguments) {
                     expect_count(arguments, 1, cast_usage);
-                    const std::optional<Spell> spell = parse_spell_name(arguments[0]);
+                    const std::optional<Spell> spell = parse_spell_key(arguments[0]);
                     if (!spell) {
                         throw CommandError("no such spell: " + arguments[0] + ", expected " + spell_names());
                     }
                     if (!game.cast(*spell)) {
-                        throw CommandError(std::format("not enough mana for {}: it costs {:.0f}, the party has {:.1f}",
-                                                       spell_title(*spell), spell_cost(*spell), game.magic().mana));
+                        const SpellType& type = game.magic_config().spell(*spell);
+                        throw CommandError(std::format("not enough mana for {}: it costs {:g}, the party has {:.1f}",
+                                                       type.name, type.cost, game.magic().mana));
                     }
-                    log_info("Cast {}: {}", spell_title(*spell), describe_magic(game.magic()));
+                    log_info("Cast {}: {}", game.magic_config().spell(*spell).name,
+                             describe_magic(game.magic(), game.magic_config()));
                 });
 
     const std::string mana_usage = "mana VALUE";

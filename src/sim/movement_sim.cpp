@@ -189,7 +189,7 @@ bool check_air_time(AirTime& air, const Game& game, bool was_on_ground, float st
 
 /// Plays one seed of one layout, see run_movement_sim().
 void run_seed(const MovementSimConfig& config, LayoutKind layout, std::uint64_t seed, MovementSimReport& report) {
-    GameConfig game_config;
+    GameConfig game_config = config.game;
     // A portrait for any gender for each character, so that a new party logs no warning about missing portraits.
     game_config.level.assets.set(AssetKey::kAnyPortraits, static_cast<std::uint32_t>(game_config.party.size));
     Game game(game_config, seed, layout);

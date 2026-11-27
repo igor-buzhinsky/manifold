@@ -5,22 +5,37 @@
 namespace manifold {
 namespace {
 
-TEST(SpellsTest, NamesRoundTrip) {
+TEST(SpellsTest, KeysRoundTrip) {
     for (const Spell spell : kAllSpells) {
-        EXPECT_EQ(parse_spell_name(spell_name(spell)), spell);
+        EXPECT_EQ(parse_spell_key(spell_key(spell)), spell);
     }
-    EXPECT_STREQ(spell_name(Spell::kCandlelight), "candlelight");
-    EXPECT_STREQ(spell_title(Spell::kLevitate), "Levitate");
-    EXPECT_FALSE(parse_spell_name("Levitate").has_value());
-    EXPECT_FALSE(parse_spell_name("").has_value());
+    EXPECT_STREQ(spell_key(Spell::kCandlelight), "candlelight");
+    EXPECT_FALSE(parse_spell_key("Levitate").has_value());
+    EXPECT_FALSE(parse_spell_key("").has_value());
 }
 
-TEST(SpellsTest, CostsAndDurations) {
-    EXPECT_FLOAT_EQ(spell_cost(Spell::kCandlelight), 5.0f);
-    EXPECT_FLOAT_EQ(spell_cost(Spell::kLevitate), 10.0f);
-    for (const Spell spell : kAllSpells) {
-        EXPECT_FLOAT_EQ(spell_duration(spell), 60.0f);
-    }
+TEST(SpellsTest, DefaultNamesCostsAndDurations) {
+    const MagicConfig config;
+    EXPECT_EQ(config.spell(Spell::kCandlelight), (SpellType{.name = "Candlelight", .cost = 5.0f, .duration = 60.0f}));
+    EXPECT_EQ(config.spell(Spell::kLevitate), (SpellType{.name = "Levitate", .cost = 10.0f, .duration = 60.0f}));
+    EXPECT_FLOAT_EQ(config.max_mana, 100.0f);
+    EXPECT_FLOAT_EQ(config.mana_regeneration, 1.0f);
+}
+
+TEST(SpellsTest, CastingAndRegainingFollowTheConfig) {
+    MagicConfig config;
+    config.max_mana = 20.0f;
+    config.spell(Spell::kLevitate) = {.name = "Float", .cost = 15.0f, .duration = 4.0f};
+    PartyMagic magic = PartyMagic::fresh(config);
+    EXPECT_EQ(magic, (PartyMagic{.mana = 20.0f, .max_mana = 20.0f, .spells = {}}));
+    EXPECT_TRUE(magic.cast(Spell::kLevitate, config));
+    EXPECT_FLOAT_EQ(magic.mana, 5.0f);
+    EXPECT_FALSE(magic.cast(Spell::kLevitate, config));
+    magic.advance(3.0f, 2.0f);
+    EXPECT_FLOAT_EQ(magic.mana, 11.0f);
+    EXPECT_TRUE(magic.active(Spell::kLevitate));
+    magic.advance(1.0f, 2.0f);
+    EXPECT_FALSE(magic.active(Spell::kLevitate));
 }
 
 TEST(SpellsTest, CastingTakesManaAndFailsWithoutEnough) {

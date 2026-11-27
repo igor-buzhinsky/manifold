@@ -814,7 +814,8 @@ Drawbacks:
 
 ## 2026-11-25: Items chosen for chests by number and value, in one inventory of the party without stacking
 
-Status: **ACCEPTED**. Done in v0.4.
+Status: **ACCEPTED**. Done in v0.4. The limits of chests and the chance of golden chests moved to
+`data/constants.json` on 2026-11-27, see "Game settings in strict JSON files of `data/`".
 
 Decision: the kinds of items are listed in `data/items.json`, each with a key, a name, a value, a weight in grams and a
 chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. `data/` is a new directory, found like
@@ -876,3 +877,55 @@ Drawbacks:
 - What a chest holds depends on the order and number of the items in the file, so changing them changes the chests of
   seeds, as remapping assets changes the assets of seeds.
 - Items taken from chests during a level are lost when the level is loaded again, as everything else of the level is.
+
+## 2026-11-27: Game settings in strict JSON files of `data/`, with defaults in code for tests
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: the settings that are worth tuning move from code into three files of `data/`, next to `items.json`:
+`spells.json` (the name, cost and duration of each spell, by its key), `level_layouts.json` (all fields of
+`RoomLayoutConfig` and `DebugLayoutConfig` and the probability of each layout) and `constants.json` (the player's
+radius, height, speeds and jump height, the party's size, hit points, mana and regeneration, the weights of the flames
+of torches, the chance of golden chests, the loot limits of both kinds of chests, and the lights of `LightSettings` with
+the luminance of the levels' ambient light). The game reads them at the start with `load_game_data()` into the structs
+it already had (`GameConfig`, `LevelConfig`, `MagicConfig`, `LightSettings`). The files are strict: every field must be
+there, in its range, and no field may be unknown; the game also generates a level of each layout to check settings that
+only fail together. If anything is wrong, the game doesn't start and logs every problem with its file and field. The
+structs keep their defaults in code, which the unit tests use; the game and the movement simulation use the files.
+Angles are in degrees per second in the files, unlike the radians of the code. The sizes of the HUD, the colors of the
+interface and of objects, the step lengths of footsteps and the like stay in code. What a spell does stays in code, so
+the file can't add spells. Saves don't record the settings: a save gives another level when the layouts or the chances
+of the objects of levels change, and a spell in effect is cut to its new duration when it is loaded.
+
+Gains:
+
+- Speeds, chances, layouts and lights can be tuned by editing a file and restarting, without building the game.
+- A misspelt or forgotten field is an error rather than a silent default, so a tuned value can't be lost unnoticed,
+  and all problems of all files are listed at once.
+- The trial levels catch combinations that each field's range can't, such as tiles too narrow for the player or more
+  ramps than holes, at the start instead of when a level is generated in the middle of a game.
+- The defaults in code keep tests independent of tuning: changing a value in `data/` doesn't break them.
+- The movement simulation checks the movement with the values the game uses.
+
+Rejected alternatives:
+
+- **Lenient files like `items.json`**, where a wrong field is left out with a warning and the default in code is kept:
+  a typo in a tuned value would go unnoticed, and the game would play with a value nobody chose.
+- **No defaults in code**, so that the files are the only place of the values: every test would have to read the data
+  files or build all settings, and tuning a value would change the results of tests.
+- **A test that the files match the defaults in code**: it would keep the two copies equal, but tuning would then need
+  a change of the code too, which is what the files should save.
+- **A hash of the settings in saves**, to refuse saves made with other settings: tuning would throw away saves while
+  a game is being tuned, and changing items or assets already gives other levels without it.
+- **One file for everything**: the spells and the layouts are tuned separately and have their own structure, and
+  smaller files are easier to read.
+- **Also the HUD sizes and the colors of the interface and objects**: they are about how the game looks rather than
+  how it plays, and are rarely tuned. The lights are in, since they decide how dark the levels are.
+
+Drawbacks:
+
+- The values are in two places, the files and the defaults in code, which can drift apart; the tests then check other
+  values than the game plays with.
+- The trial levels take about 80 ms at the start.
+- A field added to a struct must also be added to the reader and to the file.
+- Saved games give other levels after the layouts or the chances of objects change.

@@ -8,6 +8,7 @@
 
 #include <glm/vec3.hpp>
 
+#include "game.hpp"
 #include "level/level.hpp"
 
 namespace manifold {
@@ -21,6 +22,10 @@ struct MovementSimConfig {
     float seconds = 30.0f;     ///< Game time per seed, in seconds.
     float dt = 1.0f / 60.0f;   ///< Duration of a frame, in seconds.
     std::size_t examples = 5;  ///< How many examples to keep of each kind of violation.
+    /// The settings of the game, such as the speeds and the size of the player and the layouts, e.g. from the data
+    /// files, see load_game_data(). Its `level.assets` are replaced by a portrait for any gender for each character,
+    /// so that a new party logs no warning.
+    GameConfig game;
 };
 
 /// A kind of broken invariant of the player's movement.

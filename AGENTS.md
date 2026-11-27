@@ -42,11 +42,12 @@ print `OK` (it takes about a minute):
 ./build/manifold_sim   # options such as --layout debug --seeds 100 --seconds 60; a wrong option prints the usage
 ```
 
-It plays 40 seeds of each layout with random walking, running, stepping aside, standing, turning, looking and jumping,
-and opens and closes doors near the player, and checks the player's movement after every frame: no brief losses of
-the ground, no overlaps with the geometry or closed doors, no endless falls, no speeds above running. It exits with 1
-if one is broken, and lists examples with their layout, seed, level and frame (`--help` tells more). A run with more
-seeds or longer is worth it for a change that touches collision itself.
+It plays 40 seeds of each layout, with the settings of the files in `data/`, with random walking, running, stepping
+aside, standing, turning, looking and jumping, and opens and closes doors near the player, and checks the player's
+movement after every frame: no brief losses of the ground, no overlaps with the geometry or closed doors, no endless
+falls, no speeds above running. It exits with 1 if one is broken, and lists examples with their layout, seed, level
+and frame (`--help` tells more). A run with more seeds or longer is worth it for a change that touches collision
+itself.
 
 - Python scripts in `scripts/` follow [docs/CODING_STYLE.md](docs/CODING_STYLE.md#python-scripts). After
   changing one, run the Python checks, which must pass:
@@ -56,6 +57,9 @@ seeds or longer is worth it for a change that touches collision itself.
   cd scripts && poetry run black . && poetry run ruff check . && poetry run pyrefly check
   ```
 
+- Gameplay constants that are worth tuning without building the game (speeds, chances, sizes, costs, lights) go into
+  the JSON files of `data/`, read by `load_game_data()` (`src/data/game_data.hpp`), with a default in code for tests,
+  see [data/README.md](data/README.md). A new field there must be in the file, since the files are read strictly.
 - Credit every third-party asset (textures, sounds, models, fonts, ...), even when its license doesn't
   require it: give each pack a `README.md` in its directory under `assets/` (source link, author, license,
   which files were taken, how they were processed), and list it in the Credits section of

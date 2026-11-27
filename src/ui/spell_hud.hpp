@@ -33,8 +33,9 @@ inline constexpr float kHudSpellBlinkPeriod = 1.0f;
 
 /// Where the boxes of `count` spells go in a picture of `picture` size: from the top down, kHudSpellGap apart, the
 /// first kHudMargin below the top edge, and all kHudMargin left of the right edge. All boxes are equally wide, as wide
-/// as the box of the spell with the longest name, so that they don't change as spells come and go.
-std::vector<Rect> layout_spell_hud(const PixelSize& picture, std::size_t count);
+/// as the box of the spell with the longest SpellType::name in `config`, so that they don't change as spells come and
+/// go.
+std::vector<Rect> layout_spell_hud(const PixelSize& picture, const MagicConfig& config, std::size_t count);
 
 /// Where the bar of mana goes in a picture of `picture` size: kHudMargin left of the right edge and above the bottom
 /// edge, which puts its bottom at the height of that of the bars of hit points.
@@ -46,8 +47,10 @@ Rect layout_mana_bar(const PixelSize& picture);
 ///
 /// \param picture Size of the picture.
 /// \param magic   The party's magic, whose spells in effect have boxes.
+/// \param config  The names of the spells, which set the width of the boxes.
 /// \param point   In pixels from the top-left corner of the picture, y down.
-bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const glm::vec2& point);
+bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const MagicConfig& config,
+                        const glm::vec2& point);
 
 /// Whether the box of a spell with `remaining` seconds of game time left is drawn: always while at least
 /// kHudSpellBlinkTime are left, then for the first half of each kHudSpellBlinkPeriod, counted from the end of the
@@ -55,14 +58,15 @@ bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const
 /// game is paused.
 bool spell_box_visible(float remaining);
 
-/// Adds the party's magic to `mesh`: a white box with the black spell_title() of each spell in effect, in the order of
-/// PartyMagic::spells, leaving out those that spell_box_visible() hides but keeping their places, and the bar of mana,
-/// dark blue with the part of PartyMagic::mana_fraction() from its left blue. The width of the blue part is rounded to
-/// whole pixels, and is at least one pixel while the party has any mana.
+/// Adds the party's magic to `mesh`: a white box with the black SpellType::name of each spell in effect, in the order
+/// of PartyMagic::spells, leaving out those that spell_box_visible() hides but keeping their places, and the bar of
+/// mana, dark blue with the part of PartyMagic::mana_fraction() from its left blue. The width of the blue part is
+/// rounded to whole pixels, and is at least one pixel while the party has any mana.
 ///
 /// \param[out] mesh Where the shapes are appended.
 /// \param picture   Size of the picture.
 /// \param magic     The party's magic.
-void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic& magic);
+/// \param config    The names of the spells.
+void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic& magic, const MagicConfig& config);
 
 }  // namespace manifold

@@ -19,9 +19,23 @@ namespace {
 
 constexpr PixelSize kPicture{.width = 1000, .height = 600};
 
+/// The spells with their default names.
+const MagicConfig& spells() {
+    static const MagicConfig config;
+    return config;
+}
+
+TEST(SpellHudTest, BoxesAreAsWideAsTheLongestNameOfTheConfig) {
+    MagicConfig config;
+    config.spell(Spell::kLevitate).name = "A much longer name of a spell";
+    const float width = layout_spell_hud(kPicture, config, 1)[0].size.x;
+    EXPECT_GT(width, layout_spell_hud(kPicture, spells(), 1)[0].size.x);
+    EXPECT_GE(width, text_width(config.spell(Spell::kLevitate).name, ui_scale(kPicture)));
+}
+
 TEST(SpellHudTest, SpellsGoDownFromTheTopRightCornerInBoxesOfOneWidth) {
     ASSERT_EQ(ui_scale(kPicture), 2.0f);
-    const std::vector<Rect> boxes = layout_spell_hud(kPicture, 2);
+    const std::vector<Rect> boxes = layout_spell_hud(kPicture, spells(), 2);
     ASSERT_EQ(boxes.size(), 2U);
     EXPECT_EQ(boxes[0].top_left.y, 8.0f);
     EXPECT_EQ(boxes[0].top_left.x + boxes[0].size.x, 1000.0f - 8.0f);
@@ -30,8 +44,8 @@ TEST(SpellHudTest, SpellsGoDownFromTheTopRightCornerInBoxesOfOneWidth) {
     EXPECT_EQ(boxes[1].size, boxes[0].size);
     EXPECT_EQ(boxes[1].top_left, boxes[0].top_left + glm::vec2(0.0f, 22.0f + 2.0f));
     // Wide enough for the longest name.
-    EXPECT_GE(boxes[0].size.x, text_width(spell_title(Spell::kCandlelight), 2.0f) + 8.0f);
-    EXPECT_TRUE(layout_spell_hud(kPicture, 0).empty());
+    EXPECT_GE(boxes[0].size.x, text_width(spells().spell(Spell::kCandlelight).name, 2.0f) + 8.0f);
+    EXPECT_TRUE(layout_spell_hud(kPicture, spells(), 0).empty());
 }
 
 TEST(SpellHudTest, ManaBarIsInTheBottomRightCornerLevelWithTheHitPoints) {
@@ -45,17 +59,18 @@ TEST(SpellHudTest, ManaBarIsInTheBottomRightCornerLevelWithTheHitPoints) {
 TEST(SpellHudTest, ContainsTheBoxesTheGapsAndTheManaBar) {
     PartyMagic magic;
     const Rect bar = layout_mana_bar(kPicture);
-    EXPECT_TRUE(spell_hud_contains(kPicture, magic, bar.top_left));
-    EXPECT_FALSE(spell_hud_contains(kPicture, magic, bar.top_left - glm::vec2(1.0f)));
-    const Rect first = layout_spell_hud(kPicture, 1)[0];
-    EXPECT_FALSE(spell_hud_contains(kPicture, magic, first.top_left));
+    EXPECT_TRUE(spell_hud_contains(kPicture, magic, spells(), bar.top_left));
+    EXPECT_FALSE(spell_hud_contains(kPicture, magic, spells(), bar.top_left - glm::vec2(1.0f)));
+    const Rect first = layout_spell_hud(kPicture, spells(), 1)[0];
+    EXPECT_FALSE(spell_hud_contains(kPicture, magic, spells(), first.top_left));
     magic.cast(Spell::kCandlelight);
     magic.cast(Spell::kLevitate);
-    EXPECT_TRUE(spell_hud_contains(kPicture, magic, first.top_left));
+    EXPECT_TRUE(spell_hud_contains(kPicture, magic, spells(), first.top_left));
     // The gap between the boxes.
-    EXPECT_TRUE(spell_hud_contains(kPicture, magic, first.top_left + glm::vec2(1.0f, first.size.y + 1.0f)));
-    EXPECT_FALSE(spell_hud_contains(kPicture, magic, first.top_left - glm::vec2(1.0f, 0.0f)));
-    EXPECT_FALSE(spell_hud_contains(kPicture, magic, first.top_left + glm::vec2(0.0f, (2.0f * first.size.y) + 2.0f)));
+    EXPECT_TRUE(spell_hud_contains(kPicture, magic, spells(), first.top_left + glm::vec2(1.0f, first.size.y + 1.0f)));
+    EXPECT_FALSE(spell_hud_contains(kPicture, magic, spells(), first.top_left - glm::vec2(1.0f, 0.0f)));
+    EXPECT_FALSE(
+        spell_hud_contains(kPicture, magic, spells(), first.top_left + glm::vec2(0.0f, (2.0f * first.size.y) + 2.0f)));
 }
 
 /// How many rectangles `width` pixels wide the mesh has, each two triangles of six vertices, see
@@ -81,7 +96,7 @@ TEST(SpellHudTest, ManaBarIsFilledByTheFractionOfMana) {
     PartyMagic magic;
     magic.set_mana(25.0f);
     OverlayMesh mesh;
-    add_spell_hud(mesh, kPicture, magic);
+    add_spell_hud(mesh, kPicture, magic, spells());
     // Without spells, only the two rectangles of the bar: the whole bar and its filled quarter.
     ASSERT_EQ(mesh.vertices().size(), 12U);
     const float width = layout_mana_bar(kPicture).size.x;
@@ -90,11 +105,11 @@ TEST(SpellHudTest, ManaBarIsFilledByTheFractionOfMana) {
 
     magic.set_mana(0.0f);
     OverlayMesh empty;
-    add_spell_hud(empty, kPicture, magic);
+    add_spell_hud(empty, kPicture, magic, spells());
     EXPECT_EQ(empty.vertices().size(), 6U);
     magic.set_mana(0.01f);
     OverlayMesh nearly_empty;
-    add_spell_hud(nearly_empty, kPicture, magic);
+    add_spell_hud(nearly_empty, kPicture, magic, spells());
     EXPECT_EQ(count_rectangles(nearly_empty, 1.0f), 1U);
 }
 
@@ -102,7 +117,7 @@ TEST(SpellHudTest, EachSpellInEffectGetsAWhiteBoxWithItsName) {
     PartyMagic magic;
     magic.cast(Spell::kLevitate);
     OverlayMesh mesh;
-    add_spell_hud(mesh, kPicture, magic);
+    add_spell_hud(mesh, kPicture, magic, spells());
     ASSERT_GT(mesh.vertices().size(), 18U);
     // The box comes first, white, and its name over it in black.
     EXPECT_EQ(mesh.vertices()[0].color, glm::vec4(1.0f));
@@ -128,9 +143,9 @@ TEST(SpellHudTest, HiddenBoxKeepsItsPlace) {
     magic.cast(Spell::kLevitate);
     magic.spells[0].remaining = 0.25f;
     OverlayMesh mesh;
-    add_spell_hud(mesh, kPicture, magic);
+    add_spell_hud(mesh, kPicture, magic, spells());
     // Only the second box is drawn, at its own place below the hidden first one.
-    const std::vector<Rect> boxes = layout_spell_hud(kPicture, 2);
+    const std::vector<Rect> boxes = layout_spell_hud(kPicture, spells(), 2);
     ASSERT_GT(mesh.vertices().size(), 6U);
     EXPECT_EQ(mesh.vertices()[0].color, glm::vec4(1.0f));
     float top = mesh.vertices()[0].position.y;
@@ -139,7 +154,7 @@ TEST(SpellHudTest, HiddenBoxKeepsItsPlace) {
     }
     EXPECT_EQ(top, boxes[1].top_left.y);
     EXPECT_EQ(count_rectangles(mesh, boxes[1].size.x), 1U);
-    EXPECT_TRUE(spell_hud_contains(kPicture, magic, boxes[0].top_left));
+    EXPECT_TRUE(spell_hud_contains(kPicture, magic, spells(), boxes[0].top_left));
 }
 
 }  // namespace

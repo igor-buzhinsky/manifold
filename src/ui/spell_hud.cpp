@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include <glm/vec2.hpp>
@@ -27,19 +28,19 @@ constexpr glm::vec4 kManaBarBackColor{0.02f, 0.03f, 0.15f, 1.0f};
 constexpr glm::vec4 kManaBarColor{0.15f, 0.3f, 0.95f, 1.0f};
 
 /// Width of the boxes of the spells, in interface pixels: that of the longest name with the padding.
-float spell_box_width() {
+float spell_box_width(const MagicConfig& config) {
     float width = 0.0f;
-    for (const Spell spell : kAllSpells) {
-        width = std::max(width, text_width(spell_title(spell), 1.0f));
+    for (const SpellType& spell : config.spells) {
+        width = std::max(width, text_width(spell.name, 1.0f));
     }
     return width + (2.0f * kHudSpellPaddingX);
 }
 
 }  // namespace
 
-std::vector<Rect> layout_spell_hud(const PixelSize& picture, std::size_t count) {
+std::vector<Rect> layout_spell_hud(const PixelSize& picture, const MagicConfig& config, std::size_t count) {
     const float scale = ui_scale(picture);
-    const glm::vec2 size = glm::vec2(spell_box_width(), kTextLetterHeight + (2.0f * kHudSpellPaddingY)) * scale;
+    const glm::vec2 size = glm::vec2(spell_box_width(config), kTextLetterHeight + (2.0f * kHudSpellPaddingY)) * scale;
     const float left = static_cast<float>(picture.width) - (kHudMargin * scale) - size.x;
     std::vector<Rect> boxes;
     boxes.reserve(count);
@@ -58,11 +59,12 @@ Rect layout_mana_bar(const PixelSize& picture) {
     return {.top_left = bottom_right - size, .size = size};
 }
 
-bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const glm::vec2& point) {
+bool spell_hud_contains(const PixelSize& picture, const PartyMagic& magic, const MagicConfig& config,
+                        const glm::vec2& point) {
     if (layout_mana_bar(picture).contains(point)) {
         return true;
     }
-    const std::vector<Rect> boxes = layout_spell_hud(picture, magic.spells.size());
+    const std::vector<Rect> boxes = layout_spell_hud(picture, config, magic.spells.size());
     if (boxes.empty()) {
         return false;
     }
@@ -78,15 +80,15 @@ bool spell_box_visible(float remaining) {
     return std::fmod(remaining, kHudSpellBlinkPeriod) >= kHudSpellBlinkPeriod / 2.0f;
 }
 
-void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic& magic) {
+void add_spell_hud(OverlayMesh& mesh, const PixelSize& picture, const PartyMagic& magic, const MagicConfig& config) {
     const float scale = ui_scale(picture);
-    const std::vector<Rect> boxes = layout_spell_hud(picture, magic.spells.size());
+    const std::vector<Rect> boxes = layout_spell_hud(picture, config, magic.spells.size());
     for (std::size_t i = 0; i < boxes.size(); ++i) {
         if (!spell_box_visible(magic.spells[i].remaining)) {
             continue;
         }
         const Rect& box = boxes[i];
-        const char* title = spell_title(magic.spells[i].spell);
+        const std::string& title = config.spell(magic.spells[i].spell).name;
         mesh.add_rectangle(box.top_left, box.size, kSpellBoxColor);
         // Centered, rounded down to whole interface pixels so that the font is drawn evenly.
         const float text_x =

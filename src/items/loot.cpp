@@ -11,10 +11,6 @@
 
 namespace manifold {
 
-const ContainerLoot& chest_loot(ChestLook look) {
-    return look == ChestLook::kGold ? kGoldenChestLoot : kWoodenChestLoot;
-}
-
 std::vector<ItemId> fill_container(const ItemCatalog& catalog, const ContainerLoot& loot, Rng& rng) {
     const int count = random_int(rng, loot.min_draws, loot.max_draws);
     std::vector<double> chances(catalog.items().size());
@@ -62,8 +58,8 @@ bool check_container_loot(const ContainerLoot& loot, std::string_view name) {
     return fine;
 }
 
-std::vector<ItemId> fill_chest(const ItemCatalog& catalog, ChestLook look, Rng& rng) {
-    return fill_container(catalog, chest_loot(look), rng);
+std::vector<ItemId> fill_chest(const ItemCatalog& catalog, const ChestLoot& loot, ChestLook look, Rng& rng) {
+    return fill_container(catalog, loot.of(look), rng);
 }
 
 }  // namespace manifold

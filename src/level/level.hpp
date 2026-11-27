@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -22,14 +23,26 @@ using LevelRng = Rng;
 /// Gravity on Earth, in metres per second squared.
 constexpr float kEarthGravity = 9.81f;
 
-/// Chooses the flame of all torches of a level: orange with a chance of 50%, blue and green with 25% each.
-TorchFlame choose_torch_flame(LevelRng& rng);
+/// The random choices of objects that levels of every layout make the same way, read from the constants file, see
+/// load_game_data().
+struct LevelObjectChances {
+    /// How often the torches of a level burn orange, blue and green, relative to each other, in the order of
+    /// TorchFlame, see choose_torch_flame(). Each is 0 or more, and not all are 0.
+    std::array<double, 3> torch_flames{0.5, 0.25, 0.25};
+    /// Chance that a chest is golden rather than wooden, in [0, 1], see choose_chest_look().
+    double golden_chest = 0.2;
 
-/// Chance that a chest is golden rather than wooden, see choose_chest_look().
-inline constexpr double kGoldenChestChance = 0.2;
+    bool operator==(const LevelObjectChances&) const = default;
+};
 
-/// Chooses what a chest is made of: gold with a chance of kGoldenChestChance, wood otherwise.
-ChestLook choose_chest_look(LevelRng& rng);
+/// Chooses the flame of all torches of a level, with the chances of `chances.torch_flames`: by default orange with a
+/// chance of 50%, blue and green with 25% each.
+///
+/// \throws std::invalid_argument if the chances are negative, not finite or all 0, see random_weighted_index().
+TorchFlame choose_torch_flame(LevelRng& rng, const LevelObjectChances& chances = {});
+
+/// Chooses what a chest is made of: gold with the chance `chances.golden_chest`, wood otherwise.
+ChestLook choose_chest_look(LevelRng& rng, const LevelObjectChances& chances = {});
 
 /// Whether the level generated from `level_seed` has ambient light, which it has for half of the seeds, see
 /// level_ambient(). The choice depends only on the seed, and is independent of the other random choices made from it.

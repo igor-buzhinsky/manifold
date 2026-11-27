@@ -678,10 +678,10 @@ std::vector<TorchSpot> find_torch_spots(const LayeredPlan& plan, const GridPlace
 /// \return The torches that could hang in the room where the player starts but didn't get one, see
 ///         Level::free_start_torches.
 std::vector<Torch> add_torches(World& world, const LayeredPlan& plan, const GridPlacement& grid,
-                               const RoomLayoutConfig& config, LevelRng& rng) {
+                               const RoomLayoutConfig& config, const LevelObjectChances& chances, LevelRng& rng) {
     const int start_room =
         plan.layers.at(static_cast<std::size_t>(plan.start_layer)).room_at(plan.start_x, plan.start_y);
-    const TorchFlame flame = choose_torch_flame(rng);
+    const TorchFlame flame = choose_torch_flame(rng, chances);
     const float torch_chance = random_float(rng, config.min_torch_chance, config.max_torch_chance);
     std::vector<Torch> free;
     for (const TorchSpot& spot : find_torch_spots(plan, grid, config, flame)) {
@@ -768,7 +768,7 @@ std::vector<PlacedChest> find_chest_spots(const LayeredPlan& plan, int layer_num
 ///
 /// \return The chests, in the order they were added to the world.
 std::vector<PlacedChest> add_chests(World& world, const LayeredPlan& plan, const GridPlacement& grid,
-                                    const RoomLayoutConfig& config, LevelRng& rng) {
+                                    const RoomLayoutConfig& config, const LevelObjectChances& chances, LevelRng& rng) {
     const int start_room =
         plan.layers.at(static_cast<std::size_t>(plan.start_layer)).room_at(plan.start_x, plan.start_y);
     std::vector<PlacedChest> chests;
@@ -787,7 +787,7 @@ std::vector<PlacedChest> add_chests(World& world, const LayeredPlan& plan, const
                 continue;
             }
             PlacedChest chest = spots[random_index(rng, spots.size())];
-            chest.look = choose_chest_look(rng);
+            chest.look = choose_chest_look(rng, chances);
             const TilePosition& step = kNeighborSteps.at(chest.wall_side);
             const glm::vec3 to_wall{static_cast<float>(step.x), static_cast<float>(step.y), 0.0f};
             const glm::vec3 wall_point =
@@ -882,10 +882,10 @@ Level RoomLayout::generate(float clearance, LevelRng& rng) const {
     add_walls(world, plan, grid, config_.height);
     add_slabs(world, plan, grid, config_.height, config_.slab_thickness);
     build_ramps(world, plan, grid);
-    std::vector<Torch> free_start_torches = add_torches(world, plan, grid, config_, rng);
+    std::vector<Torch> free_start_torches = add_torches(world, plan, grid, config_, chances_, rng);
     const std::pair<int, int> doors = add_doors(world, plan, grid, config_, rng);
     // Chests come last, so they don't change the other random choices of a seed.
-    const std::vector<PlacedChest> chests = add_chests(world, plan, grid, config_, rng);
+    const std::vector<PlacedChest> chests = add_chests(world, plan, grid, config_, chances_, rng);
     std::string info = describe(plan, grid, config_.height, doors, world.door_look(), chests);
     world.set_exit({.floor_point = grid.tile_center(plan.exit_x, plan.exit_y,
                                                     grid.floor_z.at(static_cast<std::size_t>(plan.exit_layer)))});

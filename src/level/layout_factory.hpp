@@ -6,6 +6,7 @@
 #include <string_view>
 
 #include "items/item_catalog.hpp"
+#include "items/loot.hpp"
 #include "level/debug_layout.hpp"
 #include "level/level.hpp"
 #include "level/room_layout.hpp"
@@ -25,6 +26,10 @@ struct LevelConfig {
     /// The items that containers, such as chests, are filled with, see generate_level(). None unless set, so that
     /// containers are empty.
     ItemCatalog items;
+    /// How chests are filled with `items`, see fill_chest().
+    ChestLoot chest_loot;
+    /// How the torches and chests of every layout are chosen.
+    LevelObjectChances object_chances;
     DebugLayoutConfig debug;
     float debug_probability = 0.0f;  ///< Only for testing, so it is never chosen at random.
     RoomLayoutConfig rooms;

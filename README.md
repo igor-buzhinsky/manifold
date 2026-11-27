@@ -117,7 +117,9 @@ cmake --build build
 The game reads its textures, sounds and portraits from the `assets/` directory next to the executable, if there is one,
 and otherwise from `assets/` in the source tree, whose path is built into the executable. `assets/asset_mapping.json`
 says which files it uses for what, see [DEBUGGING.md](DEBUGGING.md#assets). It reads the files that define the game,
-such as the kinds of items, from `data/` in the same way, see [data/README.md](data/README.md). It reads its settings,
+such as the kinds of items, the spells, the settings of the level layouts and other constants (speeds, the party,
+lights), from `data/` in the same way, so they can be tuned without building the game again, see
+[data/README.md](data/README.md). It reads its settings,
 such as full-screen mode and mouse look, from `settings.json` in the same way, and then from the player's own
 `settings.json`, which takes priority, see [GAME_MANUAL.md](GAME_MANUAL.md#settings). To make a copy of the game that
 runs from anywhere, without the checkout:

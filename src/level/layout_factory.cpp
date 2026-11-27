@@ -49,9 +49,9 @@ float layout_probability(LayoutKind kind, const LevelConfig& config) {
 std::unique_ptr<LevelLayout> make_layout(LayoutKind kind, const LevelConfig& config) {
     switch (kind) {
         case LayoutKind::kDebug:
-            return std::make_unique<DebugLayout>(config.debug);
+            return std::make_unique<DebugLayout>(config.debug, config.object_chances);
         case LayoutKind::kRooms:
-            return std::make_unique<RoomLayout>(config.rooms);
+            return std::make_unique<RoomLayout>(config.rooms, config.object_chances);
     }
     return nullptr;
 }
@@ -138,7 +138,8 @@ Level generate_level(const LevelConfig& config, std::optional<LayoutKind> layout
     constexpr std::uint64_t kChestItemsSeedSalt = 0x1f83d9abfb41bd6bULL;
     LevelRng items_rng(seed ^ kChestItemsSeedSalt);
     for (std::size_t i = 0; i < level.world.chests().size(); ++i) {
-        level.world.set_chest_items(i, fill_chest(config.items, level.world.chests()[i].look, items_rng));
+        level.world.set_chest_items(
+            i, fill_chest(config.items, config.chest_loot, level.world.chests()[i].look, items_rng));
     }
     if (std::optional<LevelExit> exit = level.world.exit()) {
         constexpr std::uint64_t kExitSoundSeedSalt = 0xa54ff53a5f1d36f1ULL;
