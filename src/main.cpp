@@ -32,6 +32,7 @@
 
 #include "audio/sound.hpp"
 #include "audio/sound_set.hpp"
+#include "audio/spell_sounds.hpp"
 #include "console/console.hpp"
 #include "console/console_window.hpp"
 #include "console/game_commands.hpp"
@@ -220,6 +221,15 @@ void play_object_sounds(manifold::Game& game, std::span<const std::size_t> chest
     }
     for (const std::size_t chest : chests) {
         if (const manifold::Sound* sound = sounds.chest_open.get(game.world().chests()[chest].open_sound)) {
+            audio.play(*sound);
+        }
+    }
+}
+
+/// Plays the sounds of the spells that were cast since the last call, see manifold::Game::take_casts().
+void play_spell_sounds(manifold::Game& game, const manifold::SpellSounds& sounds, manifold::AudioOutput& audio) {
+    for (const manifold::Spell spell : game.take_casts()) {
+        if (const manifold::Sound* sound = sounds.get(spell)) {
             audio.play(*sound);
         }
     }
@@ -1252,6 +1262,7 @@ void run(const Options& options) {
     state.view.data_lights = game_assets.data.lights;
     manifold::AudioOutput audio;
     const ObjectSounds object_sounds(assets);
+    const manifold::SpellSounds spell_sounds(assets);
     FootstepSounds footsteps(assets);
     const manifold::OverlayRenderer overlay_renderer;
     PartyPortraits portraits(assets);
@@ -1314,6 +1325,7 @@ void run(const Options& options) {
         level.follow(game, state.view, audio);
         close_old_level_screens(ui, game);
         follow_objects(game, ui, object_sounds, audio);
+        play_spell_sounds(game, spell_sounds, audio);
         footsteps.play(game, audio);
         // A new game or a loaded one has another party.
         portraits.follow(game.party());

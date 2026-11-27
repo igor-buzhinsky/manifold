@@ -219,10 +219,11 @@ public:
     /// \throws std::out_of_range if there is no such character.
     void set_hp(std::size_t index, int hp);
 
-    /// Casts a spell for the party, if it has enough mana, see PartyMagic::cast().
+    /// Casts a spell for the party, if it has enough mana, see PartyMagic::cast(). A spell that is cast is added to
+    /// take_casts().
     ///
     /// \return False, with nothing changed, if the party has less mana than the spell costs.
-    bool cast(Spell spell) { return magic_.cast(spell, magic_config_); }
+    bool cast(Spell spell);
 
     /// Sets the party's mana, e.g. as a cheat. It is clamped to [0, PartyMagic::max_mana].
     void set_mana(float mana) { magic_.set_mana(mana); }
@@ -242,6 +243,10 @@ public:
     /// their sounds. A chest activated twice is listed twice. Clears the list. The activations of a level are dropped
     /// when the next level starts.
     std::vector<std::size_t> take_chest_activations() { return std::exchange(chest_activations_, {}); }
+
+    /// The spells that were cast since the last call, by update() or cast(), in the order they were cast, e.g. to play
+    /// their sounds. Casts that failed for want of mana are not among them. Clears the list.
+    std::vector<Spell> take_casts() { return std::exchange(casts_, {}); }
 
     /// Moves the player, e.g. to test a level, without checking for obstacles.
     ///
@@ -374,6 +379,7 @@ private:
     std::vector<DoorState> doors_;                ///< The state of each door of the level.
     std::vector<DoorMove> door_moves_;            ///< See take_door_moves().
     std::vector<std::size_t> chest_activations_;  ///< See take_chest_activations().
+    std::vector<Spell> casts_;                    ///< See take_casts().
     int footsteps_ = 0;                           ///< See take_footsteps().
     /// How much of a step the player has moved on the ground since the last footstep, from 0 to 1. Running and
     /// walking add to it by their own step lengths.

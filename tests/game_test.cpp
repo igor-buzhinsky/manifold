@@ -934,6 +934,19 @@ TEST(GameTest, SpellsOfTheInputAreCastAfterTheMagicAdvances) {
     EXPECT_FLOAT_EQ(game.magic().mana, 100.0f);
 }
 
+TEST(GameTest, CastsOfTheInputAndOfCastAreTakenInOrderButFailedOnesAreNot) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    EXPECT_TRUE(game.take_casts().empty());
+    game.update({.casts = {Spell::kLevitate, Spell::kCandlelight}}, 0.01f);
+    ASSERT_TRUE(game.cast(Spell::kLevitate));
+    EXPECT_EQ(game.take_casts(), (std::vector<Spell>{Spell::kLevitate, Spell::kCandlelight, Spell::kLevitate}));
+    EXPECT_TRUE(game.take_casts().empty());
+    game.set_mana(3.0f);
+    EXPECT_FALSE(game.cast(Spell::kCandlelight));
+    game.update({.casts = {Spell::kLevitate}}, 0.01f);
+    EXPECT_TRUE(game.take_casts().empty());
+}
+
 TEST(GameTest, LevitationFliesWithCollisionAndFallsWhenItEnds) {
     const GameConfig config = make_config();
     Game game(config, 1, LayoutKind::kDebug);

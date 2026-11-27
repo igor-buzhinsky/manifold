@@ -139,6 +139,28 @@ TEST(AssetMappingTest, ParsesTheIconsOfItems) {
     EXPECT_NE(log.find(R"(ITEM_ICONS is ["a.png"], not an object, so items have no icons)"), std::string::npos) << log;
 }
 
+TEST(AssetMappingTest, ParsesTheSoundsOfSpells) {
+    constexpr const char* kJson = R"({
+        "EXIT_SOUNDS": ["a.ogg"],
+        "SPELL_SOUNDS": {"candlelight": "spells/light.ogg", "levitate": "/elsewhere/up.ogg", "fireball": ["a.ogg"]}
+    })";
+    std::string log;
+    const AssetMapping mapping = parse(kJson, log);
+    EXPECT_EQ(mapping.spell_sound("candlelight"), std::filesystem::path("/assets/spells/light.ogg"));
+    EXPECT_EQ(mapping.spell_sound("levitate"), std::filesystem::path("/elsewhere/up.ogg"));
+    EXPECT_FALSE(mapping.spell_sound("fireball").has_value());
+    EXPECT_EQ(mapping.spell_sounds().size(), 2U);
+    EXPECT_TRUE(mapping.item_icons().empty());
+    EXPECT_NE(log.find(R"(SPELL_SOUNDS has a sound ["a.ogg"] for fireball that is not a path)"), std::string::npos)
+        << log;
+    EXPECT_EQ(log.find("unknown key"), std::string::npos) << log;
+
+    const AssetMapping wrong = parse(R"({"SPELL_SOUNDS": "a.ogg"})", log);
+    EXPECT_TRUE(wrong.spell_sounds().empty());
+    EXPECT_NE(log.find(R"(SPELL_SOUNDS is "a.ogg", not an object, so spells have no sounds)"), std::string::npos)
+        << log;
+}
+
 TEST(AssetMappingTest, TextThatIsNotAnObjectGivesNoFiles) {
     for (const std::string_view json : {"", "not json", R"(["a.ogg"])"}) {
         std::string log;
@@ -202,6 +224,13 @@ TEST(GameAssetMappingTest, EveryKeyHasFilesAndAllCanBeUsed) {
         log = testing::internal::GetCapturedStderr();
         EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
     }
+    EXPECT_FALSE(mapping.spell_sounds().empty());
+    for (const auto& [spell, path] : mapping.spell_sounds()) {
+        testing::internal::CaptureStderr();
+        EXPECT_TRUE(load_sound(path).has_value()) << spell << ": " << path;
+        log = testing::internal::GetCapturedStderr();
+        EXPECT_EQ(log.find("[warning]"), std::string::npos) << log;
+    }
 }
 
 TEST(GameAssetMappingTest, EverySoundAndImageOfTheAssetsIsMapped) {
@@ -215,6 +244,9 @@ TEST(GameAssetMappingTest, EverySoundAndImageOfTheAssetsIsMapped) {
         }
     }
     for (const auto& [item, path] : mapping.item_icons()) {
+        mapped.insert(path.lexically_normal());
+    }
+    for (const auto& [spell, path] : mapping.spell_sounds()) {
         mapped.insert(path.lexically_normal());
     }
     for (const std::string_view extension : {".ogg", ".png"}) {

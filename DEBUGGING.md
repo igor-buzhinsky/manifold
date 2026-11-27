@@ -19,6 +19,7 @@ one file can be listed under several keys:
 | `LEVEL_TEXTURES_GRASS`, `_WOOD`, `_METAL`, `_STONE` | PNG textures of levels, at most 128 × 128 pixels, by what they show; a level gets one of all of them |
 | `PORTRAITS_MALE`, `PORTRAITS_FEMALE`, `PORTRAITS_ANY` | PNG portraits of men, women and anyone (e.g. a skeleton), whose gender is then random |
 | `ITEM_ICONS` | Not a list but an object from the key of each item (see [Items](#items)) to its icon: a PNG file with a transparent background, e.g. `"small_ruby": "inventory/gems/.../ruby-small.png"`. An item without one is drawn without an icon, after a warning in the log |
+| `SPELL_SOUNDS` | Not a list but an object from the key of each spell (`candlelight`, `levitate`) to the OGG sound played when it is cast, e.g. `"levitate": "sounds/spells/.../shimmer_1.ogg"`. A spell without one is cast without a sound, after a warning in the log |
 
 Doors, chests, exits, levels and characters keep the position of their file in the list of its key, which the level
 or the new game chooses at random. A file that is missing or can't be used, e.g. a texture that is too large, gives

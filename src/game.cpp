@@ -192,6 +192,14 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     step_progress_ = 1.0f - kFirstStepFraction;
 }
 
+bool Game::cast(Spell spell) {
+    if (!magic_.cast(spell, magic_config_)) {
+        return false;
+    }
+    casts_.push_back(spell);
+    return true;
+}
+
 float Game::animation_time() const { return static_cast<float>(std::fmod(time_, kAnimationPeriod)); }
 
 void Game::update(const PlayerInput& input, float dt) {

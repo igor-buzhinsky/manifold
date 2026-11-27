@@ -66,6 +66,7 @@ endif()
 add_library(manifold_core STATIC
     src/audio/sound.cpp
     src/audio/sound_set.cpp
+    src/audio/spell_sounds.cpp
     src/console/console.cpp
     src/console/console_window.cpp
     src/console/game_commands.cpp
@@ -214,6 +215,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/spell_hud_test.cpp
         tests/party_test.cpp
         tests/spells_test.cpp
+        tests/spell_sounds_test.cpp
         tests/random_test.cpp
         tests/raycast_test.cpp
         tests/text_field_test.cpp

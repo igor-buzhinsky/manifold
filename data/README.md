@@ -9,9 +9,9 @@ here doesn't break them, except a test that these files load without problems or
 - `items.json`: all kinds of items, with their names, values, weights and chances, see the Items section of
   [DEBUGGING.md](../DEBUGGING.md#items). Their icons are listed under `ITEM_ICONS` of `assets/asset_mapping.json`. An
   item with a wrong field is left out, with a warning.
-- `spells.json`: each spell by its key (`candlelight`, `levitate`), which saves and the `cast` command use, with its
-  `name` as the screen shows it, its `cost` in mana and its `duration` in seconds of game time. What a spell does is
-  in code, so a spell can't be added here.
+- `spells.json`: each spell by its key (`candlelight`, `levitate`), which saves, the `cast` command and
+  `SPELL_SOUNDS` of `assets/asset_mapping.json` use, with its `name` as the screen shows it, its `cost` in mana and
+  its `duration` in seconds of game time. What a spell does is in code, so a spell can't be added here.
 - `level_layouts.json`: the settings of the two layouts of levels, `rooms` and `debug`. Each has a `probability`, how
   often it is chosen for a level relative to the other (0 for the debug layout, which is for testing and is only used
   when `--layout debug` asks for it, see [README.md](../README.md)), and the fields of `RoomLayoutConfig` and
