@@ -674,7 +674,9 @@ private:
     enum class Saving : std::uint8_t {
         kNow,       ///< Now, to both saves.
         kDeferred,  ///< To both saves when save_deferred() is called. Until then, nothing is saved.
-        kNone,      ///< Not now: the saves stay until the next autosave, the next level or the exit.
+        /// Not now: `save.json` stays until the next autosave, the next level or the exit, and `save_level_start.json`
+        /// until the next level.
+        kNone,
     };
 
     /// Logs the game's current level, makes its renderer, see start_level(), notes its exit sound, and saves the
@@ -722,7 +724,9 @@ private:
     std::optional<SavePaths> save_paths_;
     bool saving_;                              ///< Whether the game is saved, if there is a directory for saves.
     std::optional<double> autosave_interval_;  ///< See the constructor.
-    double last_save_time_ = 0.0;  ///< manifold::Game::time() when `save.json` was last saved, or would have been.
+    /// manifold::Game::time() that the next autosave counts its interval from: when `save.json` was last saved, or
+    /// would have been, or when the start of the level was loaded, see load().
+    double last_save_time_ = 0.0;
     bool progress_save_failed_ = false;           ///< Whether the last save to `save.json` failed, see save_progress().
     std::optional<manifold::Renderer> renderer_;  ///< The renderer has the meshes of one level.
     std::optional<manifold::AssetIndex> exit_sound_;  ///< The sound of the level's exit, if it has one.
