@@ -948,9 +948,10 @@ whether they stand, the state of each door (openness and target) and the item ke
 level. Loading generates the level again from its seed, as before, and then puts the progress back; a progress whose
 numbers of doors or chests differ from the level's is refused. The start menu offers Continue (`save.json`) and
 Continue from level start; the game menu has Load game (also F9) and Restart level, and the console `load
-[level_start]`. Loading the start of the level replaces `save.json` too. Saves are written on the main thread, each to
-a `.tmp` file that is then renamed over the old one; autosaves aren't logged, nor are those that fail after a
-failed one.
+[level_start]`. Loading the start of the level writes nothing: `save.json` is replaced by the next autosave, an
+autosave interval later, or on exit, so until then, loading it undoes a restart chosen by mistake. Saves are written on
+the main thread, each to a `.tmp` file that is then renamed over the old one; autosaves aren't logged, nor are those
+that fail after a failed one.
 
 Gains:
 
@@ -976,6 +977,10 @@ Rejected alternatives:
 - **`fsync` before the rename**: it can take tens of milliseconds on a slow disk, every 10 s on the main thread. The
   rename alone keeps the old save if the game stops while writing; only a power loss right after it can lose both.
 - **Saving by hand (quick save)**: autosaves and the save on exit make it less needed; it can be added later.
+- **Replacing `save.json` at once when the start of the level is loaded**: one misclick on Restart level, right below
+  Load game, would throw away the progress in the level for good.
+- **A confirmation for Restart level**: an extra step every time, while keeping `save.json` until the next autosave
+  makes a mistake easy to undo with F9.
 
 Drawbacks:
 
@@ -984,4 +989,6 @@ Drawbacks:
 - A save made by a game whose level generation changed in a way that keeps the numbers of doors and chests is loaded,
   but puts the doors, chests and player into another level, e.g. into a wall.
 - Noclip and footstep timing aren't saved, so a player who flew with noclip falls after loading.
+- After a restart, quitting before the next autosave still replaces `save.json`, since the game always saves on exit,
+  so the progress before the restart is then lost.
 - Without `fsync`, a power loss right after saving can leave an empty or old save, depending on the file system.

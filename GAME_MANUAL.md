@@ -34,8 +34,8 @@ portal stand still. It has these items:
   used for its first level.
 - **Load game**: load the game as it was at the last autosave or exit, as F9 does. It is greyed out if there is no
   `save.json`.
-- **Restart level**: start the saved level again from its start (`save_level_start.json`), which replaces
-  `save.json` too. It is greyed out if there is no such save.
+- **Restart level**: start the saved level again from its start (`save_level_start.json`). `save.json` is replaced
+  only by the next autosave or on exit, so until then, Load game undoes it. It is greyed out if there is no such save.
 - **Exit game**: quit the game, which saves it.
 
 When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game where it
@@ -208,7 +208,9 @@ The game keeps two saves, both in the game's data directory: `$XDG_DATA_HOME/man
   `autosave` and `autosave_interval` in Settings above) and when the game quits, by Exit game, Ctrl+Q or closing the
   window. F9, Load game and Continue load it.
 - `save_level_start.json` holds the start of the level the player is in, and is written only when a level starts.
-  Restart level and Continue from level start load it, and then `save.json` holds the start of the level too.
+  Restart level and Continue from level start load it. They don't replace `save.json` at once: the next autosave
+  does, one autosave interval of play later, or quitting the game does, and until then, F9 or Load game goes back to
+  where the player was before. With `autosave` off, `save.json` stays until the game quits or the next level starts.
 
 A level that is left can't be returned to, and there are no saves made by hand. When the game starts and there is a
 save, it asks which one to continue or whether to start a new game, which replaces both, see Menus above. New game in

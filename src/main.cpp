@@ -559,7 +559,7 @@ public:
             manifold::log_info(
                 "The game isn't saved in this run, since it runs console commands from the command line");
         }
-        set_up(game, view, !defer);
+        set_up(game, view, defer ? Saving::kDeferred : Saving::kNow);
     }
 
     /// Sets up the game's level if the game started another one since the last call, e.g. when the player reached
@@ -576,12 +576,15 @@ public:
                 audio.play(*sound);
             }
         }
-        set_up(game, view, !deferred_);
+        set_up(game, view, deferred_ ? Saving::kDeferred : Saving::kNow);
     }
 
-    /// Loads a save into `game` and sets up its level, which saves it to both saves, see set_up(). So loading the save
-    /// of the level's start replaces `save.json` too. Unless `stop_on_error` is set, a failure is only logged, and the
+    /// Loads a save into `game` and sets up its level. Unless `stop_on_error` is set, a failure is only logged, and the
     /// level stays.
+    ///
+    /// Loading `save.json` saves the game to both saves, see set_up(). Loading the save of the level's start writes
+    /// nothing: `save.json` is replaced only by the next autosave, an autosave interval of game time later, or on
+    /// exit, so that until then, loading it undoes a restart chosen by mistake.
     ///
     /// \return Whether the game was loaded.
     /// \throws std::runtime_error if loading fails and `stop_on_error` is set.
@@ -591,7 +594,12 @@ public:
         if (!load_game(game, path, stop_on_error)) {
             return false;
         }
-        set_up(game, view);
+        if (kind == manifold::SaveKind::kLevelStart) {
+            set_up(game, view, Saving::kNone);
+            last_save_time_ = game.time();
+        } else {
+            set_up(game, view);
+        }
         return true;
     }
 
@@ -662,16 +670,23 @@ public:
     }
 
 private:
+    /// When set_up() saves the level that it sets up.
+    enum class Saving : std::uint8_t {
+        kNow,       ///< Now, to both saves.
+        kDeferred,  ///< To both saves when save_deferred() is called. Until then, nothing is saved.
+        kNone,      ///< Not now: the saves stay until the next autosave, the next level or the exit.
+    };
+
     /// Logs the game's current level, makes its renderer, see start_level(), notes its exit sound, and saves the
-    /// game to both saves if saving is on, now or, if `save_now` is false, when save_deferred() is called.
-    void set_up(manifold::Game& game, manifold::ViewSettings& view, bool save_now = true) {
+    /// game as `saving` says, if saving is on.
+    void set_up(manifold::Game& game, manifold::ViewSettings& view, Saving saving = Saving::kNow) {
         log_game(game);
         start_level(renderer_, game, view, *assets_);
         const std::optional<manifold::LevelExit>& exit = game.world().exit();
         exit_sound_ = exit ? std::optional(exit->sound) : std::nullopt;
         level_starts_ = game.level_starts();
-        deferred_ = !save_now;
-        if (save_now) {
+        deferred_ = saving == Saving::kDeferred;
+        if (saving == Saving::kNow) {
             save_level_start(game);
         }
     }
