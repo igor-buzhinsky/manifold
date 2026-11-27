@@ -93,6 +93,10 @@ AssetIndex choose_asset(Rng& rng, const AssetCounts& counts, AssetKey key);
 /// AssetMapping::item_icon(). Unlike the keys of AssetKey, it names one file per item rather than a list.
 inline constexpr std::string_view kItemIconsKey = "ITEM_ICONS";
 
+/// The key of the asset mapping whose value is an object from spell keys, see spell_key(), to their casting sounds,
+/// see AssetMapping::spell_sound(). Like kItemIconsKey, it names one file per spell rather than a list.
+inline constexpr std::string_view kSpellSoundsKey = "SPELL_SOUNDS";
+
 /// Name of the file of the asset mapping, in the directory of the assets.
 inline constexpr std::string_view kAssetMappingFileName = "asset_mapping.json";
 
@@ -108,7 +112,9 @@ inline constexpr std::string_view kAssetMappingFileName = "asset_mapping.json";
 ///
 /// Besides these, the field kItemIconsKey (`ITEM_ICONS`) is an object from the keys of items, see ItemCatalog, to the
 /// paths of their icons: PNG files with a transparent background, e.g.
-/// `{"ITEM_ICONS": {"small_ruby": "inventory/gems/ruby-small.png"}}`.
+/// `{"ITEM_ICONS": {"small_ruby": "inventory/gems/ruby-small.png"}}`, and the field kSpellSoundsKey (`SPELL_SOUNDS`)
+/// is an object from the keys of spells to the paths of the OGG Vorbis files played when they are cast, e.g.
+/// `{"SPELL_SOUNDS": {"levitate": "sounds/spells/shimmer.ogg"}}`.
 class AssetMapping {
 public:
     /// A mapping in which no key has files.
@@ -120,13 +126,14 @@ public:
     /// JSON object gives a mapping without files; an unknown key, or a value that isn't a string or an array, is left
     /// out; an entry of an array that isn't a string gives an empty path, which can't be loaded, so that the entries
     /// after it keep their positions; and a key that is missing or has no files gets none. In `ITEM_ICONS`, a value
-    /// that isn't an object gives no icons, and an entry that isn't a string is left out.
+    /// that isn't an object gives no icons, and an entry that isn't a string is left out; so it is in `SPELL_SOUNDS`.
     ///
     /// \param assets_dir What relative paths are relative to.
     static AssetMapping parse(std::string_view json, const std::filesystem::path& assets_dir, std::string_view source);
 
     /// Reads the mapping of the game: kAssetMappingFileName in `assets_dir`, see parse(). A file that can't be read
-    /// gives a mapping without files, after a warning. How many files the keys have in all is logged as info.
+    /// gives a mapping without files, after a warning. How many files the keys have in all, and how many item icons and
+    /// spell sounds there are, is logged as info.
     static AssetMapping load(const std::filesystem::path& assets_dir);
 
     /// The files of `key`, in their order in the mapping, with relative paths made absolute.
@@ -150,9 +157,17 @@ public:
     /// All icons of `ITEM_ICONS`, by the keys of their items.
     const std::map<std::string, std::filesystem::path, std::less<>>& item_icons() const { return item_icons_; }
 
+    /// The casting sound of the spell with the key `spell_key`, e.g. `levitate`, from `SPELL_SOUNDS`, with a relative
+    /// path made absolute, or nothing if it has none.
+    std::optional<std::filesystem::path> spell_sound(std::string_view spell_key) const;
+
+    /// All sounds of `SPELL_SOUNDS`, by the keys of their spells.
+    const std::map<std::string, std::filesystem::path, std::less<>>& spell_sounds() const { return spell_sounds_; }
+
 private:
     std::array<std::vector<std::filesystem::path>, kAssetKeys.size()> paths_;
-    std::map<std::string, std::filesystem::path, std::less<>> item_icons_;  ///< See item_icons().
+    std::map<std::string, std::filesystem::path, std::less<>> item_icons_;    ///< See item_icons().
+    std::map<std::string, std::filesystem::path, std::less<>> spell_sounds_;  ///< See spell_sounds().
 };
 
 }  // namespace manifold

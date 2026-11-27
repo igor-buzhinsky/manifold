@@ -283,5 +283,9 @@
     "large_sapphire": "inventory/gems/opengameart-org-six-grades-of-gems/sapphire-large.png",
     "small_amethyst": "inventory/gems/opengameart-org-six-grades-of-gems/amethyst-small.png",
     "large_amethyst": "inventory/gems/opengameart-org-six-grades-of-gems/amethyst-large.png"
+  },
+  "SPELL_SOUNDS": {
+    "candlelight": "sounds/spells/opengameart-org-shimmer-glitter-magic/shimmer_1.ogg",
+    "levitate": "sounds/spells/opengameart-org-shimmer-glitter-magic/shimmer_1.ogg"
   }
 }

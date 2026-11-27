@@ -765,7 +765,8 @@ Drawbacks:
 ## 2026-11-25: Assets referred to by keys of a mapping file, and by indices in game objects
 
 Status: **ACCEPTED**. Done in v0.4. Since the inventory (see below), the mapping also has `ITEM_ICONS`, an object
-from the keys of items to their icons, which aren't keys of `AssetKey`, so that items are added without code.
+from the keys of items to their icons, which aren't keys of `AssetKey`, so that items are added without code. Since
+the casting sounds, it also has `SPELL_SOUNDS`, an object from the keys of spells to their casting sounds.
 
 Decision: `assets/asset_mapping.json` says which files the game uses for what. Each of its keys, such as
 `DOOR_OPEN_SOUNDS`, `CHEST_OPEN_SOUNDS`, `LEVEL_TEXTURES_GRASS` or `PORTRAITS_MALE`, has a path or a list of paths,

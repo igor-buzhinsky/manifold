@@ -130,22 +130,41 @@ AssetIndex choose_asset(Rng& rng, const AssetCounts& counts, AssetKey key) {
 
 namespace {
 
-/// Reads the icons of items from the value of `ITEM_ICONS` into `icons`, see AssetMapping::parse().
-void parse_item_icons(const nlohmann::json& value, const std::filesystem::path& assets_dir, std::string_view source,
-                      std::map<std::string, std::filesystem::path, std::less<>>& icons) {
+/// What the files of a field such as `ITEM_ICONS` are for, in its warnings, see parse_named_files().
+struct NamedFilesWords {
+    std::string_view owners;  ///< What the keys of the field name, in the plural, e.g. "items".
+    std::string_view file;    ///< What each file is, with its article, e.g. "an icon".
+    std::string_view files;   ///< The same in the plural, e.g. "icons".
+};
+
+/// Reads the value of a field such as `ITEM_ICONS`, an object from keys to paths, into `files`, see
+/// AssetMapping::parse().
+void parse_named_files(const nlohmann::json& value, std::string_view field, const NamedFilesWords& words,
+                       const std::filesystem::path& assets_dir, std::string_view source,
+                       std::map<std::string, std::filesystem::path, std::less<>>& files) {
     if (!value.is_object()) {
-        log_warning("Asset mapping {}: {} is {}, not an object, so items have no icons", source, kItemIconsKey,
-                    value.dump());
+        log_warning("Asset mapping {}: {} is {}, not an object, so {} have no {}", source, field, value.dump(),
+                    words.owners, words.files);
         return;
     }
-    for (const auto& [item, path] : value.items()) {
+    for (const auto& [owner, path] : value.items()) {
         if (path.is_string()) {
-            icons.emplace(item, assets_dir / path.get<std::string>());
+            files.emplace(owner, assets_dir / path.get<std::string>());
         } else {
-            log_warning("Asset mapping {}: {} has an icon {} for {} that is not a path, so it has none", source,
-                        kItemIconsKey, path.dump(), item);
+            log_warning("Asset mapping {}: {} has {} {} for {} that is not a path, so it has none", source, field,
+                        words.file, path.dump(), owner);
         }
     }
+}
+
+/// The file of `key` in `files`, if any.
+std::optional<std::filesystem::path> find_named_file(
+    const std::map<std::string, std::filesystem::path, std::less<>>& files, std::string_view key) {
+    const auto found = files.find(key);
+    if (found == files.end()) {
+        return std::nullopt;
+    }
+    return found->second;
 }
 
 }  // namespace
@@ -166,7 +185,13 @@ AssetMapping AssetMapping::parse(std::string_view json, const std::filesystem::p
     }
     for (const auto& [name, value] : object.items()) {
         if (name == kItemIconsKey) {
-            parse_item_icons(value, assets_dir, source, mapping.item_icons_);
+            parse_named_files(value, name, {.owners = "items", .file = "an icon", .files = "icons"}, assets_dir, source,
+                              mapping.item_icons_);
+            continue;
+        }
+        if (name == kSpellSoundsKey) {
+            parse_named_files(value, name, {.owners = "spells", .file = "a sound", .files = "sounds"}, assets_dir,
+                              source, mapping.spell_sounds_);
             continue;
         }
         const std::optional<AssetKey> key = parse_asset_key_name(name);
@@ -214,8 +239,8 @@ AssetMapping AssetMapping::load(const std::filesystem::path& assets_dir) {
     for (const std::vector<std::filesystem::path>& paths : mapping.paths_) {
         count += paths.size();
     }
-    log_info("Asset mapping {}: {} files for {} keys, and {} item icons", file.string(), count, kAssetKeys.size(),
-             mapping.item_icons_.size());
+    log_info("Asset mapping {}: {} files for {} keys, {} item icons and {} spell sounds", file.string(), count,
+             kAssetKeys.size(), mapping.item_icons_.size(), mapping.spell_sounds_.size());
     return mapping;
 }
 
@@ -229,11 +254,11 @@ std::optional<std::filesystem::path> AssetMapping::path(AssetKey key, AssetIndex
 }
 
 std::optional<std::filesystem::path> AssetMapping::item_icon(std::string_view item_key) const {
-    const auto found = item_icons_.find(item_key);
-    if (found == item_icons_.end()) {
-        return std::nullopt;
-    }
-    return found->second;
+    return find_named_file(item_icons_, item_key);
+}
+
+std::optional<std::filesystem::path> AssetMapping::spell_sound(std::string_view spell_key) const {
+    return find_named_file(spell_sounds_, spell_key);
 }
 
 AssetCounts AssetMapping::counts() const {
