@@ -232,9 +232,9 @@ gender and hit points, the party's mana and the spells in effect with the time l
 it carried with the number of each stack, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with
 `--layout`. `save.json` also holds the progress in the level: the game time, the party, its mana, spells and items when
 it was saved, where the player was, where they looked and how they moved, how far each door was open and where it
-moved, and what each chest held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older version of the game may
-give another level, or be refused if the save format changed; a `save.json` whose level has other numbers of doors or
-chests than the level generated again can't be loaded.
+moved, and what each chest held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older
+version of the game may give another level, or be refused if the save format changed; a `save.json` whose level has
+other numbers of doors or chests than the level generated again can't be loaded.
 
 A run with `--exec` or `--screenshot` (see the Console section of [DEBUGGING.md](DEBUGGING.md#console)) never saves,
 not even the levels reached after its commands or when it quits, so that test runs don't replace the player's saves.

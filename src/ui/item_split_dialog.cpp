@@ -124,7 +124,10 @@ void ItemSplitDialog::change_by(int step) {
 
 void ItemSplitDialog::set_from_slider(float x, const PixelSize& picture) {
     const Rect track = slider(picture);
-    const double fraction = std::clamp(static_cast<double>((x - track.top_left.x) / track.size.x), 0.0, 1.0);
+    // As the knob is drawn, see add_to(): its middle is at the place of the number, so a press on it keeps the number.
+    const float knob_width = kKnobWidth * ui_scale(picture);
+    const float offset = x - track.top_left.x - (knob_width / 2.0f);
+    const double fraction = std::clamp(static_cast<double>(offset / (track.size.x - knob_width)), 0.0, 1.0);
     // In double, which holds every int exactly, unlike float, and clamped against rounding.
     const long long amount = 1 + std::llround(fraction * static_cast<double>(max_count_ - 1));
     amount_ = static_cast<int>(std::clamp(amount, 1LL, static_cast<long long>(max_count_)));

@@ -330,7 +330,8 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   item's name and weight and the total weight; activating a chest shows the chest's grid next to the party's, with a
   Take all button (T). Items are moved by selecting them and clicking an empty cell, which puts them at the end of that
   grid, with Enter, or, with a chest open, by double clicking them; there is no drag and drop. The console has `items`,
-  `inventory`, `give`, `chests` and `open`.
+  `inventory`, `give`, `chests` and `open`. (Since Stacking of items below, a cell holds a stack of items of a kind,
+  and saves store the number of each stack.)
 - **Game settings in data files** (see [DECISIONS.md](DECISIONS.md)): besides the items, `data/` holds `spells.json`
   (the names, costs and durations of the spells), `level_layouts.json` (the settings of the room and debug layouts,
   such as the number of layers, and their probabilities) and `constants.json` (the player's size and speeds, the
