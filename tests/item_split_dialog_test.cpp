@@ -78,6 +78,11 @@ TEST(ItemSplitDialogTest, TheSliderChoosesTheNumberAtThePointerWhileItIsDragged)
     dialog.handle(PointerEvent{.action = PointerAction::kMove, .position = {slider.top_left.x + 1000.0f, y}}, kPicture);
     EXPECT_EQ(dialog.amount(), 11);
     dialog.handle(PointerEvent{.action = PointerAction::kRelease, .position = {0.0f, y}}, kPicture);
+    // A press on the middle of the knob keeps the number.
+    const float knob_middle = slider.top_left.x + slider.size.x - (ItemSplitDialog::kKnobWidth * 1.5f / 2.0f);
+    ItemSplitDialog large("Pebble", 1000);
+    large.handle(press({knob_middle, y}), kPicture);
+    EXPECT_EQ(large.amount(), 1000);
     dialog.handle(PointerEvent{.action = PointerAction::kMove, .position = {slider.top_left.x, y}}, kPicture);
     EXPECT_EQ(dialog.amount(), 11);
 }

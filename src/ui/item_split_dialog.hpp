@@ -44,15 +44,15 @@ public:
     static constexpr const char* kCancelLabel = "Cancel";
 
     /// \param item_name The name of the item, which the panel shows.
-    /// \param max_count How many items the stack has, at least 2.
+    /// \param max_count How many items the stack has, at least 1, though InventoryScreen only asks for 2 or more.
     ItemSplitDialog(std::string item_name, int max_count);
 
     /// The number of items to move, from 1 to max_count().
     int amount() const { return amount_; }
     int max_count() const { return max_count_; }
 
-    /// Handles an event, with the panel laid out over a picture of `picture` size. The I and T keys do nothing, so
-    /// that the screen that opened it can handle them.
+    /// Handles an event, with the panel laid out over a picture of `picture` size. The I and T keys do nothing:
+    /// InventoryScreen handles I itself, and leaves T out while the dialog is open.
     SplitAction handle(const UiEvent& event, const PixelSize& picture);
 
     /// Adds the panel, laid out over a picture of `picture` size, to `mesh`.
