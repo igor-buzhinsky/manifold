@@ -34,12 +34,13 @@ portal stand still. It has these items:
   used for its first level.
 - **Load game**: load the game as it was at the last autosave or exit, as F9 does. It is greyed out if there is no
   `save.json`.
-- **Restart level**: start the saved level again from its start (`save_level_start.json`). `save.json` is replaced
-  only by the next autosave or on exit, so until then, Load game undoes it. It is greyed out if there is no such save.
+- **Restart last level**: start the saved level again from its start (`save_level_start.json`). `save.json` is
+  replaced only by the next autosave or on exit, so until then, Load game undoes it. It is greyed out if there is no
+  such save.
 - **Exit game**: quit the game, which saves it.
 
 When the game starts and there is a save, it asks on a black screen whether to **Continue** the saved game where it
-was left, to **Continue from level start**, to start a **New game**, which replaces both saves once it is chosen, or
+was left, to **Restart last level** from its start, to start a **New game**, which replaces both saves once it is chosen, or
 to **Exit game**, which keeps them. Escape doesn't leave this menu. Closing it otherwise, with the `menu` command, also
 starts the new game and replaces the saves. A save that can't be read, e.g. one of an older version of the game, isn't
 offered: its item is greyed out, and if neither save can be read, a new game starts, as without a save, and replaces
@@ -208,7 +209,7 @@ The game keeps two saves, both in the game's data directory: `$XDG_DATA_HOME/man
   `autosave` and `autosave_interval` in Settings above) and when the game quits, by Exit game, Ctrl+Q or closing the
   window. F9, Load game and Continue load it.
 - `save_level_start.json` holds the start of the level the player is in, and is written only when a level starts.
-  Restart level and Continue from level start load it. They don't replace `save.json` at once: the next autosave
+  Restart last level, in both menus, loads it. It doesn't replace `save.json` at once: the next autosave
   does, one autosave interval of play later, or quitting the game does, and until then, F9 or Load game goes back to
   where the player was before. With `autosave` off, `save.json` stays until the game quits or the next level starts.
 

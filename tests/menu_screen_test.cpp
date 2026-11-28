@@ -77,7 +77,7 @@ TEST(MenuScreenTest, GameMenuWithoutASaveCantLoad) {
     EXPECT_EQ(click(*menu, 2), std::nullopt);
     EXPECT_EQ(click(*menu, 3), std::nullopt);
     menu->handle(NavKey::kDown, kPicture);
-    menu->handle(NavKey::kDown, kPicture);  // Over Load game and Restart level to Exit game.
+    menu->handle(NavKey::kDown, kPicture);  // Over Load game and Restart last level to Exit game.
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kExit);
 }
 

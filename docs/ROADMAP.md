@@ -348,9 +348,9 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   `settings.json`) and when the game quits; `save_level_start.json` holds the start of the level, as the one save did
   before. Both have the same format, version 5: `save.json` adds a `progress` object (`LevelProgress`) with the game
   time, the party, its magic and items, the player's position, view and velocity, the state of each door and the items
-  of each chest, which `Game::load()` puts back after generating the level again. Continue and Continue from level
-  start in the start menu, Load game (F9) and Restart level in the game menu, and `load [level_start]` load them.
-  Loading the start of the level leaves `save.json` until the next autosave or the exit, so F9 undoes a restart.
+  of each chest, which `Game::load()` puts back after generating the level again. Continue in the start menu, Load
+  game (F9) in the game menu, Restart last level in both, and `load [level_start]` load them. Loading the start of the
+  level leaves `save.json` until the next autosave or the exit, so F9 undoes a restart.
   Each file is written to a `.tmp` file first, which then replaces it.
 
 ## Later (unordered)

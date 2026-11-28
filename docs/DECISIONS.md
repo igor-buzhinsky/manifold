@@ -947,7 +947,7 @@ an optional `progress` object: the game time, the party, its magic and items, th
 whether they stand, the state of each door (openness and target) and the item keys of each chest, by their index in the
 level. Loading generates the level again from its seed, as before, and then puts the progress back; a progress whose
 numbers of doors or chests differ from the level's is refused. The start menu offers Continue (`save.json`) and
-Continue from level start; the game menu has Load game (also F9) and Restart level, and the console `load
+Restart last level; the game menu has Load game (also F9) and Restart last level, and the console `load
 [level_start]`. Loading the start of the level writes nothing: `save.json` is replaced by the next autosave, an
 autosave interval later, or on exit, so until then, loading it undoes a restart chosen by mistake. Saves are written on
 the main thread, each to a `.tmp` file that is then renamed over the old one; autosaves aren't logged, nor are those
@@ -970,16 +970,16 @@ Rejected alternatives:
 - **Two formats, or a new version**: the progress only adds to what a save of the start of a level holds, so one format
   with an optional object reads both, and keeps the old saves.
 - **Saving only the progress in `save.json`, without the start of its level**: loading it couldn't give the start of
-  the level for the next `save_level_start.json` or Restart level, unless both files were always read together.
+  the level for the next `save_level_start.json` or Restart last level, unless both files were always read together.
 - **Writing on a worker thread**: the file is about 10 to 40 KB in a rooms level (most of it the doors), which takes well
   under a millisecond to write, and a thread would need a copy of the state and care when the game quits while writing.
 - **Timing autosaves by wall-clock time**: they would rewrite the same state while the game is paused.
 - **`fsync` before the rename**: it can take tens of milliseconds on a slow disk, every 10 s on the main thread. The
   rename alone keeps the old save if the game stops while writing; only a power loss right after it can lose both.
 - **Saving by hand (quick save)**: autosaves and the save on exit make it less needed; it can be added later.
-- **Replacing `save.json` at once when the start of the level is loaded**: one misclick on Restart level, right below
+- **Replacing `save.json` at once when the start of the level is loaded**: one misclick on Restart last level, right below
   Load game, would throw away the progress in the level for good.
-- **A confirmation for Restart level**: an extra step every time, while keeping `save.json` until the next autosave
+- **A confirmation for Restart last level**: an extra step every time, while keeping `save.json` until the next autosave
   makes a mistake easy to undo with F9.
 
 Drawbacks:
