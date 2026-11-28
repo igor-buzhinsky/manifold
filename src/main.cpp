@@ -1265,7 +1265,7 @@ public:
         }
         profile_.emplace(static_cast<std::size_t>(*state.profile));
         state.profile.reset();
-        gpu_timer_.collect();  // Drops what frames before the profile measured.
+        gpu_timer_.reset();  // Drops what frames before the profile measured.
     }
 
     /// Marks the start of drawing the frame.
@@ -1286,7 +1286,7 @@ public:
 
     /// Adds the phases of the frame that was just shown, and logs the summary if the profile is done.
     ///
-    /// \param frame_start When the frame started, from SDL_GetTicksNS().
+    /// \param frame_start When the main loop's iteration of the frame started, from SDL_GetTicksNS().
     /// \param viewport    Where the game was drawn.
     /// \param vsync       Whether showing the frame waited for the screen.
     /// \param stats       What the renderer did in the frame.
@@ -1304,7 +1304,8 @@ public:
         for (const float gpu : gpu_timer_.collect()) {
             profile_->add(manifold::FramePhase::kGpu, gpu);
         }
-        // Handling the events after showing the frame takes little time, so the frame ends here.
+        // Handling the events after showing the frame takes little time, so the frame ends here, see
+        // FramePhase::kFrame.
         profile_->add(manifold::FramePhase::kFrame, seconds(frame_start, end));
         if (profile_->done()) {
             manifold::log_info("{}", profile_->summary(std::format(
@@ -1523,12 +1524,14 @@ void run(const Options& options) {
     bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
+        const std::uint64_t loop_start = SDL_GetTicksNS();
         apply_requests(ui, state, level, game, options.layout);
         for (const std::string& line : terminal.read_lines()) {
             commands.add(line, false);
         }
         commands.run_frame(console);
         window.set_vsync(state.vsync);
+        state.vsync = window.vsync();  // As it is if setting it failed.
         profiler.start(state);
 
         const std::uint64_t ticks = SDL_GetTicksNS();
@@ -1585,7 +1588,7 @@ void run(const Options& options) {
             break;
         }
         window.swap_buffers();
-        profiler.end_frame(ticks, viewport, state.vsync, render_stats);
+        profiler.end_frame(loop_start, viewport, state.vsync, render_stats);
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
         // overlay gets no events then.
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());

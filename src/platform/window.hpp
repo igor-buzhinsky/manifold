@@ -61,8 +61,11 @@ public:
     void swap_buffers();
 
     /// Turns vsync on, as it is at first, or off, e.g. to measure how fast frames can be drawn. Does nothing if it is
-    /// on or off already.
+    /// on or off already. Logs a warning if it fails, and vsync() then stays as it was.
     void set_vsync(bool on);
+
+    /// Whether vsync is on, as far as it is known.
+    bool vsync() const { return vsync_; }
 
     /// The SDL window, e.g. for the debug overlay. It lives as long as this object.
     SDL_Window* sdl_window() const { return window_; }

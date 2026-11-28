@@ -123,10 +123,11 @@ void Window::set_vsync(bool on) {
     if (on == vsync_) {
         return;
     }
-    vsync_ = on;
     if (!SDL_GL_SetSwapInterval(on ? 1 : 0)) {
         log_warning("Setting vsync {} failed: {}", on ? "on" : "off", SDL_GetError());
+        return;
     }
+    vsync_ = on;
 }
 
 }  // namespace manifold

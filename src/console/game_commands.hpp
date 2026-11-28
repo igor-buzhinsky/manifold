@@ -76,7 +76,7 @@ struct ConsoleState {
     bool debug_overlay = false;                  ///< Whether the debug overlay is shown.
     bool vsync = true;                           ///< Whether showing a frame waits for the screen.
     /// For how many frames to measure the phases of frames, as the `profile` command asks, or nothing. The main loop
-    /// starts the profile at the start of the next frame and resets this.
+    /// starts the profile right after running the commands, so it measures their frame too, and resets this.
     std::optional<int> profile;
     /// For how many more frames the player walks forward as if W were held, see the `walk` and `run` commands. The
     /// main loop counts it down.

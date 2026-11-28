@@ -11,8 +11,10 @@ namespace manifold {
 
 /// A part of a frame whose duration FrameProfile measures.
 enum class FramePhase : std::uint8_t {
-    kFrame,   ///< The whole frame, from the start of one to the start of the next.
-    kUpdate,  ///< Game logic: input, Game::update(), sounds and the like, before drawing.
+    /// The whole frame, from the start of the main loop's iteration to the end of showing the picture. Handling the
+    /// events after that, which takes little time, is left out.
+    kFrame,
+    kUpdate,  ///< Everything before drawing: console commands, input, Game::update(), sounds, saves and the like.
     kDraw,    ///< Issuing the OpenGL calls of the picture on the CPU, without waiting for the GPU.
     kGpu,     ///< The GPU's work on the picture, measured with timer queries.
     kSwap,    ///< Showing the picture: waiting for the GPU to finish and, with vsync, for the screen.

@@ -33,6 +33,10 @@ public:
     /// Durations in seconds of the measurements that the GPU finished since the last call, oldest first.
     std::vector<float> collect();
 
+    /// Drops all measurements, also those the GPU hasn't finished, which it waits for, so that collect() returns only
+    /// what begins after this. Must not be called between begin() and end().
+    void reset();
+
 private:
     static constexpr std::size_t kQueries = 4;
 

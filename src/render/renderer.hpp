@@ -35,7 +35,9 @@ struct RenderStats {
     std::size_t lights = 0;             ///< Lights drawn.
     std::size_t shadowed_lights = 0;    ///< Lights drawn that have a shadow map.
     std::size_t shadow_maps_drawn = 0;  ///< Shadow maps drawn (again) before the picture.
-    std::size_t triangles = 0;          ///< Triangles of the world, the chests, the torch handles and the doors drawn.
+    /// Triangles of the world, the chests, the torch handles and the doors, counted once also when they are drawn
+    /// more than once, e.g. in the depth pre-pass.
+    std::size_t triangles = 0;
 };
 
 /// Draws the world and the torch flames with OpenGL, with shadows from the lights that cast them.

@@ -51,4 +51,14 @@ std::vector<float> GpuTimer::collect() {
     return seconds;
 }
 
+void GpuTimer::reset() {
+    for (std::size_t i = 0; i < kQueries; ++i) {
+        if (pending_[i]) {
+            GLuint64 nanoseconds = 0;
+            glGetQueryObjectui64v(queries_[i], GL_QUERY_RESULT, &nanoseconds);  // Waits for the GPU.
+            pending_[i] = false;
+        }
+    }
+}
+
 }  // namespace manifold

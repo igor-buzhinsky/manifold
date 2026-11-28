@@ -158,10 +158,12 @@ start with `+` or `-`. `--screenshot FILE.png` is short for `--exec "screenshot 
 
 `profile FRAMES` measures the next FRAMES frames and then logs, for each phase of a frame, the mean, median, 95th
 percentile and longest duration in milliseconds, with the frames per second, the size of the picture, whether vsync
-is on, the lights drawn and the triangles of the world, the chests, the torch handles and the doors:
+is on, and the lights and the triangles (of the world, the chests, the torch handles and the doors) of the last picture
+of the game. The profile measures the frame of the command and the next ones:
 
-- **frame**: the whole frame.
-- **update**: the game logic before drawing: input, the game's update with the player's movement, sounds and saves.
+- **frame**: the whole frame, without handling the events at its end, which takes little time.
+- **update**: everything before drawing: the console commands, input, the game's update with the player's movement,
+  sounds and saves.
 - **draw**: issuing the OpenGL calls of the picture and the overlays on the CPU.
 - **gpu**: the GPU's work on the same, measured with timer queries. Its results come in a frame or two late, so a
   profile of very few frames may have fewer of them, or none.

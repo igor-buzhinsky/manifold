@@ -435,8 +435,8 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                         throw CommandError("frames must be positive: " + arguments[0]);
                     }
                     state.profile = frames;
-                    // The profile starts in the next frame and logs its summary at the end of its last frame.
-                    queue.wait(frames + 1);
+                    // The profile measures this frame and the next ones, and logs its summary at the end of the last.
+                    queue.wait(frames);
                 });
     add_switch(console, "imgui", "Debug overlay",
                "Shows or hides the debug overlay, which tunes the lights and shows how the game runs.",
