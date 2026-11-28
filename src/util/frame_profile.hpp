@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace manifold {
@@ -17,11 +18,14 @@ enum class FramePhase : std::uint8_t {
     kUpdate,  ///< Everything before drawing: console commands, input, Game::update(), sounds, saves and the like.
     kDraw,    ///< Issuing the OpenGL calls of the picture on the CPU, without waiting for the GPU.
     kGpu,     ///< The GPU's work on the picture, measured with timer queries.
-    kSwap,    ///< Showing the picture: waiting for the GPU to finish and, with vsync, for the screen.
+    /// Showing the picture: waiting for the GPU to finish and, with vsync, for the screen. Also taking the screenshots
+    /// of the frame, if any, whose GPU work kGpu leaves out.
+    kSwap,
 };
 
 /// How many kinds of FramePhase there are.
 inline constexpr std::size_t kFramePhaseCount = 5;
+static_assert(static_cast<std::size_t>(FramePhase::kSwap) + 1 == kFramePhaseCount, "kSwap must be the last phase");
 
 /// The name of a phase in the summary of FrameProfile, e.g. "update".
 std::string_view frame_phase_name(FramePhase phase);

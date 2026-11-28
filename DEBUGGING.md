@@ -167,7 +167,8 @@ of the game. The profile measures the frame of the command and the next ones:
 - **draw**: issuing the OpenGL calls of the picture and the overlays on the CPU.
 - **gpu**: the GPU's work on the same, measured with timer queries. Its results come in a frame or two late, so a
   profile of very few frames may have fewer of them, or none.
-- **swap**: showing the picture, which waits for the GPU to finish and, with vsync, for the screen.
+- **swap**: showing the picture, which waits for the GPU to finish and, with vsync, for the screen. Screenshots taken
+  in the frame count here, with their GPU work, which gpu leaves out.
 
 If gpu is about as long as frame, the GPU limits the frame rate, and swap shows the CPU waiting for it. With vsync on,
 frames take at least a refresh of the screen, so `vsync off` comes first, e.g. at the start of the level of seed 7,

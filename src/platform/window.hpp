@@ -21,7 +21,7 @@ constexpr int kGlMinorVersion = 1;
 class Window {
 public:
     /// Opens a window that can't be resized, or one that fills the screen, makes its OpenGL context current with
-    /// vsync on, and loads the OpenGL functions.
+    /// vsync on (or logs a warning if that fails), and loads the OpenGL functions.
     ///
     /// \param title      Text in the title bar.
     /// \param width      Width in screen units, which may differ from pixels on high-DPI screens.

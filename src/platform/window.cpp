@@ -81,7 +81,10 @@ Window::Window(const std::string& title, int width, int height, bool fullscreen)
             std::format("Loading OpenGL functions failed: got OpenGL {}.{}, but {}.{} core is needed", major, minor,
                         kGlMajorVersion, kGlMinorVersion));
     }
-    SDL_GL_SetSwapInterval(1);  // Vsync.
+    vsync_ = SDL_GL_SetSwapInterval(1);
+    if (!vsync_) {
+        log_warning("Turning vsync on failed: {}", SDL_GetError());
+    }
     log_info("OpenGL {}, {}", gl_string(GL_VERSION), gl_string(GL_RENDERER));
 }
 
