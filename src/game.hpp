@@ -16,9 +16,11 @@
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
 #include "level/texture_kind.hpp"
+#include "party/fall_damage.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
 #include "save/saved_game.hpp"
+#include "util/random.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
 #include "world/player.hpp"
@@ -47,6 +49,8 @@ struct GameConfig {
     PartyConfig party;
     /// The mana of a new party, how fast it comes back, and what spells cost and how long they last.
     MagicConfig magic;
+    /// How much landing from a fall hurts the characters.
+    FallDamageConfig fall_damage;
 };
 
 /// What the player wants to do during a frame, independent of the input device.
@@ -90,6 +94,13 @@ enum class Activation : std::uint8_t {
     kClosed,   ///< A door started to close.
     kRefused,  ///< The player looks at a door that can't start moving now, see Game::set_door_open().
     kChest,    ///< A chest was activated, see Game::take_chest_activations(), e.g. to show what it holds.
+};
+
+/// A landing that hurt the party, see Game::last_fall_impact().
+struct FallImpact {
+    double time = 0.0;   ///< When the player landed, in game time, see Game::time().
+    float speed = 0.0f;  ///< The vertical speed of the landing, in metres per second, positive downwards.
+    int damage = 0;      ///< The most damage that a character took, positive, see apply_fall_damage().
 };
 
 /// A door that started to open or to close, see Game::take_door_moves().
@@ -146,6 +157,11 @@ public:
     /// When `input.activate` becomes true, the player activates what they look at, and then, if `input.click` is set,
     /// what is in its direction, see activate(). Both happen after the player moved. The click's direction is not
     /// turned with the player, so it stays that of the picture that was clicked.
+    ///
+    /// Landing from a fall hurts the characters of the party who are alive, each by its own random damage of the
+    /// landing's vertical speed, see apply_fall_damage() and GameConfig::fall_damage. A landing that hurts is kept as
+    /// last_fall_impact(). The game goes on when the whole party is dead, see defeated(): the main loop shows the Game
+    /// over menu, which pauses it.
     ///
     /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
     ///
@@ -278,6 +294,11 @@ public:
     const Player& player() const { return player_; }
     /// The characters of the party, in the order of their portraits from the left.
     std::span<const Character> party() const { return party_; }
+    /// Whether all characters of the party are dead, so that the game is over, see party_defeated().
+    bool defeated() const { return party_defeated(party_); }
+    /// The last landing in this level that hurt the party, e.g. to flash the picture red, or nothing if none did since
+    /// the level started or was loaded.
+    const std::optional<FallImpact>& last_fall_impact() const { return last_fall_impact_; }
     /// The party's shared mana, and the spells in effect.
     const PartyMagic& magic() const { return magic_; }
     /// The settings of the magic, such as the names, costs and durations of the spells, see GameConfig::magic.
@@ -354,6 +375,10 @@ private:
     /// \param step_length   The length of a step of the frame's gait, kWalkStepLength or kRunStepLength, in metres.
     void count_footsteps(float walked, float landing_speed, float step_length);
 
+    /// Hurts the party by a landing at `impact_speed`, in metres per second, positive downwards, see update(). Without
+    /// a landing in the frame, `impact_speed` is 0, which doesn't hurt.
+    void land(float impact_speed);
+
     /// The blockers of the doors that are not passable, see Door::blocker().
     std::vector<Obstacle> door_blockers() const;
 
@@ -370,6 +395,10 @@ private:
     float jump_speed_;  ///< Take-off speed of a jump, in metres per second.
     PartyConfig party_config_;
     MagicConfig magic_config_;
+    FallDamageConfig fall_damage_config_;
+    /// Draws the damage of falls. It starts again from the level's seed in each level, so it isn't saved.
+    Rng fall_random_;
+    std::optional<FallImpact> last_fall_impact_;  ///< See last_fall_impact().
     bool noclip_ = false;
     bool rise_held_ = false;      ///< Whether input.rise was positive in the previous frame.
     bool activate_held_ = false;  ///< Whether input.activate was true in the previous frame.

@@ -26,4 +26,10 @@ std::unique_ptr<MenuScreen> make_start_menu(SavesToLoad saves);
 /// \param saves The saves there are. Load game and Restart last level are disabled without theirs.
 std::unique_ptr<MenuScreen> make_game_menu(SavesToLoad saves);
 
+/// The menu shown over the dimmed game once all characters of the party are dead, see Game::defeated(): Game over, with
+/// Restart last level (UiCommand::kLoadLevelStart), New game and Exit game. Escape doesn't leave it.
+///
+/// \param saves The saves there are. Restart last level is disabled without the save of the level's start.
+std::unique_ptr<MenuScreen> make_game_over_menu(SavesToLoad saves);
+
 }  // namespace manifold

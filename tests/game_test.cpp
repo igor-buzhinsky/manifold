@@ -377,6 +377,80 @@ TEST(GameTest, FootstepsStartAgainInTheNextLevel) {
     EXPECT_EQ(game.take_footsteps(), 0);
 }
 
+/// The hit points of each character of the game's party.
+std::vector<int> hps_of(const Game& game) {
+    std::vector<int> hps;
+    for (const Character& character : game.party()) {
+        hps.push_back(character.hp);
+    }
+    return hps;
+}
+
+/// Drops the player of `game` from `height` metres above the floor of an empty debug level, and lets them land.
+void drop(Game& game, float height) {
+    game.teleport({0.0f, 0.0f, height});
+    EXPECT_TRUE(run_until(game, {}, [&game] { return game.player().on_ground(); }));
+}
+
+TEST(GameTest, ALowFallDoesntHurt) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    // 3 m, at 7.7 m/s: as from the top of an obstacle of the debug layout.
+    drop(game, 3.0f);
+    EXPECT_EQ(hps_of(game), (std::vector<int>{100, 100, 100}));
+    EXPECT_FALSE(game.last_fall_impact().has_value());
+}
+
+TEST(GameTest, AHighFallHurtsEachCharacterByItsOwnDamage) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    // 10 m, at 14 m/s: about half the hit points of each, from 35% to 65% with the spread.
+    drop(game, 10.0f);
+    const std::vector<int> hps = hps_of(game);
+    for (const int hp : hps) {
+        EXPECT_GT(hp, 35);
+        EXPECT_LT(hp, 75);
+    }
+    EXPECT_FALSE(hps[0] == hps[1] && hps[1] == hps[2]);
+    const std::optional<FallImpact>& impact = game.last_fall_impact();
+    ASSERT_TRUE(impact.has_value());
+    EXPECT_EQ(impact->damage, 100 - std::ranges::min(hps));
+    EXPECT_NEAR(impact->speed, std::sqrt(2.0f * game.level().gravity * 10.0f), 0.2f);
+    EXPECT_NEAR(impact->time, game.time(), 0.011);
+    EXPECT_FALSE(game.defeated());
+
+    // The same game gives the same damage.
+    Game same(make_config(), 1, LayoutKind::kDebug);
+    drop(same, 10.0f);
+    EXPECT_EQ(hps_of(same), hps);
+
+    // The next level forgets the impact.
+    game.next_level();
+    EXPECT_FALSE(game.last_fall_impact().has_value());
+}
+
+TEST(GameTest, AFallThatKillsEveryoneDefeatsTheParty) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.set_hp(1, 0);
+    EXPECT_FALSE(game.defeated());
+    drop(game, 14.0f);
+    // About 85 hit points each, so a character with 20 dies whatever the spread.
+    game.set_hp(0, 20);
+    game.set_hp(2, 20);
+    drop(game, 14.0f);
+    EXPECT_EQ(hps_of(game), (std::vector<int>{0, 0, 0}));
+    EXPECT_TRUE(game.defeated());
+    EXPECT_EQ(game.last_fall_impact()->damage, 20);
+}
+
+TEST(GameTest, FlyingDownDoesntHurt) {
+    Game game(make_config(), 1, LayoutKind::kDebug);
+    game.set_noclip(true);
+    game.update({.rise = 1.0f}, 5.0f);
+    run(game, {.rise = -1.0f}, 6.0f);
+    game.set_noclip(false);
+    run(game, {}, 0.5f);
+    EXPECT_EQ(hps_of(game), (std::vector<int>{100, 100, 100}));
+}
+
 TEST(GameTest, EachLevelHasTheTextureOfItsSeedAmongTheAssets) {
     GameConfig config = make_config();
     config.level.assets.set(AssetKey::kGrassLevelTextures, 3);

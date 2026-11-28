@@ -434,6 +434,14 @@ void parse_constants(std::string_view json, std::string_view source, GameConfig&
     party.number("mana_regeneration", game.magic.mana_regeneration, kNonNegative);
     party.finish();
 
+    FieldReader falls = file.object("fall_damage");
+    falls.number("safe_speed", game.fall_damage.safe_speed, kNonNegative);
+    falls.number("full_damage_speed", game.fall_damage.full_damage_speed, kPositive);
+    falls.number("spread", game.fall_damage.spread, kFraction);
+    falls.order("safe_speed", game.fall_damage.safe_speed, "full_damage_speed", game.fall_damage.full_damage_speed,
+                true);
+    falls.finish();
+
     FieldReader objects = file.object("level_objects");
     LevelObjectChances& chances = game.level.object_chances;
     FieldReader flames = objects.object("torch_flames");

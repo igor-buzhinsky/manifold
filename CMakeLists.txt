@@ -80,6 +80,7 @@ add_library(manifold_core STATIC
     src/level/level.cpp
     src/level/room_layout.cpp
     src/level/texture_kind.cpp
+    src/party/fall_damage.cpp
     src/party/party.cpp
     src/party/spells.cpp
     src/physics/collision.cpp
@@ -98,6 +99,7 @@ add_library(manifold_core STATIC
     src/sim/movement_sim.cpp
     src/ui/button_list.cpp
     src/ui/crosshair.cpp
+    src/ui/damage_flash.cpp
     src/ui/game_menus.cpp
     src/ui/inventory_screen.cpp
     src/ui/item_grid.cpp
@@ -192,6 +194,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/console_test.cpp
         tests/console_window_test.cpp
         tests/crosshair_test.cpp
+        tests/damage_flash_test.cpp
         tests/door_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp
@@ -213,6 +216,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/mouse_look_test.cpp
         tests/movement_sim_test.cpp
         tests/overlay_mesh_test.cpp
+        tests/fall_damage_test.cpp
         tests/party_hud_test.cpp
         tests/spell_hud_test.cpp
         tests/party_test.cpp

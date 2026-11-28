@@ -15,6 +15,11 @@
     "max_mana": 100,
     "mana_regeneration": 1
   },
+  "fall_damage": {
+    "safe_speed": 8.0,
+    "full_damage_speed": 18.0,
+    "spread": 0.3
+  },
   "level_objects": {
     "torch_flames": {
       "orange": 0.5,

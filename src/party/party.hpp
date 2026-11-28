@@ -48,9 +48,16 @@ struct Character {
 
     /// The part of `max_hp` that is left, from 0 to 1. A character without `max_hp` has none left.
     float hp_fraction() const;
+    /// Whether the character is dead: it has no hit points left. Its portrait is then gray, and once all characters of
+    /// the party are dead, the game is over, see party_defeated().
+    bool dead() const { return hp <= 0; }
 
     bool operator==(const Character&) const = default;
 };
+
+/// Whether all characters of `party` are dead, see Character::dead(), so that the game is over. A party without
+/// characters isn't.
+bool party_defeated(std::span<const Character> party);
 
 /// Settings for a new party.
 struct PartyConfig {

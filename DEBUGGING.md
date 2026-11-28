@@ -127,7 +127,7 @@ it types can't be typed.
 | `next_level` | Start the next level, as if the player reached the exit, with the exit's sound. The commands after it run in the next frame, when the new level is set up. A camera put in place with `camera` stays where it is, so `camera player` brings the view back to the player |
 | `load [level_start]` | Load the saved game as it was at the last autosave or exit (`save.json`), as F9 does, or with `level_start`, from the start of its level (`save_level_start.json`), as Restart last level does, which leaves `save.json` until the next autosave or the exit. The commands after it run in the next frame, in the loaded level. Fails if there is no such save or it can't be read. As with `next_level`, a camera put in place with `camera` stays where it is, and a `walk` or `run` goes on in the loaded level |
 | `party` | Show the party's mana and the spells in effect with the seconds left of each, and list the characters of the party, from the left: their gender, hit points and portrait (its key in the asset mapping and its index there) |
-| `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink |
+| `hp N VALUE` | Set the hit points of character N (from 0, see `party`) to VALUE, from 0 to their maximum. A cheat, e.g. to see the red bar below the portrait shrink. 0 kills the character, whose portrait turns gray, and once all are dead, the Game over menu opens in the next frame. A dead character comes back to life with more |
 | `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells in [GAME_MANUAL.md](GAME_MANUAL.md#spells)), with its sound. Fails if the party has less mana than it costs |
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
 | `items` | List all kinds of items: their keys, names, weights, values and chances, see [Items](#items) |
@@ -143,7 +143,7 @@ it types can't be typed.
 | `lighting [on\|off]` | Turn lights off to see the plain texture colors, or on again |
 | `shadows [on\|off]` | Turn shadows off or on |
 | `imgui [on\|off]` | Show or hide the debug overlay, like F3 |
-| `menu start\|game\|close` | Show the start menu or the game menu (see Menus in [GAME_MANUAL.md](GAME_MANUAL.md#menus)) instead of the open menus, or close them. The commands after it run in the next frame, when the menu is open, so that a screenshot shows it. The game is paused while a menu is open, but commands still run |
+| `menu start\|game\|close` | Show the start menu or the game menu (see Menus in [GAME_MANUAL.md](GAME_MANUAL.md#menus)) instead of the open menus, or close them. The commands after it run in the next frame, when the menu is open, so that a screenshot shows it. The game is paused while a menu is open, but commands still run. While the whole party is dead, the Game over menu opens again after `close` |
 | `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window, in full screen the whole screen in its pixels, with black bars if it isn't 16:9. The commands after it run in the next frame, so they don't change the picture. The game goes on for that frame, as with `wait 1`. Other sizes keep the 16:9 view, with black bars |
 | `wait FRAMES` | Run the next commands this many frames later: with 1 in the next frame. E.g. to let the player fall |
 | `quit` | Quit the game after this frame, without running the commands after it |

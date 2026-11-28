@@ -54,6 +54,11 @@ Menus are used with the keys or the mouse:
 | Enter or Space | Choose the highlighted item |
 | Mouse | Pointing at an item highlights it, and clicking it with the left button chooses it |
 
+Once all characters of the party are dead (see Party below), the **Game over** menu pauses the darkened game. It offers
+to **Restart last level** from its start, as the game menu does, to start a **New game**, or to **Exit game**. Escape
+doesn't leave it. While the whole party is dead, the game isn't saved, so `save.json` keeps the game as it was at the
+last autosave before, and Continue in the start menu returns there after Exit game.
+
 The console can be opened over a menu; while it is open, the menu gets no keys or clicks. The `load` command closes
 the menus, as Load game does. The debug overlay (F3) can't be used while a menu is open, and isn't shown over the
 start menu.
@@ -125,9 +130,20 @@ type or value is skipped as a whole, with an error in the log. The settings are 
 
 The player leads a party of three characters, who move together. Their portraits are in the bottom-left corner of the
 screen, with a thin red bar below each that shows how many of the character's hit points are left. Each new game
-chooses the portraits at random, all different, and each character's gender goes with the portrait. Nothing lowers the
-hit points yet, except the `hp` cheat in the console. Clicking a portrait, or between them, does nothing yet, and doesn't activate what is behind it. If the game has fewer
+chooses the portraits at random, all different, and each character's gender goes with the portrait. Clicking a portrait, or between them, does nothing yet, and doesn't activate what is behind it. If the game has fewer
 portraits than characters, the last characters have an empty dark place instead.
+
+A character has 100 hit points, those of an ordinary person, and only falls take them away so far. Landing at more
+than 8 m/s, after a fall of more than about 3.3 m, as from one layer of rooms to the next, hurts:
+the faster the landing, the more, in proportion to its energy beyond that speed. A fall of 6.6 m takes about 25 hit
+points, one of 10 m about 50, and one of 16.5 m about 100. Each character gets its own share, up to 30% more or less
+than that, so a fall may kill one and spare another. Only the vertical speed counts, so a running jump hurts no more
+than a step off the same ledge, and weaker gravity makes the same fall gentler. Flying down with Levitate doesn't hurt,
+but a fall after it ends in the air does. The screen turns red for a moment when a landing hurts, the more the worse
+the damage.
+
+A character without hit points left is dead, and its portrait turns gray. Once all characters are dead, the game is
+over, see the Game over menu above.
 
 ## Spells
 
@@ -216,7 +232,7 @@ The game keeps two saves, both in the game's data directory: `$XDG_DATA_HOME/man
   `autosave` and `autosave_interval` in Settings above) and when the game quits, by Exit game, Ctrl+Q or closing the
   window. F9, Load game and Continue load it.
 - `save_level_start.json` holds the start of the level the player is in, and is written only when a level starts.
-  Restart last level, in both menus, loads it. It doesn't replace `save.json` at once: the next autosave
+  Restart last level, in each menu that has it, loads it. It doesn't replace `save.json` at once: the next autosave
   does, one autosave interval of play later, or quitting the game does, and until then, F9 or Load game goes back to
   where the player was before. With `autosave` off, `save.json` stays until the game quits or the next level starts.
 

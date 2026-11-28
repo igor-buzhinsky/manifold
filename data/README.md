@@ -24,6 +24,11 @@ here doesn't break them, except a test that these files load without problems or
     `max_snap_slope`, the steepest slope (height per horizontal distance) that the player sticks to when walking down.
   - `party`: the number of characters of a new party (`size`), their `max_hp`, and the party's `max_mana` and
     `mana_regeneration` per second. A loaded party keeps its own hit points and mana, and their maximums.
+  - `fall_damage`: how landing from a fall hurts each character (`FallDamageConfig` in
+    `src/party/fall_damage.hpp`): the fastest landing that doesn't hurt (`safe_speed`, in metres per second), the
+    landing speed that takes 100 hit points on average (`full_damage_speed`, faster than `safe_speed`), and the
+    `spread` of each character's damage around that of the speed, as a part of it from 0 to 1 (0.3: up to 30% more or
+    less). The damage grows with the square of the speed above `safe_speed`, and doesn't depend on `max_hp`.
   - `level_objects`: the weights of the flames of torches (`torch_flames`: `orange`, `blue`, `green`, which needn't add
     up to 1), the `golden_chest_chance`, and how a `wooden_chest` and a `golden_chest` are filled: how many items are
     drawn (`min_draws` to `max_draws`), which values the items may have (`min_item_value` to `max_item_value`), and the
