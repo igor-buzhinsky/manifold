@@ -1,5 +1,7 @@
 #include "ui/item_split_dialog.hpp"
 
+#include <limits>
+
 #include <glm/vec2.hpp>
 #include <gtest/gtest.h>
 
@@ -78,6 +80,23 @@ TEST(ItemSplitDialogTest, TheSliderChoosesTheNumberAtThePointerWhileItIsDragged)
     dialog.handle(PointerEvent{.action = PointerAction::kRelease, .position = {0.0f, y}}, kPicture);
     dialog.handle(PointerEvent{.action = PointerAction::kMove, .position = {slider.top_left.x, y}}, kPicture);
     EXPECT_EQ(dialog.amount(), 11);
+}
+
+TEST(ItemSplitDialogTest, TheNumberStaysInItsRangeForTheLargestStacks) {
+    for (const int max : {16777221, std::numeric_limits<int>::max()}) {
+        ItemSplitDialog dialog("Pebble", max);
+        dialog.handle(NavKey::kRight, kPicture);
+        dialog.handle(NavKey::kUp, kPicture);
+        EXPECT_EQ(dialog.amount(), max);
+        const Rect slider = dialog.slider(kPicture);
+        dialog.handle(press({slider.top_left.x + slider.size.x - 0.01f, middle(slider).y}), kPicture);
+        dialog.handle(PointerEvent{.action = PointerAction::kMove, .position = {slider.top_left.x + 1000.0f, 0.0f}},
+                      kPicture);
+        EXPECT_EQ(dialog.amount(), max);
+        dialog.handle(PointerEvent{.action = PointerAction::kMove, .position = {slider.top_left.x - 1000.0f, 0.0f}},
+                      kPicture);
+        EXPECT_EQ(dialog.amount(), 1);
+    }
 }
 
 TEST(ItemSplitDialogTest, PanelIsCenteredAndHoldsItsControls) {

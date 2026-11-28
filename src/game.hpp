@@ -188,8 +188,9 @@ public:
     /// magic and items, the player, the doors and what the chests hold become those of the progress. The player
     /// moves on as they moved then, e.g. falling, but footsteps start again as at the start of a level.
     ///
-    /// \throws std::runtime_error if the level can't be generated, or if the progress has another number of doors or
-    ///         chests than the level, e.g. since level generation changed. The current level then stays.
+    /// \throws std::runtime_error if the level can't be generated, if the progress has another number of doors or
+    ///         chests than the level, e.g. since level generation changed, or if the saved stacks of a kind of item
+    ///         have more items together than a stack can hold (std::overflow_error). The current level then stays.
     void load(const SavedGame& save);
 
     /// What a save of the start of this level holds, to start it again with load(): the level, the party, its magic
