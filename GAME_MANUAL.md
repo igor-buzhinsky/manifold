@@ -180,7 +180,7 @@ inventory alone, without a chest, never asks. Take all moves everything without 
 | Enter or Space | With a chest open: move the selected stack to the other grid, and select the stack that comes into its place, or keep the rest selected if only some of its items moved |
 | T, or the Take all button | Move all items of the chest to the party's, in their order |
 | Mouse wheel | Scroll the grid under the pointer. Each grid has an empty cell after its stacks, so that a stack can always be put there |
-| Escape or I | Close the inventory |
+| Escape or I | Close the inventory. While the dialog that asks how many items to move is open, Escape only closes the dialog |
 
 ## Levels
 
@@ -229,10 +229,10 @@ that stops while saving keeps the old save.
 Both saves hold the seed of the level, how many levels came before it, the game time at its start, the party as it was
 then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets),
 gender and hit points, the party's mana and the spells in effect with the time left of each, and the keys of the items
-it carried with the number of each stack, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with `--layout`. `save.json` also
-holds the progress in the level: the game time, the party, its mana, spells and items when it was saved, where the
-player was, where they looked and how they moved, how far each door was open and where it moved, and what each chest
-held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older version of the game may
+it carried with the number of each stack, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with
+`--layout`. `save.json` also holds the progress in the level: the game time, the party, its mana, spells and items when
+it was saved, where the player was, where they looked and how they moved, how far each door was open and where it
+moved, and what each chest held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older version of the game may
 give another level, or be refused if the save format changed; a `save.json` whose level has other numbers of doors or
 chests than the level generated again can't be loaded.
 

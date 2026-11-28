@@ -34,10 +34,16 @@ constexpr glm::vec4 kCountColor{1.0f, 0.6f, 0.15f, 1.0f};
 constexpr glm::vec4 kCountShadowColor{0.0f, 0.0f, 0.0f, 0.85f};
 /// Height of a digit of the font at scale 1, in interface pixels.
 constexpr float kDigitHeight = 7.0f;
-/// From one character of the number of a stack to the next at scale 1: a digit is 4 interface pixels wide, and 1 is
-/// between two.
+/// From one character of the number of a stack to the next at scale 1: a digit, `k` and `B` are 4 interface pixels
+/// wide, and 1 is between two. `M` is 5 wide, which only the last character can be.
 constexpr float kCountAdvance = 5.0f;
 constexpr float kCountSpacing = 1.0f;
+
+/// The width of the number of a stack at scale 1, see format_stack_count().
+float count_width(const std::string& text) {
+    const float last = text.back() == 'M' ? kCountAdvance : kCountAdvance - kCountSpacing;
+    return (static_cast<float>(text.size() - 1) * kCountAdvance) + last;
+}
 /// Between the number of a stack and the right and bottom edges of its cell, at scale 1, as wide as its shadow, so
 /// that four characters fit, and the shadow ends at the edges.
 constexpr float kCountInset = 1.0f;
@@ -180,9 +186,11 @@ void ItemGrid::add_counts(OverlayMesh& mesh, const Placement& placement, std::sp
         }
         const std::string text = format_stack_count(stacks[cell].count);
         // The characters end kCountInset from the right and the bottom of the cell, with their shadow just inside it.
-        const auto width = (static_cast<float>(text.size()) * kCountAdvance) - kCountSpacing;
-        const glm::vec2 top_left =
+        const float width = count_width(text);
+        glm::vec2 top_left =
             rect->top_left + rect->size - (glm::vec2(width + kCountInset, kDigitHeight + kCountInset) * scale);
+        // Three digits and M fill the whole cell, and their shadow reaches into the gap after it.
+        top_left.x = std::max(top_left.x, rect->top_left.x);
         // One character at a time, closer together than OverlayMesh::add_text() puts them, so that four fit.
         for (std::size_t i = 0; i < text.size(); ++i) {
             const glm::vec2 at = top_left + glm::vec2(static_cast<float>(i) * kCountAdvance * scale, 0.0f);

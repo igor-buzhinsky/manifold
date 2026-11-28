@@ -190,10 +190,20 @@ void Game::load(const SavedGame& save) {
                 save.progress->doors.size(), save.progress->chests.size(), doors, chests));
         }
     }
+    // The items first, which can fail, so that a failure changes nothing.
+    Inventory start_inventory = items_of_stacks(level_config_.items, save.inventory, "the party");
+    Inventory progress_inventory;
+    std::vector<Inventory> chest_inventories;
+    if (save.progress) {
+        progress_inventory = items_of_stacks(level_config_.items, save.progress->inventory, "the party");
+        for (const std::vector<SavedItemStack>& chest : save.progress->chests) {
+            chest_inventories.push_back(items_of_stacks(level_config_.items, chest, "a chest"));
+        }
+    }
     time_ = save.time;
     party_ = save.party;
     magic_ = cut_spells(save.magic, magic_config_);
-    inventory_ = items_of_stacks(level_config_.items, save.inventory, "the party");
+    inventory_ = std::move(start_inventory);
     start_level(std::move(level), save.seed, save.level_number, save.layout);
     if (!save.progress) {
         return;
@@ -202,10 +212,8 @@ void Game::load(const SavedGame& save) {
     time_ = progress.time;
     party_ = progress.party;
     magic_ = cut_spells(progress.magic, magic_config_);
-    inventory_ = items_of_stacks(level_config_.items, progress.inventory, "the party");
-    for (std::size_t i = 0; i < progress.chests.size(); ++i) {
-        chest_inventories_[i] = items_of_stacks(level_config_.items, progress.chests[i], "a chest");
-    }
+    inventory_ = std::move(progress_inventory);
+    chest_inventories_ = std::move(chest_inventories);
     doors_ = progress.doors;
     player_.set_position(progress.player.position);
     player_.set_view(progress.player.yaw, progress.player.pitch);

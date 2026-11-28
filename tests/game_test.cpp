@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <stdexcept>
@@ -1315,6 +1316,24 @@ TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
     const std::string log = testing::internal::GetCapturedStderr();
     EXPECT_EQ(game.inventory(), Inventory({kPebble, kCrown, kCrown, kPebble}));
     EXPECT_NE(log.find("[warning] The saved item unicorn is unknown"), std::string::npos) << log;
+}
+
+TEST(GameTest, LoadingStacksThatOverflowChangesNothing) {
+    GameConfig config = make_config();
+    config.level.items = make_test_items();
+    Game game(config, 3, LayoutKind::kDebug);
+    game.inventory().add(kCrown);
+    game.set_hp(0, 1);
+    const SavedGame before = game.progress_save();
+    SavedGame save = before;
+    save.party[0].hp = save.party[0].max_hp;
+    save.inventory = {{.key = "pebble", .count = std::numeric_limits<int>::max()}, {.key = "pebble"}};
+    EXPECT_THROW(game.load(save), std::overflow_error);
+    save.inventory = {};
+    save.progress->party[0].hp = save.progress->party[0].max_hp;
+    save.progress->chests[0] = {{.key = "pebble", .count = std::numeric_limits<int>::max()}, {.key = "pebble"}};
+    EXPECT_THROW(game.load(save), std::overflow_error);
+    EXPECT_EQ(game.progress_save(), before);
 }
 
 TEST(GameTest, LoadingCutsSpellsToTheirDurationAndMagicFollowsTheConfig) {

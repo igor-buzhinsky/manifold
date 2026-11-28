@@ -104,6 +104,13 @@ TEST(ItemGridTest, NumbersOfStacksOfMoreThanOneItemAreAtTheBottomRightOfTheirCel
         EXPECT_GE(vertex.position.x, 0.0f);
         EXPECT_LE(vertex.position.x, 20.0f);
     }
+    // M is wider: the number fills the cell, and only its shadow reaches into the gap after it.
+    OverlayMesh millions;
+    grid.add_counts(millions, placement, std::vector<ItemStack>{{.item = kPebble, .count = 123456789}});
+    for (const OverlayVertex& vertex : millions.vertices()) {
+        EXPECT_GE(vertex.position.x, 0.0f);
+        EXPECT_LE(vertex.position.x, 21.0f);
+    }
     glm::vec2 low{1e9f};
     glm::vec2 high{-1e9f};
     for (const OverlayVertex& vertex : counts.vertices()) {

@@ -116,12 +116,18 @@ std::optional<ItemSplitDialog::Control> ItemSplitDialog::control_at(const glm::v
     return std::nullopt;
 }
 
-void ItemSplitDialog::change_by(int step) { amount_ = std::clamp(amount_ + step, 1, max_count_); }
+void ItemSplitDialog::change_by(int step) {
+    // In long long, since the number can be the largest int.
+    amount_ =
+        static_cast<int>(std::clamp(static_cast<long long>(amount_) + step, 1LL, static_cast<long long>(max_count_)));
+}
 
 void ItemSplitDialog::set_from_slider(float x, const PixelSize& picture) {
     const Rect track = slider(picture);
-    const float fraction = std::clamp((x - track.top_left.x) / track.size.x, 0.0f, 1.0f);
-    amount_ = 1 + static_cast<int>(std::lround(fraction * static_cast<float>(max_count_ - 1)));
+    const double fraction = std::clamp(static_cast<double>((x - track.top_left.x) / track.size.x), 0.0, 1.0);
+    // In double, which holds every int exactly, unlike float, and clamped against rounding.
+    const long long amount = 1 + std::llround(fraction * static_cast<double>(max_count_ - 1));
+    amount_ = static_cast<int>(std::clamp(amount, 1LL, static_cast<long long>(max_count_)));
 }
 
 SplitAction ItemSplitDialog::handle_key(NavKey key) {
