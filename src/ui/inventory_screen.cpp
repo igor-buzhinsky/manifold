@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstddef>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <variant>
@@ -16,11 +17,13 @@
 #include "items/item_catalog.hpp"
 #include "render/viewport.hpp"
 #include "ui/item_grid.hpp"
+#include "ui/item_split_dialog.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/rect.hpp"
 #include "ui/screen.hpp"
 #include "ui/ui_event.hpp"
 #include "ui/ui_style.hpp"
+#include "util/log.hpp"
 
 namespace manifold {
 
@@ -170,13 +173,65 @@ void InventoryScreen::navigate(NavKey key) {
     }
 }
 
-void InventoryScreen::move_selected_to(std::size_t side) {
+const ItemSplitDialog* InventoryScreen::split_dialog() const {
+    if (!split_) {
+        return nullptr;
+    }
+    const Inventory& from = *sides_[split_->from.side].inventory;
+    if (split_->from.index >= from.size() || from.stacks()[split_->from.index].item != split_->item) {
+        return nullptr;
+    }
+    return &split_->dialog;
+}
+
+void InventoryScreen::move(ItemSelection from, std::size_t side, int count, bool select_moved) {
+    Inventory& source = *sides_[from.side].inventory;
+    const bool whole = count == source.stacks()[from.index].count;
+    std::size_t index = 0;
+    try {
+        index = move_items(source, from.index, count, *sides_[side].inventory);
+    } catch (const std::overflow_error&) {
+        log_warning("The stack of {} can't take {} more items", catalog_->at(source.stacks()[from.index].item).name,
+                    count);
+        return;
+    }
+    if (select_moved) {
+        select({.side = side, .index = index});
+    } else if (!whole) {
+        select(from);
+    } else if (source.empty()) {
+        selection_.reset();
+    } else {
+        // The stack after it comes into its place, or the one before it if it was the last.
+        select({.side = from.side, .index = std::min(from.index, source.size() - 1)});
+    }
+}
+
+void InventoryScreen::request_move(std::size_t side, bool select_moved) {
     const std::optional<ItemSelection> current = selection();
     if (!current) {
         return;
     }
-    const std::size_t index = move_item(*sides_[current->side].inventory, current->index, *sides_[side].inventory);
-    select({.side = side, .index = index});
+    const ItemStack stack = sides_[current->side].inventory->stacks()[current->index];
+    if (side == current->side || stack.count == 1) {
+        move(*current, side, stack.count, select_moved);
+        return;
+    }
+    split_.emplace(PendingSplit{.from = *current,
+                                .item = stack.item,
+                                .to_side = side,
+                                .select_moved = select_moved,
+                                .dialog = ItemSplitDialog(catalog_->at(stack.item).name, stack.count)});
+    take_all_hovered_ = false;
+    last_selecting_press_.reset();
+}
+
+void InventoryScreen::move_selected_to(std::size_t side) { request_move(side, true); }
+
+void InventoryScreen::move_selected_across() {
+    if (const std::optional<ItemSelection> current = selection(); current && sides_.size() == 2) {
+        request_move(1 - current->side, false);
+    }
 }
 
 void InventoryScreen::take_all() {
@@ -186,27 +241,39 @@ void InventoryScreen::take_all() {
     Inventory& container = *sides_[0].inventory;
     Inventory& party = *sides_[party_side()].inventory;
     while (!container.empty()) {
-        move_item(container, 0, party);
+        try {
+            move_stack(container, 0, party);
+        } catch (const std::overflow_error&) {
+            log_warning("The stack of {} can't take {} more items", catalog_->at(container.stacks()[0].item).name,
+                        container.stacks()[0].count);
+            break;
+        }
     }
     if (selection_ && selection_->side == 0) {
         selection_.reset();
     }
 }
 
-void InventoryScreen::move_selected_across() {
-    const std::optional<ItemSelection> current = selection();
-    if (!current || sides_.size() < 2) {
-        return;
+std::optional<UiCommand> InventoryScreen::handle_split(const UiEvent& event, const PixelSize& picture) {
+    if (const NavKey* key = std::get_if<NavKey>(&event); key != nullptr && *key == NavKey::kInventory) {
+        return UiCommand::kResume;
     }
-    const std::size_t from = current->side;
-    move_item(*sides_[from].inventory, current->index, *sides_[1 - from].inventory);
-    // The item after it comes into its place, or the one before it if it was the last.
-    const std::size_t count = sides_[from].inventory->size();
-    if (count == 0) {
-        selection_.reset();
-    } else {
-        select({.side = from, .index = std::min(current->index, count - 1)});
+    if (!split_) {
+        return std::nullopt;
     }
+    const SplitAction action = split_->dialog.handle(event, picture);
+    if (action == SplitAction::kNone) {
+        return std::nullopt;
+    }
+    const PendingSplit split = std::move(*split_);
+    split_.reset();
+    if (action == SplitAction::kMove) {
+        // At most what the stack has, which a console command may have changed.
+        const int count =
+            std::min(split.dialog.amount(), sides_[split.from.side].inventory->stacks()[split.from.index].count);
+        move(split.from, split.to_side, count, split.select_moved);
+    }
+    return std::nullopt;
 }
 
 std::optional<UiCommand> InventoryScreen::handle_key(NavKey key) {
@@ -254,34 +321,52 @@ void InventoryScreen::handle_pointer(const PointerEvent& pointer, const PixelSiz
         last_selecting_press_.reset();
         return;
     }
-    for (std::size_t side = 0; side < sides_.size(); ++side) {
-        const Side& target = sides_[side];
-        const std::optional<std::size_t> cell =
-            target.grid.cell_at(pointer.position, target.inventory->size(), grid_placement(side, picture));
-        if (!cell) {
-            continue;
-        }
-        const ItemSelection pressed{.side = side, .index = *cell};
-        if (*cell < target.inventory->size()) {
+    if (const std::optional<ItemSelection> pressed = cell_at(pointer.position, picture)) {
+        if (pressed->index < sides_[pressed->side].inventory->size()) {
             // Each second press of quick presses is a double click, if the press before selected this item. SDL also
             // counts presses on a neighbouring cell, or one that moved an item here, or one that opened the screen.
             const bool double_click = pointer.clicks % 2 == 0 && last_selecting_press_ == pressed;
-            select(pressed);
+            select(*pressed);
             last_selecting_press_ = pressed;
             if (double_click) {
                 move_selected_across();
                 last_selecting_press_.reset();
             }
         } else {
-            move_selected_to(side);
+            move_selected_to(pressed->side);
             last_selecting_press_.reset();
+            last_empty_press_ = pressed;
         }
         return;
     }
     last_selecting_press_.reset();
 }
 
+std::optional<ItemSelection> InventoryScreen::cell_at(const glm::vec2& point, const PixelSize& picture) const {
+    for (std::size_t side = 0; side < sides_.size(); ++side) {
+        const Side& target = sides_[side];
+        if (const std::optional<std::size_t> cell =
+                target.grid.cell_at(point, target.inventory->size(), grid_placement(side, picture))) {
+            return ItemSelection{.side = side, .index = *cell};
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<UiCommand> InventoryScreen::handle(const UiEvent& event, const PixelSize& picture) {
+    if (const auto* pointer = std::get_if<PointerEvent>(&event);
+        pointer != nullptr && pointer->action == PointerAction::kPress) {
+        // The second press of a double click on an empty cell would move the stack again, or, on the dialog that the
+        // first press opened, press what is there.
+        const std::optional<ItemSelection> empty = std::exchange(last_empty_press_, std::nullopt);
+        if (pointer->clicks % 2 == 0 && empty && cell_at(pointer->position, picture) == empty) {
+            return std::nullopt;
+        }
+    }
+    if (split_dialog() != nullptr) {
+        return handle_split(event, picture);
+    }
+    split_.reset();
     if (const NavKey* key = std::get_if<NavKey>(&event)) {
         return handle_key(*key);
     }
@@ -341,10 +426,13 @@ void InventoryScreen::add_to(OverlayMesh& mesh, const PixelSize& picture) const 
                       enabled ? kUiTextColor : kUiDisabledTextColor);
     }
 
-    // The selected item's name and weight on the last line.
+    // The selected stack's name, number of items and weight on the last line.
     if (selected) {
-        const ItemType& item = catalog_->at(sides_[selected->side].inventory->items()[selected->index]);
-        const std::string text = item.name + ", weight " + format_weight(item.weight);
+        const ItemStack& stack = sides_[selected->side].inventory->stacks()[selected->index];
+        const ItemType& item = catalog_->at(stack.item);
+        const std::string count = stack.count > 1 ? " x" + std::to_string(stack.count) : "";
+        const std::string text =
+            item.name + count + ", weight " + format_weight(static_cast<long long>(item.weight) * stack.count);
         const float text_y = below_grids + ((kButtonHeight + kGap) * scale);
         mesh.add_text({frame.top_left.x + (kPadding * scale), text_y}, text, scale, kUiTextColor);
     }
@@ -352,7 +440,18 @@ void InventoryScreen::add_to(OverlayMesh& mesh, const PixelSize& picture) const 
 
 void InventoryScreen::add_icons(std::vector<IconPlacement>& icons, const PixelSize& picture) const {
     for (std::size_t side = 0; side < sides_.size(); ++side) {
-        sides_[side].grid.add_icons(icons, grid_placement(side, picture), sides_[side].inventory->items());
+        sides_[side].grid.add_icons(icons, grid_placement(side, picture), sides_[side].inventory->stacks());
+    }
+}
+
+void InventoryScreen::add_over_icons(OverlayMesh& mesh, const PixelSize& picture) const {
+    for (std::size_t side = 0; side < sides_.size(); ++side) {
+        sides_[side].grid.add_counts(mesh, grid_placement(side, picture), sides_[side].inventory->stacks());
+    }
+    if (const ItemSplitDialog* dialog = split_dialog()) {
+        const glm::vec2 picture_size{static_cast<float>(picture.width), static_cast<float>(picture.height)};
+        mesh.add_rectangle({0.0f, 0.0f}, picture_size, kUiDimColor);
+        dialog->add_to(mesh, picture);
     }
 }
 

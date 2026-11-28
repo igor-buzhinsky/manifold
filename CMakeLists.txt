@@ -101,6 +101,7 @@ add_library(manifold_core STATIC
     src/ui/game_menus.cpp
     src/ui/inventory_screen.cpp
     src/ui/item_grid.cpp
+    src/ui/item_split_dialog.cpp
     src/ui/menu_screen.cpp
     src/ui/mouse_look.cpp
     src/ui/overlay_mesh.cpp
@@ -195,6 +196,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/game_commands_test.cpp
         tests/game_test.cpp
         tests/inventory_screen_test.cpp
+        tests/item_split_dialog_test.cpp
         tests/inventory_test.cpp
         tests/item_catalog_test.cpp
         tests/geometry_test.cpp

@@ -9,6 +9,7 @@
 #include "items/item_catalog.hpp"
 #include "render/viewport.hpp"
 #include "ui/item_grid.hpp"
+#include "ui/item_split_dialog.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/rect.hpp"
 #include "ui/screen.hpp"
@@ -26,18 +27,23 @@ struct ItemSelection {
 
 /// A screen over the dimmed game with the party's items in a grid, see ItemGrid, and, when a container such as a chest
 /// is open, the container's items in a grid to the left of it, each narrower. The game is paused while it is open.
+/// Items of a kind are in one stack, see Inventory, which takes one cell and shows its number of items.
 ///
-/// - A click on an item selects it, and the line at the bottom shows its name and weight. A click on an empty cell
-///   then moves the selected item to the end of that grid's inventory, which may be the same one, and the items after
-///   its old place move up; the item stays selected.
-/// - With a container open, a double click on an item moves it to the end of the other inventory, as Enter does
-///   with the selected item. Without one, it only selects the item. Only a press on the item that the press before
-///   selected counts as the second of a double click.
+/// - A click on a stack selects it, and the line at the bottom shows its name, number and weight. A click on an empty
+///   cell then moves the selected stack to the end of that grid's inventory, which may be the same one, and the stacks
+///   after its old place move up; the stack stays selected. In the other inventory, the items join the stack of their
+///   kind if there is one, which is then selected.
+/// - With a container open, a double click on a stack moves it to the other inventory, as Enter does with the selected
+///   stack. Without one, it only selects the stack. Only a press on the stack that the press before selected counts
+///   as the second of a double click. The second press of a double click on an empty cell does nothing.
+/// - A move of a stack of more than one item to the other inventory, by any of these, first opens an ItemSplitDialog
+///   over the screen, which asks how many of them to move, all by default. Without a container, stacks can't be
+///   split. While the dialog is open, it gets all events except I, which closes the screen.
 /// - The arrow keys move the selection in its grid, and Left and Right also from one grid to the other at their
-///   edges. With nothing selected, they select the first item. Enter moves the selected item to the end of the other
-///   inventory, and selects the item that comes into its place.
-/// - The mouse wheel scrolls the grid under the pointer, and the keys scroll to the selected item.
-/// - The Take all button, or T, moves all items of the container to the end of the party's, in their order.
+///   edges. With nothing selected, they select the first stack. Enter moves the selected stack to the other
+///   inventory, and selects the stack that comes into its place, or keeps it selected if only some of its items moved.
+/// - The mouse wheel scrolls the grid under the pointer, and the keys scroll to the selected stack.
+/// - The Take all button, or T, moves all items of the container to the party's, in their order, without asking.
 /// - Escape or I closes the screen (UiCommand::kResume).
 ///
 /// The party's grid shows the total weight of its items, see format_weight(); with a container open, the Take all
@@ -75,6 +81,8 @@ public:
     std::optional<UiCommand> handle(const UiEvent& event, const PixelSize& picture) override;
     void add_to(OverlayMesh& mesh, const PixelSize& picture) const override;
     void add_icons(std::vector<IconPlacement>& icons, const PixelSize& picture) const override;
+    /// The numbers of items of the stacks, and the ItemSplitDialog if it is open, over a dimmed screen.
+    void add_over_icons(OverlayMesh& mesh, const PixelSize& picture) const override;
     bool hides_game() const override { return false; }
     /// True, also for the party alone: the inventories of the level's containers are replaced by another level, and
     /// opening an inventory closes the one that is open (see ScreenStack::close_level_screens()) rather than stacking
@@ -90,9 +98,13 @@ public:
     /// \throws std::out_of_range if there is no such side.
     const ItemGrid& grid(std::size_t side) const { return sides_.at(side).grid; }
 
-    /// The selected item, if any. A selection that the inventory no longer has, e.g. after a console command took
+    /// The selected stack, if any. A selection that the inventory no longer has, e.g. after a console command took
     /// items, counts as none.
     std::optional<ItemSelection> selection() const;
+
+    /// The dialog that asks how many items of a stack to move, if it is open. One whose stack is no longer where it
+    /// was, e.g. after a console command took items, counts as closed, and closes at the next event.
+    const ItemSplitDialog* split_dialog() const;
 
     /// The rectangle of the panel over a picture of `picture` size.
     Rect panel(const PixelSize& picture) const;
@@ -109,6 +121,15 @@ private:
         ItemGrid grid;
     };
 
+    /// A move to the other inventory that waits for the ItemSplitDialog.
+    struct PendingSplit {
+        ItemSelection from;  ///< The stack whose items move.
+        ItemId item;         ///< Its kind, to see that it is still there.
+        std::size_t to_side;
+        bool select_moved;  ///< See move().
+        ItemSplitDialog dialog;
+    };
+
     /// Handles a key, see the class description.
     std::optional<UiCommand> handle_key(NavKey key);
     /// Scrolls the grid under the pointer.
@@ -117,12 +138,25 @@ private:
     void handle_pointer(const PointerEvent& pointer, const PixelSize& picture);
     /// Moves the selection by a key, see the class description.
     void navigate(NavKey key);
-    /// Moves the selected item to the end of the other inventory, and selects the item that comes into its place.
+    /// Moves the selected stack to the other inventory, see move() without `select_moved`, after asking how many of its
+    /// items if it has more than one.
     void move_selected_across();
-    /// Moves the selected item to the end of the inventory of `side`, and selects it there.
+    /// Moves the selected stack to the inventory of `side`, see move() with `select_moved`, after asking how many of
+    /// its items if it has more than one and `side` is the other inventory.
     void move_selected_to(std::size_t side);
-    /// Moves all items of the container to the end of the party's.
+    /// Moves the selected stack to `side`, or opens the dialog first, see move_selected_across().
+    void request_move(std::size_t side, bool select_moved);
+    /// Moves `count` items of the stack `from` to the inventory of `side`, see move_items(). Then selects their stack
+    /// there if `select_moved`, and otherwise what is left of the stack, or if nothing is, the stack that comes into
+    /// its place, or the one before it if it was the last. A stack that can't take that many more items is left as it
+    /// is, after a warning.
+    void move(ItemSelection from, std::size_t side, int count, bool select_moved);
+    /// Passes an event to the open ItemSplitDialog, and moves the items or closes it as it asks.
+    std::optional<UiCommand> handle_split(const UiEvent& event, const PixelSize& picture);
+    /// Moves all items of the container to the party's.
     void take_all();
+    /// The cell under `point`, of any grid, empty or not.
+    std::optional<ItemSelection> cell_at(const glm::vec2& point, const PixelSize& picture) const;
     /// Selects `selection`, and scrolls its grid to it.
     void select(ItemSelection selection);
 
@@ -135,6 +169,9 @@ private:
     bool take_all_hovered_ = false;  ///< Whether the pointer is over the Take all button.
     /// The cell of the last press of the main button, if it selected the item there, which a double click needs.
     std::optional<ItemSelection> last_selecting_press_;
+    /// The empty cell of the last press of the main button. The second press of a double click there is ignored.
+    std::optional<ItemSelection> last_empty_press_;
+    std::optional<PendingSplit> split_;  ///< See split_dialog().
 };
 
 }  // namespace manifold

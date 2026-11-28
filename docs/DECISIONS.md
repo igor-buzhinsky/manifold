@@ -818,7 +818,8 @@ Drawbacks:
 ## 2026-11-25: Items chosen for chests by number and value, in one inventory of the party without stacking
 
 Status: **ACCEPTED**. Done in v0.4. The limits of chests and the chance of golden chests moved to
-`data/constants.json` on 2026-11-27, see "Game settings in strict JSON files of `data/`".
+`data/constants.json` on 2026-11-27, see "Game settings in strict JSON files of `data/`". Items of a kind are stacked
+in one cell since 2026-11-28, and saved as stacks of keys with numbers, see "Items of a kind stacked in one cell".
 
 Decision: the kinds of items are listed in `data/items.json`, each with a key, a name, a value, a weight in grams and a
 chance; their icons are in `ITEM_ICONS` of the asset mapping, by the same keys. `data/` is a new directory, found like
@@ -866,7 +867,7 @@ Rejected alternatives:
 - **An inventory for each character**: needs moving items between characters before there is any reason to, such as
   equipment or a limit of weight per character.
 - **Drag and drop**: more code for the same moves; selecting and clicking, and double clicking, also work without it.
-- **Stacking items of a kind in one cell**: worth doing, but later, see ROADMAP.md.
+- **Stacking items of a kind in one cell**: worth doing, but later, see ROADMAP.md. Done on 2026-11-28.
 
 Drawbacks:
 
@@ -876,7 +877,8 @@ Drawbacks:
   an item would let a dear first draw leave a chest empty, so the game warns about such limits.
 - The limits of containers are in code, not yet in `data/`.
 - An item can only be put at the end of a grid; there is no way to put it into a cell in between.
-- Without stacking, many small items fill the grid quickly, and it must be scrolled.
+- Without stacking, many small items fill the grid quickly, and it must be scrolled. Solved by stacking on
+  2026-11-28.
 - What a chest holds depends on the order and number of the items in the file, so changing them changes the chests of
   seeds, as remapping assets changes the assets of seeds.
 - Items taken from chests during a level are lost when the level is loaded again, as everything else of the level is.
@@ -937,7 +939,8 @@ Drawbacks:
 
 ## 2026-11-27: Save the middle of a level too, every 10 s of play and on exit, besides its start
 
-Status: **ACCEPTED**. Done in v0.4.
+Status: **ACCEPTED**. Done in v0.4. Since 2026-11-28, items are saved as stacks, each with a key and a number,
+see "Items of a kind stacked in one cell", in the same version 5, which still reads the keys of older saves.
 
 Decision: the game keeps two saves in the user's data directory, in the same JSON format (version 5).
 `save_level_start.json` is the save of the start of the level, as `save.json` was before, written when a level starts.
@@ -995,3 +998,61 @@ Drawbacks:
   fails until then, and if writing `save_level_start.json` failed when a level started, F9 after a restart goes to the
   level of `save.json`, which may be another one.
 - Without `fsync`, a power loss right after saving can leave an empty or old save, depending on the file system.
+
+## 2026-11-28: Items of a kind stacked in one cell, split with a dialog when moved between inventories
+
+Status: **ACCEPTED**. Done in v0.4.
+
+Decision: an inventory holds stacks (`ItemStack`: the kind of item and how many, at least 1), at most one of each kind,
+in a list that keeps their order, with a hash map from the kind to the place of its stack (`Inventory`). Adding items
+joins the stack of their kind, or starts one at the end, in constant time; taking all items of a stack removes it, and
+the stacks after it move up, which renumbers them in the map. A stack takes one cell of the grid, which shows its
+number at the bottom right, in orange with a dark shadow over the icon, if it has more than one item; numbers above
+9999 are shortened to thousands, millions or billions (`12k`), so that four characters fit. Moving a stack within its
+inventory moves all of it to the end, as before. Moving it to the other inventory, with a chest open, by a click on an
+empty cell there, a double click or Enter, first opens a dialog over the inventory screen (`ItemSplitDialog`) when the
+stack has more than one item: it starts with all of them, and a slider, - and + buttons, Left, Right, Up, Down (by
+ten) and the wheel change the number; Enter or Move moves them, Escape, Cancel or a press outside cancels. Take all
+moves everything without asking. Saves store each stack as `{"item": KEY, "count": N}`, and read a plain key, as older
+saves of version 5 have, as one item; stacks of the same kind in a save are joined when loaded. Items with properties,
+such as enchantments, will stack only with equal ones: the key of the hash map and of `ItemStack` becomes the kind with
+its properties instead of the `ItemId`.
+
+Gains:
+
+- Many items of a kind take one cell, so the grid rarely needs scrolling, and the number is seen at a glance.
+- Adding an item and finding its stack take constant time, and a stack of a million items takes as little memory and
+  as little room in a save as one item, which `give` now allows.
+- The dialog starts with all items, so Enter, Enter moves a whole stack as Enter did before, and splitting needs only
+  a few more keys or clicks.
+- The dialog is part of the inventory screen rather than a screen of its own, so it needs no new way for a screen to
+  open another or to pass a result back, and it is tested like the screen.
+- Old saves still load, so the version needn't change.
+
+Rejected alternatives:
+
+- **A `std::map` or a sorted list by kind**: the order of the stacks would be that of the item file rather than the
+  order in which the party got them, and moving a stack to the end, as a click on an empty cell does, would be
+  impossible.
+- **A plain list of stacks, searched for the stack of a kind**: simple, and fast enough for a few dozen stacks, but
+  adding an item would take time linear in the number of stacks, and inventories of monsters and containers will grow.
+- **Several stacks of a kind, or a largest stack size**: splitting within one inventory would then make sense, but two
+  stacks of rubies in one grid are only clutter while items have no properties, and a limit would be arbitrary.
+- **Splitting within one inventory, or in the party's inventory alone**: with one stack per kind, the split part would
+  join the same stack again.
+- **Starting the dialog with one item, or half**: moving a whole stack, the most common move, would need more steps.
+- **Typing the number**: the screens get no text input yet; the slider reaches any number with one press, and the keys
+  fine-tune it.
+- **The number at the top left or the top right of the cell**: the bottom right is where most games put it, and the
+  icons of gems leave it emptier.
+- **A new save version**: it would refuse the old saves, though the new format only adds a way to write several items
+  of a kind.
+
+Drawbacks:
+
+- Taking a whole stack, or moving one to the end, renumbers the stacks after it in the map, in time linear in their
+  number, as erasing from the list already takes.
+- The second press of a double click on an empty cell is ignored, so that it doesn't press what the dialog opened by
+  the first press shows there; a quick click there that was meant for the dialog is lost too.
+- Shortened numbers above 9999 are exact only on the line at the bottom of the screen and in the console.
+- Saves written now can't be read by the game before this change.

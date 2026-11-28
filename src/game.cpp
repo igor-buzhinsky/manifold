@@ -8,7 +8,6 @@
 #include <optional>
 #include <span>
 #include <stdexcept>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -142,29 +141,31 @@ void Game::new_game(std::uint64_t seed, std::optional<LayoutKind> layout) {
 
 namespace {
 
-/// The items of `keys` that `catalog` has, in order. Unknown keys are left out, after a warning.
+/// The items of `stacks` that `catalog` has, in order. Stacks of the same kind are joined, as Inventory::add() does.
+/// Unknown keys are left out, after a warning.
 ///
 /// \param owner Whose items they are, for the warning, e.g. "the party".
-Inventory items_of_keys(const ItemCatalog& catalog, const std::vector<std::string>& keys, const char* owner) {
+/// \throws std::overflow_error if the stacks of a kind have more items together than a stack can hold.
+Inventory items_of_stacks(const ItemCatalog& catalog, const std::vector<SavedItemStack>& stacks, const char* owner) {
     Inventory inventory;
-    for (const std::string& key : keys) {
-        if (const std::optional<ItemId> item = catalog.find(key)) {
-            inventory.add(*item);
+    for (const SavedItemStack& stack : stacks) {
+        if (const std::optional<ItemId> item = catalog.find(stack.key)) {
+            inventory.add(*item, stack.count);
         } else {
-            log_warning("The saved item {} is unknown, so {} loses it", key, owner);
+            log_warning("The saved item {} is unknown, so {} loses it", stack.key, owner);
         }
     }
     return inventory;
 }
 
-/// The keys of the items of `inventory`, see SavedGame::inventory.
-std::vector<std::string> keys_of_items(const ItemCatalog& catalog, const Inventory& inventory) {
-    std::vector<std::string> keys;
-    keys.reserve(inventory.size());
-    for (const ItemId item : inventory.items()) {
-        keys.push_back(catalog.at(item).key);
+/// The stacks of `inventory` for a save, see SavedGame::inventory.
+std::vector<SavedItemStack> saved_stacks(const ItemCatalog& catalog, const Inventory& inventory) {
+    std::vector<SavedItemStack> stacks;
+    stacks.reserve(inventory.size());
+    for (const ItemStack& stack : inventory.stacks()) {
+        stacks.push_back({.key = catalog.at(stack.item).key, .count = stack.count});
     }
-    return keys;
+    return stacks;
 }
 
 /// `magic` with its spells cut to their durations of `config`, which the data files may have shortened since a save was
@@ -192,7 +193,7 @@ void Game::load(const SavedGame& save) {
     time_ = save.time;
     party_ = save.party;
     magic_ = cut_spells(save.magic, magic_config_);
-    inventory_ = items_of_keys(level_config_.items, save.inventory, "the party");
+    inventory_ = items_of_stacks(level_config_.items, save.inventory, "the party");
     start_level(std::move(level), save.seed, save.level_number, save.layout);
     if (!save.progress) {
         return;
@@ -201,9 +202,9 @@ void Game::load(const SavedGame& save) {
     time_ = progress.time;
     party_ = progress.party;
     magic_ = cut_spells(progress.magic, magic_config_);
-    inventory_ = items_of_keys(level_config_.items, progress.inventory, "the party");
+    inventory_ = items_of_stacks(level_config_.items, progress.inventory, "the party");
     for (std::size_t i = 0; i < progress.chests.size(); ++i) {
-        chest_inventories_[i] = items_of_keys(level_config_.items, progress.chests[i], "a chest");
+        chest_inventories_[i] = items_of_stacks(level_config_.items, progress.chests[i], "a chest");
     }
     doors_ = progress.doors;
     player_.set_position(progress.player.position);
@@ -220,7 +221,7 @@ SavedGame Game::level_start_save() const {
             .time = level_start_time_,
             .party = level_start_party_,
             .magic = level_start_magic_,
-            .inventory = keys_of_items(level_config_.items, level_start_inventory_)};
+            .inventory = saved_stacks(level_config_.items, level_start_inventory_)};
 }
 
 SavedGame Game::progress_save() const {
@@ -228,7 +229,7 @@ SavedGame Game::progress_save() const {
     LevelProgress progress{.time = time_,
                            .party = party_,
                            .magic = magic_,
-                           .inventory = keys_of_items(level_config_.items, inventory_),
+                           .inventory = saved_stacks(level_config_.items, inventory_),
                            .player = {.position = player_.position(),
                                       .yaw = player_.yaw(),
                                       .pitch = player_.pitch(),
@@ -239,7 +240,7 @@ SavedGame Game::progress_save() const {
                            .chests = {}};
     progress.chests.reserve(chest_inventories_.size());
     for (const Inventory& chest : chest_inventories_) {
-        progress.chests.push_back(keys_of_items(level_config_.items, chest));
+        progress.chests.push_back(saved_stacks(level_config_.items, chest));
     }
     save.progress = std::move(progress);
     return save;

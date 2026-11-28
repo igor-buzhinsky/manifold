@@ -193,22 +193,44 @@ std::vector<Character> parse_party(const nlohmann::json& object) {
     return characters;
 }
 
-/// Reads an array of item keys, such as the party's items or those of a chest.
+/// Reads an array of stacks of items, such as the party's items or those of a chest, see SavedItemStack.
 ///
 /// \param name The name of the field, for the message of an error.
-/// \throws std::runtime_error if `value` isn't an array of strings.
-std::vector<std::string> parse_item_keys(const nlohmann::json& value, const char* name) {
+/// \throws std::runtime_error if `value` isn't an array of stacks, each an object with a string `item` and a positive
+///         integer `count` that an int can hold, or a string, the key of one item, as saves made before stacking have.
+std::vector<SavedItemStack> parse_item_stacks(const nlohmann::json& value, const char* name) {
     if (!value.is_array()) {
-        throw_invalid(name, value, "an array of item keys");
+        throw_invalid(name, value, "an array of stacks of items");
     }
-    std::vector<std::string> keys;
-    for (const nlohmann::json& item : value) {
+    std::vector<SavedItemStack> stacks;
+    for (const nlohmann::json& stack : value) {
+        if (stack.is_string()) {
+            stacks.push_back({.key = stack.get<std::string>(), .count = 1});
+            continue;
+        }
+        if (!stack.is_object()) {
+            throw_invalid("stack", stack, "an object or an item key");
+        }
+        const nlohmann::json& item = field(stack, "item");
         if (!item.is_string()) {
             throw_invalid("item", item, "an item key");
         }
-        keys.push_back(item.get<std::string>());
+        const nlohmann::json& count = field(stack, "count");
+        if (!is_int_in(count, 1, std::numeric_limits<int>::max())) {
+            throw_invalid("count", count, "a positive integer");
+        }
+        stacks.push_back({.key = item.get<std::string>(), .count = count.get<int>()});
     }
-    return keys;
+    return stacks;
+}
+
+/// The stacks as JSON, see save_to_json().
+nlohmann::ordered_json item_stacks_to_json(const std::vector<SavedItemStack>& stacks) {
+    nlohmann::ordered_json json = nlohmann::ordered_json::array();
+    for (const SavedItemStack& stack : stacks) {
+        json.push_back({{"item", stack.key}, {"count", stack.count}});
+    }
+    return json;
 }
 
 /// The finite float of the field `name` of `object`, within [min, max].
@@ -299,7 +321,7 @@ LevelProgress parse_progress(const nlohmann::json& object, double level_time) {
     progress.time = time.get<double>();
     progress.party = parse_party(object);
     progress.magic = parse_magic(object);
-    progress.inventory = parse_item_keys(field(object, "inventory"), "inventory");
+    progress.inventory = parse_item_stacks(field(object, "inventory"), "inventory");
     progress.player = parse_player(field(object, "player"));
     const nlohmann::json& doors = field(object, "doors");
     if (!doors.is_array()) {
@@ -313,14 +335,14 @@ LevelProgress parse_progress(const nlohmann::json& object, double level_time) {
         throw_invalid("chests", chests, "an array");
     }
     for (const nlohmann::json& chest : chests) {
-        progress.chests.push_back(parse_item_keys(chest, "chest"));
+        progress.chests.push_back(parse_item_stacks(chest, "chest"));
     }
     return progress;
 }
 
 /// Writes a party, its magic and its items into `json`, as save_to_json() does, for a save or its progress.
 void add_party(nlohmann::ordered_json& json, const std::vector<Character>& characters, const PartyMagic& magic,
-               const std::vector<std::string>& inventory) {
+               const std::vector<SavedItemStack>& inventory) {
     nlohmann::ordered_json party = nlohmann::ordered_json::array();
     for (const Character& character : characters) {
         nlohmann::ordered_json portrait = nullptr;
@@ -343,7 +365,7 @@ void add_party(nlohmann::ordered_json& json, const std::vector<Character>& chara
         spells.push_back({{"spell", spell_key(active.spell)}, {"remaining", active.remaining}});
     }
     json["spells"] = std::move(spells);
-    json["inventory"] = inventory;
+    json["inventory"] = item_stacks_to_json(inventory);
 }
 
 /// The progress of a save as JSON, see save_to_json().
@@ -364,7 +386,11 @@ nlohmann::ordered_json progress_to_json(const LevelProgress& progress) {
         doors.push_back({{"openness", door.openness}, {"target", door.target}});
     }
     json["doors"] = std::move(doors);
-    json["chests"] = progress.chests;
+    nlohmann::ordered_json chests = nlohmann::ordered_json::array();
+    for (const std::vector<SavedItemStack>& chest : progress.chests) {
+        chests.push_back(item_stacks_to_json(chest));
+    }
+    json["chests"] = std::move(chests);
     return json;
 }
 
@@ -439,7 +465,7 @@ SavedGame parse_saved_game(std::string_view json) {
 
     // Saves made before the party had items have no inventory, and the meaning of the other fields is the same.
     if (const auto inventory = object.find("inventory"); inventory != object.end()) {
-        save.inventory = parse_item_keys(*inventory, "inventory");
+        save.inventory = parse_item_stacks(*inventory, "inventory");
     }
 
     if (const auto layout = object.find("layout"); layout != object.end()) {

@@ -3,8 +3,10 @@
 #include <cstddef>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include <glm/common.hpp>
 #include <glm/vec2.hpp>
 #include <gtest/gtest.h>
 
@@ -13,6 +15,7 @@
 #include "render/viewport.hpp"
 #include "test_items.hpp"
 #include "ui/item_grid.hpp"
+#include "ui/item_split_dialog.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/rect.hpp"
 #include "ui/screen.hpp"
@@ -71,7 +74,8 @@ TEST(ItemGridTest, CellsAreFoundUnderPointsOfTheRowsShown) {
 TEST(ItemGridTest, IconsOfTheItemsShownAreInsideTheirCells) {
     ItemGrid grid(2, 2);
     const Placement placement{.area = {.top_left = {0.0f, 0.0f}, .size = grid.size(2.0f)}, .scale = 2.0f};
-    const std::vector<ItemId> items{kPebble, kGoldBar, kCrown, kPebble, kGoldBar, kCrown};
+    const std::vector<ItemStack> items{{.item = kPebble}, {.item = kGoldBar}, {.item = kCrown},
+                                       {.item = kPebble}, {.item = kGoldBar}, {.item = kCrown}};
     grid.scroll(1, items.size());
     std::vector<IconPlacement> icons;
     grid.add_icons(icons, placement, items);
@@ -79,6 +83,76 @@ TEST(ItemGridTest, IconsOfTheItemsShownAreInsideTheirCells) {
     EXPECT_EQ(icons[0], (IconPlacement{.item = kCrown, .area = {.top_left = {2.0f, 2.0f}, .size = {36.0f, 36.0f}}}));
     EXPECT_EQ(icons[3].item, kCrown);
     EXPECT_EQ(icons[3].area.top_left, glm::vec2(44.0f, 44.0f));
+}
+
+TEST(ItemGridTest, NumbersOfStacksOfMoreThanOneItemAreAtTheBottomRightOfTheirCells) {
+    const ItemGrid grid(2, 2);
+    const Placement placement{.area = {.top_left = {0.0f, 0.0f}, .size = grid.size(1.0f)}, .scale = 1.0f};
+    OverlayMesh single;
+    grid.add_counts(single, placement, std::vector<ItemStack>{{.item = kPebble}, {.item = kCrown}});
+    EXPECT_TRUE(single.vertices().empty());
+    OverlayMesh counts;
+    grid.add_counts(counts, placement, std::vector<ItemStack>{{.item = kPebble}, {.item = kCrown, .count = 12}});
+    // The number and its shadow, in the second cell, near its bottom-right corner.
+    OverlayMesh text;
+    text.add_text({0.0f, 0.0f}, "12", 1.0f, {1.0f, 1.0f, 1.0f, 1.0f});
+    ASSERT_EQ(counts.vertices().size(), 2 * text.vertices().size());
+    // Four characters fit into the cell.
+    OverlayMesh large;
+    grid.add_counts(large, placement, std::vector<ItemStack>{{.item = kPebble, .count = 9999}});
+    for (const OverlayVertex& vertex : large.vertices()) {
+        EXPECT_GE(vertex.position.x, 0.0f);
+        EXPECT_LE(vertex.position.x, 20.0f);
+    }
+    glm::vec2 low{1e9f};
+    glm::vec2 high{-1e9f};
+    for (const OverlayVertex& vertex : counts.vertices()) {
+        low = glm::min(low, vertex.position);
+        high = glm::max(high, vertex.position);
+    }
+    EXPECT_GE(low.x, 21.0f);
+    EXPECT_GE(low.y, 10.0f);
+    EXPECT_LE(high.x, 41.0f);
+    EXPECT_LE(high.y, 20.0f);
+    EXPECT_GE(high.x, 39.0f);
+    EXPECT_GE(high.y, 18.0f);
+}
+
+TEST(ItemGridTest, LargeNumbersOfStacksAreShortened) {
+    EXPECT_EQ(format_stack_count(2), "2");
+    EXPECT_EQ(format_stack_count(9999), "9999");
+    EXPECT_EQ(format_stack_count(12345), "12k");
+    EXPECT_EQ(format_stack_count(999999), "999k");
+    EXPECT_EQ(format_stack_count(1000000), "1M");
+    EXPECT_EQ(format_stack_count(2147483647), "2B");
+}
+
+/// A catalog of `count` kinds of items, e.g. to fill a grid with stacks.
+ItemCatalog make_many_items(std::size_t count) {
+    std::vector<ItemType> items;
+    items.reserve(count);
+    for (std::size_t i = 0; i < count; ++i) {
+        items.push_back({.key = "item_" + std::to_string(i), .name = "Item", .value = 1, .weight = 1, .chance = 1.0});
+    }
+    return ItemCatalog(std::move(items));
+}
+
+/// One item of each of the first `count` kinds.
+Inventory make_stacks(std::size_t count) {
+    Inventory inventory;
+    for (std::size_t i = 0; i < count; ++i) {
+        inventory.add(static_cast<ItemId>(i));
+    }
+    return inventory;
+}
+
+/// An inventory of these stacks, in order.
+Inventory make_inventory(const std::vector<ItemStack>& stacks) {
+    Inventory inventory;
+    for (const ItemStack& stack : stacks) {
+        inventory.add(stack.item, stack.count);
+    }
+    return inventory;
 }
 
 /// The inventories of a party and a chest, and the kinds of their items.
@@ -135,7 +209,8 @@ TEST(InventoryScreenTest, ArrowKeysMoveTheSelectionWithinTheItems) {
     constexpr std::size_t kColumns = InventoryScreen::kColumns;
     // A full row and two items in the next.
     Fixture fixture;
-    fixture.party = Inventory(std::vector<ItemId>(kColumns + 2, kPebble));
+    fixture.items = make_many_items(kColumns + 2);
+    fixture.party = make_stacks(kColumns + 2);
     InventoryScreen screen(fixture.items, fixture.party);
     screen.handle(NavKey::kRight, kPicture);  // Selects the first item.
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
@@ -164,7 +239,8 @@ TEST(InventoryScreenTest, ArrowKeysMoveTheSelectionWithinTheItems) {
 
 TEST(InventoryScreenTest, KeysScrollToTheSelectionAndTheWheelScrollsTheGridUnderThePointer) {
     Fixture fixture;
-    fixture.party = Inventory(std::vector<ItemId>(200, kPebble));
+    fixture.items = make_many_items(200);
+    fixture.party = make_stacks(200);
     InventoryScreen screen(fixture.items, fixture.party);
     screen.handle(NavKey::kDown, kPicture);
     for (int i = 0; i < 7; ++i) {
@@ -200,15 +276,18 @@ TEST(InventoryScreenTest, ClicksMoveItemsBetweenTheChestAndTheParty) {
     EXPECT_LT(screen.grid_placement(0, kPicture).area.top_left.x, screen.grid_placement(1, kPicture).area.top_left.x);
     screen.handle(press(Fixture::cell_point(screen, 0, 1, fixture.chest)), kPicture);
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 1}));
+    // The pebble joins the party's stack of pebbles, which is selected.
     screen.handle(press(Fixture::cell_point(screen, 1, 7, fixture.party)), kPicture);
     EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar}}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 1, .index = 0}));
+    // The crown starts a stack at the end.
+    screen.handle(press(Fixture::cell_point(screen, 0, 0, fixture.chest)), kPicture);
+    screen.handle(press(Fixture::cell_point(screen, 1, 7, fixture.party)), kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kGoldBar}));
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar}, {.item = kCrown}}));
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 1, .index = 2}));
-    // And back.
-    screen.handle(press(Fixture::cell_point(screen, 1, 0, fixture.party)), kPicture);
-    screen.handle(press(Fixture::cell_point(screen, 0, 4, fixture.chest)), kPicture);
-    EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar, kPebble}));
-    EXPECT_EQ(fixture.party, Inventory({kGoldBar, kPebble}));
+    EXPECT_EQ(screen.split_dialog(), nullptr);
 }
 
 TEST(InventoryScreenTest, KeysMoveTheSelectionAcrossAndEnterMovesTheItemToTheOtherSide) {
@@ -225,15 +304,16 @@ TEST(InventoryScreenTest, KeysMoveTheSelectionAcrossAndEnterMovesTheItemToTheOth
     screen.handle(NavKey::kLeft, kPicture);
     screen.handle(NavKey::kConfirm, kPicture);
     EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
-    // The item after it is selected, then the one before it once it was the last.
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar}}));
+    // The stack after it is selected, then the one before it once it was the last.
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 1}));
     screen.handle(NavKey::kConfirm, kPicture);
     EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
     screen.handle(NavKey::kConfirm, kPicture);
     EXPECT_TRUE(fixture.chest.empty());
     EXPECT_FALSE(screen.selection().has_value());
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble, kGoldBar, kCrown}));
+    EXPECT_EQ(fixture.party,
+              make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar, .count = 2}, {.item = kCrown}}));
 }
 
 TEST(InventoryScreenTest, DoubleClickMovesAnItemToTheOtherSide) {
@@ -243,16 +323,18 @@ TEST(InventoryScreenTest, DoubleClickMovesAnItemToTheOtherSide) {
     screen.handle(press(chest_item), kPicture);
     screen.handle(PointerEvent{.action = PointerAction::kPress, .position = chest_item, .clicks = 2}, kPicture);
     EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar}}));
     // And from the party into the chest.
-    const glm::vec2 party_item = Fixture::cell_point(screen, 1, 0, fixture.party);
+    const glm::vec2 party_item = Fixture::cell_point(screen, 1, 1, fixture.party);
     screen.handle(press(party_item), kPicture);
     screen.handle(PointerEvent{.action = PointerAction::kPress, .position = party_item, .clicks = 2}, kPicture);
-    EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar, kPebble}));
-    EXPECT_EQ(fixture.party, Inventory({kGoldBar, kPebble}));
-    // A third press only selects, and a fourth is a double click again.
-    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = party_item, .clicks = 3}, kPicture);
-    EXPECT_EQ(fixture.party.size(), 2U);
+    EXPECT_EQ(fixture.chest, make_inventory({{.item = kCrown}, {.item = kGoldBar, .count = 2}}));
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}}));
+    // A third press only selects.
+    const glm::vec2 pebbles = Fixture::cell_point(screen, 1, 0, fixture.party);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = pebbles, .clicks = 3}, kPicture);
+    EXPECT_EQ(fixture.party.size(), 1U);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
 }
 
 TEST(InventoryScreenTest, DoubleClickNeedsBothPressesOnTheSameItem) {
@@ -271,8 +353,8 @@ TEST(InventoryScreenTest, DoubleClickNeedsBothPressesOnTheSameItem) {
     screen.handle(press(empty), kPicture);
     screen.handle(PointerEvent{.action = PointerAction::kPress, .position = empty, .clicks = 2}, kPicture);
     EXPECT_EQ(fixture.chest, Inventory({kCrown, kGoldBar}));
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kPebble}));
-    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 1, .index = 2}));
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar}}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 1, .index = 0}));
 }
 
 TEST(InventoryScreenTest, ThePressThatOpenedTheScreenIsNoFirstClick) {
@@ -305,12 +387,15 @@ TEST(InventoryScreenTest, TakeAllMovesTheChestsItemsInTheirOrder) {
     ASSERT_TRUE(button.has_value());
     screen.handle(press(middle(*button)), kPicture);
     EXPECT_TRUE(fixture.chest.empty());
-    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kCrown, kPebble, kGoldBar}));
+    EXPECT_EQ(fixture.party,
+              make_inventory({{.item = kPebble, .count = 2}, {.item = kGoldBar, .count = 2}, {.item = kCrown}}));
     EXPECT_FALSE(screen.selection().has_value());
-    fixture.chest = Inventory({kCrown});
+    // Stacks of more than one item are moved without asking.
+    fixture.chest = make_inventory({{.item = kCrown, .count = 4}});
     screen.handle(NavKey::kTakeAll, kPicture);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
     EXPECT_TRUE(fixture.chest.empty());
-    EXPECT_EQ(fixture.party.size(), 6U);
+    EXPECT_EQ(fixture.party.stacks()[2], (ItemStack{.item = kCrown, .count = 5}));
 }
 
 TEST(InventoryScreenTest, SelectionOfAnItemThatWasTakenElsewhereIsNone) {
@@ -341,6 +426,145 @@ TEST(InventoryScreenTest, PanelIsCenteredAndHoldsTheGridsAndTheButton) {
     std::vector<IconPlacement> icons;
     screen.add_icons(icons, kPicture);
     EXPECT_EQ(icons.size(), 5U);
+}
+
+TEST(InventoryScreenTest, EnterOnAStackOfManyAsksHowManyToMove) {
+    Fixture fixture;
+    fixture.chest = make_inventory({{.item = kCrown, .count = 3}, {.item = kPebble}});
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    screen.handle(NavKey::kDown, kPicture);
+    screen.handle(NavKey::kConfirm, kPicture);
+    // Nothing moves before the dialog is answered, and it gets the keys.
+    const ItemSplitDialog* dialog = screen.split_dialog();
+    ASSERT_NE(dialog, nullptr);
+    EXPECT_EQ(dialog->max_count(), 3);
+    EXPECT_EQ(dialog->amount(), 3);
+    EXPECT_EQ(fixture.chest.item_count(), 4);
+    screen.handle(NavKey::kLeft, kPicture);
+    screen.handle(NavKey::kLeft, kPicture);
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
+    EXPECT_EQ(screen.split_dialog()->amount(), 1);
+    screen.handle(NavKey::kConfirm, kPicture);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
+    EXPECT_EQ(fixture.chest, make_inventory({{.item = kCrown, .count = 2}, {.item = kPebble}}));
+    EXPECT_EQ(fixture.party, Inventory({kPebble, kGoldBar, kCrown}));
+    // The rest stays selected, and all of it moves by default, after which the next stack is selected.
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
+    screen.handle(NavKey::kConfirm, kPicture);
+    screen.handle(NavKey::kConfirm, kPicture);
+    EXPECT_EQ(fixture.chest, Inventory({kPebble}));
+    EXPECT_EQ(fixture.party.stacks()[2], (ItemStack{.item = kCrown, .count = 3}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 0}));
+}
+
+TEST(InventoryScreenTest, AClickOnTheOtherGridAsksHowManyAndSelectsTheMovedItems) {
+    Fixture fixture;
+    fixture.party = make_inventory({{.item = kPebble, .count = 5}, {.item = kGoldBar}});
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    screen.handle(press(Fixture::cell_point(screen, 1, 0, fixture.party)), kPicture);
+    const glm::vec2 empty = Fixture::cell_point(screen, 0, 5, fixture.chest);
+    // Escape closes only the dialog, and moves nothing.
+    screen.handle(press(empty), kPicture);
+    ASSERT_NE(screen.split_dialog(), nullptr);
+    EXPECT_FALSE(screen.handle(NavKey::kCancel, kPicture).has_value());
+    EXPECT_EQ(screen.split_dialog(), nullptr);
+    EXPECT_EQ(fixture.party.item_count(), 6);
+    // The Move button with two less than all.
+    screen.handle(press(empty), kPicture);
+    ASSERT_NE(screen.split_dialog(), nullptr);
+    const ItemSplitDialog& dialog = *screen.split_dialog();
+    screen.handle(press(middle(dialog.minus_button(kPicture))), kPicture);
+    screen.handle(press(middle(dialog.minus_button(kPicture))), kPicture);
+    screen.handle(press(middle(dialog.move_button(kPicture))), kPicture);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
+    EXPECT_EQ(fixture.party.stacks()[0], (ItemStack{.item = kPebble, .count = 2}));
+    EXPECT_EQ(fixture.chest.stacks()[1], (ItemStack{.item = kPebble, .count = 4}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 1}));
+}
+
+TEST(InventoryScreenTest, StacksAreNotSplitWithinOneInventory) {
+    Fixture fixture;
+    fixture.party = make_inventory({{.item = kPebble, .count = 5}, {.item = kGoldBar}});
+    fixture.chest = make_inventory({{.item = kCrown, .count = 2}, {.item = kGoldBar}});
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Wooden chest");
+    // An empty cell of the same grid takes the whole stack to its end.
+    screen.handle(press(Fixture::cell_point(screen, 0, 0, fixture.chest)), kPicture);
+    screen.handle(press(Fixture::cell_point(screen, 0, 4, fixture.chest)), kPicture);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
+    EXPECT_EQ(fixture.chest, make_inventory({{.item = kGoldBar}, {.item = kCrown, .count = 2}}));
+    EXPECT_EQ(screen.selection(), (ItemSelection{.side = 0, .index = 1}));
+    // Without a container, there is nothing to split.
+    InventoryScreen alone(fixture.items, fixture.party);
+    alone.handle(press(Fixture::cell_point(alone, 0, 0, fixture.party)), kPicture);
+    alone.handle(
+        PointerEvent{
+            .action = PointerAction::kPress, .position = Fixture::cell_point(alone, 0, 0, fixture.party), .clicks = 2},
+        kPicture);
+    alone.handle(NavKey::kConfirm, kPicture);
+    EXPECT_EQ(alone.split_dialog(), nullptr);
+    alone.handle(press(Fixture::cell_point(alone, 0, 5, fixture.party)), kPicture);
+    EXPECT_EQ(alone.split_dialog(), nullptr);
+    EXPECT_EQ(fixture.party, make_inventory({{.item = kGoldBar}, {.item = kPebble, .count = 5}}));
+}
+
+TEST(InventoryScreenTest, DoubleClickOnAStackOfManyAsksAndTheInventoryKeyCloses) {
+    Fixture fixture;
+    fixture.chest = make_inventory({{.item = kCrown, .count = 2}});
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Golden chest");
+    const glm::vec2 crowns = Fixture::cell_point(screen, 0, 0, fixture.chest);
+    screen.handle(press(crowns), kPicture);
+    screen.handle(PointerEvent{.action = PointerAction::kPress, .position = crowns, .clicks = 2}, kPicture);
+    ASSERT_NE(screen.split_dialog(), nullptr);
+    // The dialog is drawn over the icons.
+    OverlayMesh with_dialog;
+    screen.add_over_icons(with_dialog, kPicture);
+    OverlayMesh dialog;
+    screen.split_dialog()->add_to(dialog, kPicture);
+    EXPECT_GT(with_dialog.vertices().size(), dialog.vertices().size());
+    EXPECT_EQ(screen.handle(NavKey::kInventory, kPicture), UiCommand::kResume);
+}
+
+TEST(InventoryScreenTest, ADialogWhoseStackWasTakenElsewhereCloses) {
+    Fixture fixture;
+    fixture.chest = make_inventory({{.item = kCrown, .count = 2}});
+    InventoryScreen screen(fixture.items, fixture.party, fixture.chest, "Golden chest");
+    screen.handle(NavKey::kDown, kPicture);
+    screen.handle(NavKey::kConfirm, kPicture);
+    ASSERT_NE(screen.split_dialog(), nullptr);
+    fixture.chest.take(0);
+    fixture.chest.add(kPebble);
+    EXPECT_EQ(screen.split_dialog(), nullptr);
+    // The next event goes to the screen.
+    EXPECT_EQ(screen.handle(NavKey::kCancel, kPicture), UiCommand::kResume);
+    // A stack that lost some items moves at most what it has.
+    fixture.chest = make_inventory({{.item = kCrown, .count = 3}});
+    screen.handle(NavKey::kDown, kPicture);
+    screen.handle(NavKey::kConfirm, kPicture);
+    ASSERT_NE(screen.split_dialog(), nullptr);
+    fixture.chest.take(0, 1);
+    screen.handle(NavKey::kConfirm, kPicture);
+    EXPECT_TRUE(fixture.chest.empty());
+    EXPECT_EQ(fixture.party.stacks()[2], (ItemStack{.item = kCrown, .count = 2}));
+}
+
+TEST(InventoryScreenTest, TheLineOfTheSelectedStackHasItsNumberAndWeight) {
+    Fixture fixture;
+    fixture.party = make_inventory({{.item = kPebble, .count = 12}});
+    InventoryScreen screen(fixture.items, fixture.party);
+    OverlayMesh before;
+    screen.add_to(before, kPicture);
+    screen.handle(press(Fixture::cell_point(screen, 0, 0, fixture.party)), kPicture);
+    OverlayMesh after;
+    screen.add_to(after, kPicture);
+    OverlayMesh name;
+    name.add_text({0.0f, 0.0f}, "Pebble x12, weight 3.000", 1.0f, {1.0f, 1.0f, 1.0f, 1.0f});
+    OverlayMesh border;
+    border.add_rectangle({0.0f, 0.0f}, {1.0f, 1.0f}, {1.0f, 1.0f, 1.0f, 1.0f});
+    EXPECT_EQ(after.vertices().size(), before.vertices().size() + name.vertices().size() + border.vertices().size());
+    // The number is drawn over the icon.
+    OverlayMesh counts;
+    screen.add_over_icons(counts, kPicture);
+    EXPECT_FALSE(counts.vertices().empty());
 }
 
 }  // namespace

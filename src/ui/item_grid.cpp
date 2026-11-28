@@ -5,12 +5,14 @@
 #include <cstddef>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
 
-#include "items/item_catalog.hpp"
+#include "items/inventory.hpp"
 #include "ui/overlay_mesh.hpp"
 #include "ui/rect.hpp"
 #include "ui/screen.hpp"
@@ -27,6 +29,18 @@ constexpr glm::vec4 kSelectedBorderColor = kUiTitleColor;
 /// The track of the scroll bar, and the part of it that shows which rows are shown.
 constexpr glm::vec4 kScrollTrackColor{0.1f, 0.1f, 0.11f, 1.0f};
 constexpr glm::vec4 kScrollThumbColor = kUiBorderColor;
+/// The number of items of a stack, and its shadow.
+constexpr glm::vec4 kCountColor{1.0f, 0.6f, 0.15f, 1.0f};
+constexpr glm::vec4 kCountShadowColor{0.0f, 0.0f, 0.0f, 0.85f};
+/// Height of a digit of the font at scale 1, in interface pixels.
+constexpr float kDigitHeight = 7.0f;
+/// From one character of the number of a stack to the next at scale 1: a digit is 4 interface pixels wide, and 1 is
+/// between two.
+constexpr float kCountAdvance = 5.0f;
+constexpr float kCountSpacing = 1.0f;
+/// Between the number of a stack and the right and bottom edges of its cell, at scale 1, as wide as its shadow, so
+/// that four characters fit, and the shadow ends at the edges.
+constexpr float kCountInset = 1.0f;
 
 }  // namespace
 
@@ -130,13 +144,51 @@ void ItemGrid::add_to(OverlayMesh& mesh, const Placement& placement, std::size_t
 }
 
 void ItemGrid::add_icons(std::vector<IconPlacement>& icons, const Placement& placement,
-                         std::span<const ItemId> items) const {
+                         std::span<const ItemStack> stacks) const {
     const float inset = kIconInset * placement.scale;
-    for (std::size_t cell = 0; cell < items.size(); ++cell) {
-        if (const std::optional<Rect> rect = cell_rect(cell, items.size(), placement)) {
-            icons.push_back({.item = items[cell],
+    for (std::size_t cell = 0; cell < stacks.size(); ++cell) {
+        if (const std::optional<Rect> rect = cell_rect(cell, stacks.size(), placement)) {
+            icons.push_back({.item = stacks[cell].item,
                              .area = {.top_left = rect->top_left + glm::vec2(inset),
                                       .size = rect->size - glm::vec2(2.0f * inset)}});
+        }
+    }
+}
+
+std::string format_stack_count(int count) {
+    constexpr int kThousand = 1000;
+    constexpr int kMillion = 1000000;
+    constexpr int kBillion = 1000000000;
+    if (count < 10 * kThousand) {
+        return std::to_string(count);
+    }
+    if (count < kMillion) {
+        return std::to_string(count / kThousand) + "k";
+    }
+    if (count < kBillion) {
+        return std::to_string(count / kMillion) + "M";
+    }
+    return std::to_string(count / kBillion) + "B";
+}
+
+void ItemGrid::add_counts(OverlayMesh& mesh, const Placement& placement, std::span<const ItemStack> stacks) const {
+    const float scale = placement.scale;
+    for (std::size_t cell = 0; cell < stacks.size(); ++cell) {
+        const std::optional<Rect> rect = cell_rect(cell, stacks.size(), placement);
+        if (!rect || stacks[cell].count < 2) {
+            continue;
+        }
+        const std::string text = format_stack_count(stacks[cell].count);
+        // The characters end kCountInset from the right and the bottom of the cell, with their shadow just inside it.
+        const auto width = (static_cast<float>(text.size()) * kCountAdvance) - kCountSpacing;
+        const glm::vec2 top_left =
+            rect->top_left + rect->size - (glm::vec2(width + kCountInset, kDigitHeight + kCountInset) * scale);
+        // One character at a time, closer together than OverlayMesh::add_text() puts them, so that four fit.
+        for (std::size_t i = 0; i < text.size(); ++i) {
+            const glm::vec2 at = top_left + glm::vec2(static_cast<float>(i) * kCountAdvance * scale, 0.0f);
+            const std::string_view character(&text[i], 1);
+            mesh.add_text(at + glm::vec2(scale), character, scale, kCountShadowColor);
+            mesh.add_text(at, character, scale, kCountColor);
         }
     }
 }

@@ -860,7 +860,7 @@ Game make_changed_game() {
     game.cast(Spell::kLevitate);
     game.update({.rise = 1.0f}, 0.1f);
     game.chest_inventory(0).add(kCrown);
-    move_item(game.chest_inventory(0), game.chest_inventory(0).size() - 1, game.inventory());
+    move_stack(game.chest_inventory(0), game.chest_inventory(0).size() - 1, game.inventory());
     game.chest_inventory(1).add(kPebble);
     return game;
 }
@@ -873,7 +873,7 @@ TEST(GameTest, ProgressSaveIsTheLevelStartWithTheGameAsItIs) {
     EXPECT_DOUBLE_EQ(progress.time, game.time());
     EXPECT_EQ(progress.party, party_of(game));
     EXPECT_EQ(progress.magic, game.magic());
-    EXPECT_EQ(progress.inventory, std::vector<std::string>{"crown"});
+    EXPECT_EQ(progress.inventory, (std::vector<SavedItemStack>{{.key = "crown", .count = 1}}));
     EXPECT_EQ(progress.player.position, game.player().position());
     EXPECT_EQ(progress.player.yaw, game.player().yaw());
     EXPECT_EQ(progress.player.pitch, game.player().pitch());
@@ -883,7 +883,11 @@ TEST(GameTest, ProgressSaveIsTheLevelStartWithTheGameAsItIs) {
     EXPECT_EQ(progress.doors, std::vector<DoorState>(game.doors().begin(), game.doors().end()));
     EXPECT_TRUE(progress.doors[0].moving());
     ASSERT_EQ(progress.chests.size(), game.chest_inventories().size());
-    EXPECT_EQ(progress.chests[1].back(), "pebble");
+    // Each stack of the chest, with its number of items.
+    const Inventory& chest = game.chest_inventories()[1];
+    ASSERT_EQ(progress.chests[1].size(), chest.size());
+    const std::size_t pebbles = chest.find(kPebble).value();
+    EXPECT_EQ(progress.chests[1][pebbles], (SavedItemStack{.key = "pebble", .count = chest.stacks()[pebbles].count}));
     save.progress.reset();
     EXPECT_EQ(save, game.level_start_save());
 }
@@ -963,7 +967,7 @@ TEST(GameTest, LoadingAProgressOfAnotherLevelFailsAndKeepsTheLevel) {
 TEST(GameTest, LoadingAProgressLeavesOutUnknownItemsOfChests) {
     Game game = make_changed_game();
     SavedGame save = game.progress_save();
-    save.progress->chests[0] = {"unicorn", "gold_bar"};
+    save.progress->chests[0] = {{.key = "unicorn"}, {.key = "gold_bar"}};
     testing::internal::CaptureStderr();
     game.load(save);
     const std::string log = testing::internal::GetCapturedStderr();
@@ -1266,7 +1270,7 @@ TEST(GameTest, ChestsHoldTheirItemsUntilTheNextLevel) {
     EXPECT_EQ(game.chest_inventories()[0], Inventory({kPebble, kCrown}));
     EXPECT_TRUE(game.chest_inventories()[1].empty());
     EXPECT_EQ(game.items(), make_test_items());
-    move_item(game.chest_inventory(0), 1, game.inventory());
+    move_stack(game.chest_inventory(0), 1, game.inventory());
     EXPECT_EQ(game.chest_inventories()[0], Inventory({kPebble}));
     EXPECT_EQ(game.inventory(), Inventory({kCrown}));
     EXPECT_THROW(static_cast<void>(game.chest_inventory(2)), std::out_of_range);
@@ -1289,7 +1293,7 @@ TEST(GameTest, ItemsAreSavedAtTheStartOfTheLevelAndANewGameHasNone) {
     game.next_level();
     game.inventory().add(kPebble);
     const SavedGame save = game.level_start_save();
-    EXPECT_EQ(save.inventory, std::vector<std::string>{"gold_bar"});
+    EXPECT_EQ(save.inventory, (std::vector<SavedItemStack>{{.key = "gold_bar", .count = 1}}));
 
     Game loaded(config, 5, LayoutKind::kDebug);
     loaded.inventory().add(kCrown);
@@ -1304,11 +1308,12 @@ TEST(GameTest, LoadingLeavesOutItemsThatAreUnknown) {
     config.level.items = make_test_items();
     Game game(config, 3, LayoutKind::kDebug);
     SavedGame save = game.level_start_save();
-    save.inventory = {"pebble", "unicorn", "crown"};
+    // Stacks of a kind are joined, as in older saves, which have a key for each item.
+    save.inventory = {{.key = "pebble"}, {.key = "unicorn"}, {.key = "crown", .count = 2}, {.key = "pebble"}};
     testing::internal::CaptureStderr();
     game.load(save);
     const std::string log = testing::internal::GetCapturedStderr();
-    EXPECT_EQ(game.inventory(), Inventory({kPebble, kCrown}));
+    EXPECT_EQ(game.inventory(), Inventory({kPebble, kCrown, kCrown, kPebble}));
     EXPECT_NE(log.find("[warning] The saved item unicorn is unknown"), std::string::npos) << log;
 }
 

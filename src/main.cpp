@@ -1190,6 +1190,7 @@ void draw_scene(manifold::Renderer& renderer, const manifold::OverlayRenderer& o
              screens.build_layers({.width = viewport.width, .height = viewport.height})) {
             overlay_renderer.draw(layer.mesh, viewport);
             icons.draw(layer.icons, viewport);
+            overlay_renderer.draw(layer.over_icons, viewport);
         }
     }
 }
