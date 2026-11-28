@@ -366,10 +366,11 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   from 0.7 to 1.3 drawn for each character (`apply_fall_damage()`, `src/party/fall_damage.hpp`). The numbers are in the
   `fall_damage` group of `data/constants.json`. The random numbers come from the level's seed, so the same play gives
   the same damage. A landing that hurts (`Game::last_fall_impact()`) turns the picture red for half a second of game
-  time, from 25% to 60% opaque by the damage (`damage_flash_opacity()`). A character at 0 hit points is dead
+  time, from 25% to 60% opaque by the largest damage dealt, also beyond the hit points left (`damage_flash_opacity()`). A character at 0 hit points is dead
   (`Character::dead()`), with a gray portrait, and takes no more damage; once all are dead (`Game::defeated()`), the
   main loop opens the Game over menu (`make_game_over_menu()`: Restart last level, New game, Exit game), which can't be
-  left with Escape. While the party is dead, the game isn't saved, and the exit doesn't start the next level.
+  left with Escape. Then `save.json` is deleted, so that the game can't go back to just before the death, and while the
+  party is dead, neither save is written and the exit doesn't start the next level.
 
 ## Later (unordered)
 

@@ -87,10 +87,10 @@ TEST(FallDamageTest, EachCharacterIsHurtOnItsOwnDownToZero) {
     std::vector<Character> hurt = {make(0), make(10)};
     Rng first(5);
     Rng second(5);
-    EXPECT_EQ(apply_fall_damage(hurt, config, 18.0f, first), 10);
+    // The damage is returned in full, also beyond the 10 hit points left.
+    EXPECT_EQ(apply_fall_damage(hurt, config, 18.0f, first), fall_damage(config, 18.0f, second));
     EXPECT_EQ(hurt[0].hp, 0);
     EXPECT_EQ(hurt[1].hp, 0);
-    fall_damage(config, 18.0f, second);
     EXPECT_EQ(first(), second());
 
     std::vector<Character> safe = {make(50)};

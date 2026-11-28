@@ -536,7 +536,8 @@ manifold::SavesToLoad saves_to_continue(const std::optional<SavePaths>& paths, b
 
 /// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
 /// each level that starts is saved, to both saves, and the game is saved to `save.json` every autosave interval and by
-/// save_on_exit(), but neither save is written while the whole party is dead. The saved game can be loaded either way.
+/// save_on_exit(), but neither save is written while the whole party is dead, and `save.json` is deleted then. The
+/// saved game can be loaded either way.
 class LevelSession {
 public:
     /// Sets up the game's current level.
@@ -651,6 +652,21 @@ public:
         }
     }
 
+    /// Deletes `save.json`, if saving is on, once the whole party is dead, so that neither Load game nor Continue can
+    /// go back to just before the death; only the start of the level can be loaded then. A failure is logged as a
+    /// warning.
+    void discard_progress() {
+        if (!saving_ || !save_paths_) {
+            return;
+        }
+        std::error_code error;
+        if (std::filesystem::remove(save_paths_->progress, error)) {
+            manifold::log_info("Deleted {}, since the party is dead", save_paths_->progress.string());
+        } else if (error) {
+            manifold::log_warning("Can't delete {}: {}", save_paths_->progress.string(), error.message());
+        }
+    }
+
     /// Which saves there are to load. They may still fail to load.
     manifold::SavesToLoad saves() const {
         if (!save_paths_) {
@@ -705,8 +721,8 @@ private:
         save_progress(game);
     }
 
-    /// Saves the game as it is to `save.json`, if saving is on, unless the whole party is dead: then `save.json` keeps
-    /// the game from before, e.g. for Continue of the start menu after Exit game of the Game over menu.
+    /// Saves the game as it is to `save.json`, if saving is on, unless the whole party is dead: then `save.json` is
+    /// deleted, see discard_progress(), and stays so until the level is restarted or a new game starts.
     ///
     /// \param autosave Whether it is an autosave, which isn't logged if it succeeds, nor if it fails after the save to
     ///                 `save.json` before it failed too, so that a directory that can't be written doesn't fill the
@@ -1355,10 +1371,11 @@ void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, 
     if (ui.screens.empty()) {
         level.save_deferred(game);
     }
-    // Once the whole party is dead, the Game over menu pauses the game until the player restarts the level, starts a
-    // new game or exits. Other screens, such as the start menu, come first, and closing it with the `menu` command
-    // opens it again.
+    // Once the whole party is dead, `save.json` is deleted, so that the game can't go back to just before the death,
+    // and the Game over menu pauses the game until the player restarts the level, starts a new game or exits. Other
+    // screens, such as the start menu, come first, and closing it with the `menu` command opens it again.
     if (game.defeated() && ui.screens.empty()) {
+        level.discard_progress();
         ui.screens.push(manifold::make_game_over_menu(level.saves()));
     }
     // The inventory opens over the menus that are open, and in the loaded level.

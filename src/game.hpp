@@ -100,7 +100,9 @@ enum class Activation : std::uint8_t {
 struct FallImpact {
     double time = 0.0;   ///< When the player landed, in game time, see Game::time().
     float speed = 0.0f;  ///< The vertical speed of the landing, in metres per second, positive downwards.
-    int damage = 0;      ///< The most damage that a character took, positive, see apply_fall_damage().
+    /// The most damage that a living character was dealt, positive, also beyond the hit points it had left, see
+    /// apply_fall_damage().
+    int damage = 0;
 };
 
 /// A door that started to open or to close, see Game::take_door_moves().

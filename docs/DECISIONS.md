@@ -1066,8 +1066,9 @@ Decision: a landing hurts by its vertical speed v, not by the height fallen: up 
 (16.5 m). 100 hit points are an ordinary person's, so the damage doesn't scale with `max_hp`, and a character with more
 hit points survives more. Each living character gets that damage times its own random factor from 1 - `spread` to
 1 + `spread` (0.3), rounded to whole hit points, from a generator seeded by the level's seed. A character at 0 is dead
-and stays at 0; when all are, the Game over menu offers Restart last level, New game and Exit game, and the game isn't
-saved while it shows. A landing that hurts flashes the picture red for 0.5 s of game time.
+and stays at 0; when all are, the Game over menu offers Restart last level, New game and Exit game, `save.json` is
+deleted, and neither save is written while the party is dead. A landing that hurts flashes the picture red for 0.5 s of
+game time, by the largest damage dealt, before it is cut to the hit points left.
 
 Gains:
 
@@ -1095,11 +1096,13 @@ Rejected alternatives:
 - **Saving the generator's state**: a loaded game would give the same damage for a fall as the game it was saved
   from, but the save format would change, for little gain.
 - **Saving while the party is dead**: Exit game would leave a save whose Continue only shows Game over again.
+- **Keeping `save.json` from before the death**: Exit game and Continue, or F9, would go back to the last autosave,
+  up to 10 s before the death, which makes death cheap, and may land in the middle of the deadly fall anyway.
+- **A flash by the damage taken, cut to the hit points left**: a fall that kills a hurt party would flash weakly.
 
 Drawbacks:
 
-- An autosave can be made in the middle of a deadly fall, so Continue after a Game over may end in another one; Restart
-  last level is always offered for that.
+- A death costs the progress of the whole level: only its start can be loaded.
 - The landing speed is that at the end of the landing frame, so it is up to a frame of gravity faster than at the
   contact: 0.33 m/s at 30 fps. The safe speed leaves room for it.
 - Only falls hurt so far, so the Game over menu is only reached by them or by the `hp` cheat.
