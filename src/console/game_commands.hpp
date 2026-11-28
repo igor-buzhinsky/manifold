@@ -74,6 +74,10 @@ struct ConsoleState {
     std::vector<ScreenshotRequest> screenshots;  ///< To take after this frame is drawn, in order.
     bool quit = false;                           ///< Whether to quit after this frame.
     bool debug_overlay = false;                  ///< Whether the debug overlay is shown.
+    bool vsync = true;                           ///< Whether showing a frame waits for the screen.
+    /// For how many frames to measure the phases of frames, as the `profile` command asks, or nothing. The main loop
+    /// starts the profile right after running the commands, so it measures their frame too, and resets this.
+    std::optional<int> profile;
     /// For how many more frames the player walks forward as if W were held, see the `walk` and `run` commands. The
     /// main loop counts it down.
     int walk_frames = 0;

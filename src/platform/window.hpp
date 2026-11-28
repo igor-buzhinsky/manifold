@@ -21,7 +21,7 @@ constexpr int kGlMinorVersion = 1;
 class Window {
 public:
     /// Opens a window that can't be resized, or one that fills the screen, makes its OpenGL context current with
-    /// vsync on, and loads the OpenGL functions.
+    /// vsync on (or logs a warning if that fails), and loads the OpenGL functions.
     ///
     /// \param title      Text in the title bar.
     /// \param width      Width in screen units, which may differ from pixels on high-DPI screens.
@@ -57,8 +57,15 @@ public:
     /// edges of the screen. SDL lets the pointer go while the window doesn't have the focus.
     void set_relative_mouse_mode(bool on);
 
-    /// Shows the frame drawn since the last call. Waits for vsync.
+    /// Shows the frame drawn since the last call. Waits for vsync, if it is on.
     void swap_buffers();
+
+    /// Turns vsync on, as it is at first, or off, e.g. to measure how fast frames can be drawn. Does nothing if it is
+    /// on or off already. Logs a warning if it fails, and vsync() then stays as it was.
+    void set_vsync(bool on);
+
+    /// Whether vsync is on, as far as it is known.
+    bool vsync() const { return vsync_; }
 
     /// The SDL window, e.g. for the debug overlay. It lives as long as this object.
     SDL_Window* sdl_window() const { return window_; }
@@ -68,6 +75,7 @@ public:
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
+    bool vsync_ = true;
 };
 
 }  // namespace manifold

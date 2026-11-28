@@ -35,6 +35,9 @@ struct RenderStats {
     std::size_t lights = 0;             ///< Lights drawn.
     std::size_t shadowed_lights = 0;    ///< Lights drawn that have a shadow map.
     std::size_t shadow_maps_drawn = 0;  ///< Shadow maps drawn (again) before the picture.
+    /// Triangles of the world, the chests, the torch handles and the doors, counted once also when they are drawn
+    /// more than once, e.g. in the depth pre-pass.
+    std::size_t triangles = 0;
 };
 
 /// Draws the world and the torch flames with OpenGL, with shadows from the lights that cast them.
@@ -68,6 +71,9 @@ public:
 
     /// Draws the shadow maps that are missing, then clears the bound framebuffer to black and draws the world,
     /// the doors, the flames, the exit and the marker.
+    ///
+    /// Without a cutaway, the depth of the world and the doors is drawn first, so that the lighting, which is most of
+    /// the work, runs only for the surfaces that are seen.
     ///
     /// \param camera   Where the world is seen from.
     /// \param lighting The lights to use. Lights after the first kMaxLights are left out.
@@ -120,6 +126,7 @@ private:
     GLuint flame_vertex_array_ = 0;
     GLuint flame_buffer_ = 0;  ///< One FlameInstance per torch.
     GLsizei flame_count_ = 0;
+    GLuint depth_program_ = 0;  ///< Draws only depth, for the pre-pass of draw().
     GLuint shadow_program_ = 0;
     GLuint shadow_maps_ = 0;  ///< Cube map array with the shadow map of each slot of `shadow_cache_`.
     GLuint shadow_framebuffer_ = 0;

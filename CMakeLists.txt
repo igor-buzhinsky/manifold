@@ -114,6 +114,7 @@ add_library(manifold_core STATIC
     src/ui/ui_style.cpp
     src/util/asset_files.cpp
     src/util/asset_mapping.cpp
+    src/util/frame_profile.cpp
     src/util/frame_times.cpp
     src/util/log.cpp
     src/util/random.cpp
@@ -137,6 +138,7 @@ add_executable(manifold
     src/platform/terminal_input.cpp
     src/platform/window.cpp
     src/render/gl_util.cpp
+    src/render/gpu_timer.cpp
     src/render/image_renderer.cpp
     src/render/overlay_renderer.cpp
     src/render/renderer.cpp
@@ -205,6 +207,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/item_catalog_test.cpp
         tests/geometry_test.cpp
         tests/debug_layout_test.cpp
+        tests/frame_profile_test.cpp
         tests/frame_times_test.cpp
         tests/game_data_test.cpp
         tests/layout_factory_test.cpp

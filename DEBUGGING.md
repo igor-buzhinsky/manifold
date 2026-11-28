@@ -142,6 +142,8 @@ it types can't be typed.
 | `crosshair [on\|off]` | Show the crosshair at the center of the player's view, or not. It is hidden while the camera is put in place with `camera` |
 | `lighting [on\|off]` | Turn lights off to see the plain texture colors, or on again |
 | `shadows [on\|off]` | Turn shadows off or on |
+| `vsync [on\|off]` | Let showing a frame wait for the screen's refresh, as it does at first, or not, e.g. to [profile](#profiling) without that limit |
+| `profile FRAMES` | Measure how long the phases of the next FRAMES frames take and log a summary, see [Profiling](#profiling). The commands after it run once it is done |
 | `imgui [on\|off]` | Show or hide the debug overlay, like F3 |
 | `menu start\|game\|close` | Show the start menu or the game menu (see Menus in [GAME_MANUAL.md](GAME_MANUAL.md#menus)) instead of the open menus, or close them. The commands after it run in the next frame, when the menu is open, so that a screenshot shows it. The game is paused while a menu is open, but commands still run. While the whole party is dead, the Game over menu opens again after `close` |
 | `screenshot FILE [WIDTH HEIGHT]` | Save the view as a PNG file after this frame, by default as large as the window, in full screen the whole screen in its pixels, with black bars if it isn't 16:9. The commands after it run in the next frame, so they don't change the picture. The game goes on for that frame, as with `wait 1`. Other sizes keep the 16:9 view, with black bars |
@@ -151,6 +153,36 @@ it types can't be typed.
 Commands that take `[on|off]` toggle the setting when run without it, and log the new state. Numbers may
 start with `+` or `-`. `--screenshot FILE.png` is short for `--exec "screenshot FILE.png"`, with
 `quit` after all other commands.
+
+## Profiling
+
+`profile FRAMES` measures the next FRAMES frames and then logs, for each phase of a frame, the mean, median, 95th
+percentile and longest duration in milliseconds, with the frames per second, the size of the picture, whether vsync
+is on, and the lights and the triangles (of the world, the chests, the torch handles and the doors) of the last picture
+of the game. The profile measures the frame of the command and the next ones:
+
+- **frame**: the whole frame, without handling the events at its end, which takes little time.
+- **update**: everything before drawing: the console commands, input, the game's update with the player's movement,
+  sounds and saves.
+- **draw**: issuing the OpenGL calls of the picture and the overlays on the CPU.
+- **gpu**: the GPU's work on the same, measured with timer queries. Its results come in a frame or two late, so a
+  profile of very few frames may have fewer of them, or none.
+- **swap**: showing the picture, which waits for the GPU to finish and, with vsync, for the screen. Screenshots taken
+  in the frame count here, with their GPU work, which gpu leaves out.
+
+If gpu is about as long as frame, the GPU limits the frame rate, and swap shows the CPU waiting for it. With vsync on,
+frames take at least a refresh of the screen, so `vsync off` comes first, e.g. at the start of the level of seed 7,
+after the first frames, which draw the shadow maps:
+
+```sh
+./build/manifold 7 --exec "vsync off; wait 60; profile 300; quit"
+./build/manifold 7 --exec "vsync off; wait 60; run 600; profile 600; quit"   # while running forward
+```
+
+Runs with `--exec` use a window. To profile in full screen, as the game is usually played, pipe the commands into a
+normal run, see [Console](#console). On a computer with two GPUs, OpenGL may use the slower, built-in one; the log
+names the GPU at the start (`OpenGL ...`). Build with `-DCMAKE_BUILD_TYPE=Release` (see [README.md](README.md)) to
+measure the CPU phases as in a release.
 
 ## Debug overlay
 

@@ -81,7 +81,10 @@ Window::Window(const std::string& title, int width, int height, bool fullscreen)
             std::format("Loading OpenGL functions failed: got OpenGL {}.{}, but {}.{} core is needed", major, minor,
                         kGlMajorVersion, kGlMinorVersion));
     }
-    SDL_GL_SetSwapInterval(1);  // Vsync.
+    vsync_ = SDL_GL_SetSwapInterval(1);
+    if (!vsync_) {
+        log_warning("Turning vsync on failed: {}", SDL_GetError());
+    }
     log_info("OpenGL {}, {}", gl_string(GL_VERSION), gl_string(GL_RENDERER));
 }
 
@@ -118,5 +121,16 @@ PixelSize Window::framebuffer_size() const {
 }
 
 void Window::swap_buffers() { SDL_GL_SwapWindow(window_); }
+
+void Window::set_vsync(bool on) {
+    if (on == vsync_) {
+        return;
+    }
+    if (!SDL_GL_SetSwapInterval(on ? 1 : 0)) {
+        log_warning("Setting vsync {} failed: {}", on ? "on" : "off", SDL_GetError());
+        return;
+    }
+    vsync_ = on;
+}
 
 }  // namespace manifold

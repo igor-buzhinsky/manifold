@@ -288,6 +288,29 @@ TEST(GameCommandsTest, WaitDelaysTheNextCommandsAndQuitAsksToQuit) {
     EXPECT_THROW(fixture.queue.run_frame(fixture.console), CommandError);
 }
 
+TEST(GameCommandsTest, ProfileAsksTheMainLoopAndTheNextCommandsWaitUntilItIsDone) {
+    Fixture fixture;
+    fixture.run("profile 2; arrow on");
+    EXPECT_EQ(fixture.state.profile, 2);
+    // The profile measures this frame and the next, and logs its summary at the end of the next.
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_FALSE(fixture.state.view.arrow);
+    fixture.queue.run_frame(fixture.console);
+    EXPECT_TRUE(fixture.state.view.arrow);
+    for (const char* command : {"profile", "profile 0", "profile -5", "profile 10 20"}) {
+        fixture.expect_error(command);
+    }
+}
+
+TEST(GameCommandsTest, VsyncIsOnAtFirstAndSwitches) {
+    Fixture fixture;
+    EXPECT_TRUE(fixture.state.vsync);
+    fixture.run("vsync off");
+    EXPECT_FALSE(fixture.state.vsync);
+    fixture.run("vsync");
+    EXPECT_TRUE(fixture.state.vsync);
+}
+
 TEST(GameCommandsTest, LevelInfoTakesNoArguments) {
     Fixture fixture;
     EXPECT_NO_THROW(fixture.run("level_info"));

@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <format>
 #include <memory>
 #include <optional>
 #include <random>
@@ -49,6 +50,7 @@
 #include "platform/window.hpp"
 #include "render/camera.hpp"
 #include "render/gl_util.hpp"
+#include "render/gpu_timer.hpp"
 #include "render/image_renderer.hpp"
 #include "render/lighting.hpp"
 #include "render/marker.hpp"
@@ -75,6 +77,7 @@
 #include "util/asset_files.hpp"
 #include "util/asset_index.hpp"
 #include "util/asset_mapping.hpp"
+#include "util/frame_profile.hpp"
 #include "util/frame_times.hpp"
 #include "util/log.hpp"
 #include "util/random.hpp"
@@ -1250,6 +1253,76 @@ void take_screenshots(manifold::Renderer& renderer, const manifold::OverlayRende
     }
 }
 
+/// Runs the profiles that the `profile` command asks for, see manifold::FrameProfile, and logs their summaries.
+///
+/// Needs a current OpenGL context for its whole lifetime.
+class Profiler {
+public:
+    /// Starts a profile, in place of one that runs, if `state` asks for one, and resets the request.
+    void start(manifold::ConsoleState& state) {
+        if (!state.profile) {
+            return;
+        }
+        profile_.emplace(static_cast<std::size_t>(*state.profile));
+        state.profile.reset();
+        gpu_timer_.reset();  // Drops what frames before the profile measured.
+    }
+
+    /// Marks the start of drawing the frame.
+    void begin_draw() {
+        draw_start_ = SDL_GetTicksNS();
+        if (profile_) {
+            gpu_timer_.begin();
+        }
+    }
+
+    /// Marks the end of drawing the frame, before showing it.
+    void end_draw() {
+        if (profile_) {
+            gpu_timer_.end();
+        }
+        draw_end_ = SDL_GetTicksNS();
+    }
+
+    /// Adds the phases of the frame that was just shown, and logs the summary if the profile is done.
+    ///
+    /// \param frame_start When the main loop's iteration of the frame started, from SDL_GetTicksNS().
+    /// \param viewport    Where the game was drawn.
+    /// \param vsync       Whether showing the frame waited for the screen.
+    /// \param stats       What the renderer did in the frame.
+    void end_frame(std::uint64_t frame_start, const manifold::Viewport& viewport, bool vsync,
+                   const manifold::RenderStats& stats) {
+        if (!profile_) {
+            return;
+        }
+        const std::uint64_t end = SDL_GetTicksNS();
+        const auto seconds = [](std::uint64_t from, std::uint64_t to) { return static_cast<float>(to - from) * 1e-9f; };
+        profile_->add(manifold::FramePhase::kUpdate, seconds(frame_start, draw_start_));
+        profile_->add(manifold::FramePhase::kDraw, seconds(draw_start_, draw_end_));
+        // Screenshots, if any, are taken between drawing and showing the frame, so they count here.
+        profile_->add(manifold::FramePhase::kSwap, seconds(draw_end_, end));
+        for (const float gpu : gpu_timer_.collect()) {
+            profile_->add(manifold::FramePhase::kGpu, gpu);
+        }
+        // Handling the events after showing the frame takes little time, so the frame ends here, see
+        // FramePhase::kFrame.
+        profile_->add(manifold::FramePhase::kFrame, seconds(frame_start, end));
+        if (profile_->done()) {
+            manifold::log_info("{}", profile_->summary(std::format(
+                                         "{} x {} pixels, vsync {}, {} lights ({} with shadows), {} triangles",
+                                         viewport.width, viewport.height, vsync ? "on" : "off", stats.lights,
+                                         stats.shadowed_lights, stats.triangles)));
+            profile_.reset();
+        }
+    }
+
+private:
+    std::optional<manifold::FrameProfile> profile_;  ///< The profile that runs, if any.
+    manifold::GpuTimer gpu_timer_;
+    std::uint64_t draw_start_ = 0;  ///< When drawing the frame started, from SDL_GetTicksNS().
+    std::uint64_t draw_end_ = 0;    ///< When drawing the frame ended.
+};
+
 /// Removes the log listener when it goes out of scope, before what the listener uses is gone.
 struct LogListenerReset {
     LogListenerReset() = default;
@@ -1446,15 +1519,20 @@ void run(const Options& options) {
     manifold::TerminalInput terminal;
     manifold::DebugOverlay overlay(window);
     manifold::FrameTimes frame_times;
+    Profiler profiler;
 
     bool console_key_held = false;
     std::uint64_t previous_ticks = SDL_GetTicksNS();
     do {
+        const std::uint64_t loop_start = SDL_GetTicksNS();
         apply_requests(ui, state, level, game, options.layout);
         for (const std::string& line : terminal.read_lines()) {
             commands.add(line, false);
         }
         commands.run_frame(console);
+        window.set_vsync(state.vsync);
+        state.vsync = window.vsync();  // As it is if setting it failed.
+        profiler.start(state);
 
         const std::uint64_t ticks = SDL_GetTicksNS();
         const float frame_time = static_cast<float>(ticks - previous_ticks) * 1e-9f;
@@ -1491,6 +1569,7 @@ void run(const Options& options) {
         const manifold::PixelSize window_size = window.framebuffer_size();
         const manifold::Viewport viewport = manifold::fit_viewport(window_size, manifold::kAspectRatio);
         ui.picture = {.width = viewport.width, .height = viewport.height};
+        profiler.begin_draw();
         draw_scene(level.renderer(), overlay_renderer, portraits, icons, game, state.view, ui.screens, window_size);
         // The stats of this draw, before screenshots draw again.
         const manifold::RenderStats render_stats = level.renderer().stats();
@@ -1501,6 +1580,7 @@ void run(const Options& options) {
         if (console_window.is_open()) {
             overlay_renderer.draw(console_window.build_mesh(ui.picture), viewport);
         }
+        profiler.end_draw();
         take_screenshots(level.renderer(), overlay_renderer, portraits, icons, game, ui.screens, state.screenshots,
                          window_size);
         state.screenshots.clear();
@@ -1508,6 +1588,7 @@ void run(const Options& options) {
             break;
         }
         window.swap_buffers();
+        profiler.end_frame(loop_start, viewport, state.vsync, render_stats);
         // The console window has the keys while it is open, and the screens have the keys and the mouse, so the
         // overlay gets no events then.
         overlay.set_input(state.debug_overlay && !console_window.is_open() && ui.screens.empty());

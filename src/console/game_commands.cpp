@@ -421,6 +421,23 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
     add_switch(console, "lighting", "Lighting", "Turns lights on, or off to show the plain texture colors.",
                state.view.lighting);
     add_switch(console, "shadows", "Shadows", "Turns shadows on or off.", state.view.shadows);
+    add_switch(console, "vsync", "Vsync",
+               "Lets showing a frame wait for the screen, as it does at first, or not, e.g. to profile without the "
+               "limit of the screen's refresh rate.",
+               state.vsync);
+    console.add("profile", "profile FRAMES",
+                "Measures how long the phases of the next FRAMES frames take and logs a summary. The next commands "
+                "run once it is done.",
+                [&queue, &state](std::span<const std::string> arguments) {
+                    expect_count(arguments, 1, "profile FRAMES");
+                    const int frames = parse_int_argument(arguments[0]);
+                    if (frames < 1) {
+                        throw CommandError("frames must be positive: " + arguments[0]);
+                    }
+                    state.profile = frames;
+                    // The profile measures this frame and the next ones, and logs its summary at the end of the last.
+                    queue.wait(frames);
+                });
     add_switch(console, "imgui", "Debug overlay",
                "Shows or hides the debug overlay, which tunes the lights and shows how the game runs.",
                state.debug_overlay);
