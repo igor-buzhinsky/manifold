@@ -50,6 +50,8 @@ out vec2 v_uv;
 out vec3 v_color;
 out float v_texture_weight;
 
+invariant gl_Position;
+
 void main() {
     v_position = a_position;
     v_normal = a_normal;
@@ -143,6 +145,9 @@ void main() {
         vec3 to_light = u_lights[i].position_range.xyz - v_position;
         float range = u_lights[i].position_range.w;
         float distance_squared = dot(to_light, to_light);
+        if (distance_squared >= range * range) {
+            continue;  // Out of range, where the light adds nothing, which also saves the shadow map lookup.
+        }
         float diffuse = max(dot(normal, to_light * inversesqrt(max(distance_squared, 1e-6))), 0.0);
         if (diffuse == 0.0) {
             continue;  // Facing away from the light, which also saves the shadow map lookup.
@@ -160,6 +165,27 @@ void main() {
     vec3 mapped = radiance / (1.0 + radiance);
     frag_color = vec4(linear_to_srgb(mapped), 1.0);
 }
+)glsl";
+
+/// Draws only the depth of the world, so that the lit pass shades each pixel once, see Renderer::draw(). The position
+/// is computed as in kVertexShader, so that the depths match exactly.
+constexpr const char* kDepthVertexShader = R"glsl(
+#version 410 core
+layout(location = 0) in vec3 a_position;
+
+uniform mat4 u_view_projection;
+
+invariant gl_Position;
+
+void main() {
+    gl_Position = u_view_projection * vec4(a_position, 1.0);
+}
+)glsl";
+
+/// Writes nothing but the depth.
+constexpr const char* kDepthFragmentShader = R"glsl(
+#version 410 core
+void main() {}
 )glsl";
 
 /// Draws the world from a point light into one face of its cube shadow map.
@@ -526,6 +552,7 @@ Renderer::Renderer(const World& world, const Image& texture)
       texture_(upload_texture(texture)),
       flame_program_(link_program(kFlameVertexShader, kFlameFragmentShader)),
       flame_count_(static_cast<GLsizei>(world.torches().size())),
+      depth_program_(link_program(kDepthVertexShader, kDepthFragmentShader)),
       shadow_program_(link_program(kShadowVertexShader, kShadowFragmentShader)),
       shadow_maps_(create_shadow_maps()),
       shadow_framebuffer_(create_shadow_framebuffer(shadow_maps_)),
@@ -646,6 +673,7 @@ Renderer::~Renderer() {
     glDeleteFramebuffers(1, &shadow_framebuffer_);
     glDeleteTextures(1, &shadow_maps_);
     glDeleteProgram(shadow_program_);
+    glDeleteProgram(depth_program_);
     glDeleteBuffers(1, &flame_buffer_);
     glDeleteVertexArrays(1, &flame_vertex_array_);
     glDeleteProgram(flame_program_);
@@ -836,6 +864,25 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
         }
         glDrawArrays(GL_TRIANGLES, 0, vertex_count);
     };
+    // A depth pre-pass, so that the expensive lighting runs only for the pixels that are seen. Not for cutaways,
+    // which draw the insides of solids first.
+    const bool pre_pass = !options.cut_height;
+    if (pre_pass) {
+        glUseProgram(depth_program_);
+        glUniformMatrix4fv(glGetUniformLocation(depth_program_, "u_view_projection"), 1, GL_FALSE,
+                           glm::value_ptr(view_projection));
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glBindVertexArray(vertex_array_);
+        glDrawArrays(GL_TRIANGLES, 0, vertex_count_);
+        if (!doors_.empty()) {
+            glBindVertexArray(door_vertex_array_);
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(doors_.size() * kDoorVertexCount));
+        }
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glDepthFunc(GL_LEQUAL);
+        glDepthMask(GL_FALSE);
+        glUseProgram(program_);
+    }
     if (options.cut_height) {
         glEnable(GL_CLIP_DISTANCE0);
     }
@@ -845,6 +892,10 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
         glBindTexture(GL_TEXTURE_2D, door_texture_);
         draw_solids(door_vertex_array_, static_cast<GLsizei>(doors_.size() * kDoorVertexCount));
         glBindTexture(GL_TEXTURE_2D, texture_);
+    }
+    if (pre_pass) {
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
     }
 
     if (flame_count_ > 0) {

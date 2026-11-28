@@ -76,7 +76,9 @@ rewrites.
 - Point lights with inverse-square falloff and a smooth range cutoff.
 - Omnidirectional shadows from cubemap shadow maps, limited to the nearest N lights. (The first plan was
   about 4–8. Static lights made more affordable: all 31 torch lights in use cast shadows, see v0.2.)
-- Forward rendering first. Move to clustered forward or deferred only if the light count requires it.
+- Forward rendering first. Move to clustered forward or deferred only if the light count requires it. A depth
+  pre-pass lets the lighting run only once per pixel, for the nearest surface, and each pixel skips the lights out of
+  its range, with their shadow map lookups.
 - Retro look: low-res textures with nearest-neighbour filtering, optional low-res render target,
   distance fog, billboard sprites for items and creatures.
 
