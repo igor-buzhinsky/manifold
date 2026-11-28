@@ -33,4 +33,15 @@ std::unique_ptr<MenuScreen> make_game_menu(SavesToLoad saves) {
     });
 }
 
+std::unique_ptr<MenuScreen> make_game_over_menu(SavesToLoad saves) {
+    return std::make_unique<MenuScreen>(MenuConfig{
+        .title = "Game over",
+        .items = {{.label = "Restart last level", .command = UiCommand::kLoadLevelStart, .enabled = saves.level_start},
+                  {.label = "New game", .command = UiCommand::kNewGame},
+                  {.label = "Exit game", .command = UiCommand::kExit}},
+        .cancel = std::nullopt,
+        .hides_game = false,
+    });
+}
+
 }  // namespace manifold

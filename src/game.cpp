@@ -19,12 +19,14 @@
 #include "items/item_catalog.hpp"
 #include "level/layout_factory.hpp"
 #include "level/level.hpp"
+#include "party/fall_damage.hpp"
 #include "party/party.hpp"
 #include "party/spells.hpp"
 #include "physics/collision.hpp"
 #include "physics/raycast.hpp"
 #include "save/saved_game.hpp"
 #include "util/log.hpp"
+#include "util/random.hpp"
 #include "world/chest.hpp"
 #include "world/door.hpp"
 #include "world/obstacle.hpp"
@@ -75,6 +77,9 @@ std::vector<Inventory> level_chest_inventories(const Level& level) {
 /// used by level generation.
 constexpr std::uint64_t kPartySeedSalt = 0x8bb84b93962eacc9ULL;
 
+/// Mixed into the seed of each level for the damage of falls, which keeps it independent of level generation.
+constexpr std::uint64_t kFallSeedSalt = 0x3c6ef372fe94f82bULL;
+
 }  // namespace
 
 Game::Game(const GameConfig& config, std::uint64_t seed, std::optional<LayoutKind> layout)
@@ -93,6 +98,8 @@ Game::Game(const GameConfig& config, Level level, std::uint64_t seed)
       jump_speed_(std::sqrt(2.0f * kEarthGravity * config.jump_height)),
       party_config_(config.party),
       magic_config_(config.magic),
+      fall_damage_config_(config.fall_damage),
+      fall_random_(seed ^ kFallSeedSalt),
       seed_(seed),
       level_(std::move(level)),
       player_(at_start(config.player, level_)),
@@ -271,6 +278,8 @@ void Game::start_level(Level level, std::uint64_t seed, int level_number, std::o
     chest_activations_.clear();
     footsteps_ = 0;
     step_progress_ = 1.0f - kFirstStepFraction;
+    fall_random_.seed(seed ^ kFallSeedSalt);
+    last_fall_impact_.reset();
 }
 
 bool Game::cast(Spell spell) {
@@ -436,8 +445,17 @@ void Game::move_player(const PlayerInput& input, float dt, std::span<const Obsta
     const bool bumped = vertical_speed > 0.0f && result.correction.z < 0.0f;
     player_.set_vertical_speed(landed || bumped ? 0.0f : vertical_speed);
     player_.set_on_ground(landed);
-    count_footsteps(glm::length(glm::vec2(player_.position() - start)),
-                    landed && !was_on_ground ? -vertical_speed : 0.0f, running ? kRunStepLength : kWalkStepLength);
+    const float landing_speed = landed && !was_on_ground ? -vertical_speed : 0.0f;
+    count_footsteps(glm::length(glm::vec2(player_.position() - start)), landing_speed,
+                    running ? kRunStepLength : kWalkStepLength);
+    land(landing_speed);
+}
+
+void Game::land(float impact_speed) {
+    const int damage = apply_fall_damage(party_, fall_damage_config_, impact_speed, fall_random_);
+    if (damage > 0) {
+        last_fall_impact_ = FallImpact{.time = time_, .speed = impact_speed, .damage = damage};
+    }
 }
 
 void Game::count_footsteps(float walked, float landing_speed, float step_length) {

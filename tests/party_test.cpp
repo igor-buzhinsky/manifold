@@ -34,6 +34,17 @@ TEST(PartyTest, HpFractionIsClamped) {
                     0.0f);
 }
 
+/// A character with `hp` of 100 hit points.
+Character with_hp(int hp) { return {.portrait = std::nullopt, .gender = Gender::kMale, .hp = hp, .max_hp = 100}; }
+
+TEST(PartyTest, PartyIsDefeatedOnceAllCharactersAreDead) {
+    EXPECT_TRUE(with_hp(0).dead());
+    EXPECT_FALSE(with_hp(1).dead());
+    EXPECT_FALSE(party_defeated(std::vector{with_hp(0), with_hp(1), with_hp(0)}));
+    EXPECT_TRUE(party_defeated(std::vector{with_hp(0), with_hp(0)}));
+    EXPECT_FALSE(party_defeated(std::vector<Character>{}));
+}
+
 /// Portraits of each group: two of men, one of women and one of anyone.
 AssetCounts make_portraits() {
     AssetCounts counts;

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <span>
 #include <string_view>
 #include <vector>
 
@@ -56,6 +57,10 @@ float Character::hp_fraction() const {
         return 0.0f;
     }
     return std::clamp(static_cast<float>(hp) / static_cast<float>(max_hp), 0.0f, 1.0f);
+}
+
+bool party_defeated(std::span<const Character> party) {
+    return !party.empty() && std::ranges::all_of(party, [](const Character& character) { return character.dead(); });
 }
 
 bool is_portrait_key(AssetKey key) {

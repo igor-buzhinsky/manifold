@@ -60,6 +60,7 @@
 #include "save/saved_game.hpp"
 #include "settings/settings.hpp"
 #include "ui/crosshair.hpp"
+#include "ui/damage_flash.hpp"
 #include "ui/debug_overlay.hpp"
 #include "ui/game_menus.hpp"
 #include "ui/inventory_screen.hpp"
@@ -311,7 +312,8 @@ public:
         portraits_ = std::move(portraits);
     }
 
-    /// Draws the portraits of `party`, which follow() was called for, and their bars into `viewport`.
+    /// Draws the portraits of `party`, which follow() was called for, and their bars into `viewport`. The portraits of
+    /// dead characters are gray.
     void draw(std::span<const manifold::Character> party, const manifold::OverlayRenderer& overlay_renderer,
               const manifold::Viewport& viewport) const {
         const std::vector<manifold::CharacterPlacement> placements =
@@ -322,7 +324,7 @@ public:
         for (std::size_t i = 0; i < placements.size() && i < images_.size(); ++i) {
             const std::optional<manifold::ImageTexture>& image = images_[i];
             if (image.has_value()) {
-                image_renderer_.draw(*image, placements[i].portrait, viewport);
+                image_renderer_.draw(*image, placements[i].portrait, viewport, party[i].dead());
             }
         }
     }
@@ -534,7 +536,7 @@ manifold::SavesToLoad saves_to_continue(const std::optional<SavePaths>& paths, b
 
 /// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
 /// each level that starts is saved, to both saves, and the game is saved to `save.json` every autosave interval and by
-/// save_on_exit(). The saved game can be loaded either way.
+/// save_on_exit(), but not while the whole party is dead. The saved game can be loaded either way.
 class LevelSession {
 public:
     /// Sets up the game's current level.
@@ -702,13 +704,14 @@ private:
         save_progress(game);
     }
 
-    /// Saves the game as it is to `save.json`, if saving is on.
+    /// Saves the game as it is to `save.json`, if saving is on, unless the whole party is dead: then `save.json` keeps
+    /// the game from before, e.g. for Continue of the start menu after Exit game of the Game over menu.
     ///
     /// \param autosave Whether it is an autosave, which isn't logged if it succeeds, nor if it fails after the save to
     ///                 `save.json` before it failed too, so that a directory that can't be written doesn't fill the
     ///                 log with an error every autosave interval.
     void save_progress(const manifold::Game& game, bool autosave = false) {
-        if (saving_ && save_paths_) {
+        if (saving_ && save_paths_ && !game.defeated()) {
             const bool saved = write_save(game.progress_save(), save_paths_->progress,
                                           {.success = !autosave, .failure = !autosave || !progress_save_failed_});
             if (!saved && autosave_interval_ && !progress_save_failed_) {
@@ -1129,8 +1132,9 @@ manifold::PlayerInput read_input(const Ui& ui, const manifold::ViewSettings& vie
     };
 }
 
-/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it, the
-/// portraits of the party, the spells in effect and the bar of mana.
+/// Draws the game into the bound framebuffer, as `view` shows it, with the crosshair if the view has it, the red of a
+/// landing that hurt the party, see manifold::damage_flash_opacity(), the portraits of the party, the spells in effect
+/// and the bar of mana.
 ///
 /// \param renderer         Draws the world.
 /// \param overlay_renderer Draws the crosshair.
@@ -1165,6 +1169,13 @@ void draw_game(manifold::Renderer& renderer, const manifold::OverlayRenderer& ov
         manifold::OverlayMesh crosshair;
         manifold::add_crosshair(crosshair, {.width = viewport.width, .height = viewport.height});
         overlay_renderer.draw(crosshair, viewport);
+    }
+    if (const std::optional<manifold::FallImpact>& impact = game.last_fall_impact()) {
+        manifold::OverlayMesh flash;
+        const float opacity =
+            manifold::damage_flash_opacity(static_cast<float>(game.time() - impact->time), impact->damage);
+        manifold::add_damage_flash(flash, {.width = viewport.width, .height = viewport.height}, opacity);
+        overlay_renderer.draw(flash, viewport);
     }
     portraits.draw(game.party(), overlay_renderer, viewport);
     manifold::OverlayMesh magic;
@@ -1321,7 +1332,7 @@ void apply_ui_command(manifold::UiCommand command, manifold::ScreenStack& screen
 /// Does what was asked for since the last frame, at the start of a frame: what a screen of the interface asked for,
 /// the menu that Escape or the `menu` command asked for, loading, and the inventory that I or the `open` command asked
 /// for. Saves the new game that the start menu offered
-/// once no screen is open.
+/// once no screen is open, and then opens the Game over menu if the whole party is dead and no screen is open.
 ///
 /// \param layout The layout of the first level of a new game, if given on the command line.
 /// \throws std::runtime_error if the `load` command asked to load and to stop on error, and loading fails.
@@ -1342,6 +1353,12 @@ void apply_requests(Ui& ui, manifold::ConsoleState& state, LevelSession& level, 
     // The new game is saved once the start menu is closed without continuing the save, also by the `menu` command.
     if (ui.screens.empty()) {
         level.save_deferred(game);
+    }
+    // Once the whole party is dead, the Game over menu pauses the game until the player restarts the level, starts a
+    // new game or exits. Other screens, such as the start menu, come first, and closing it with the `menu` command
+    // opens it again.
+    if (game.defeated() && ui.screens.empty()) {
+        ui.screens.push(manifold::make_game_over_menu(level.saves()));
     }
     // The inventory opens over the menus that are open, and in the loaded level.
     if (const std::optional<manifold::InventoryRequest> inventory = std::exchange(state.inventory, std::nullopt)) {

@@ -148,6 +148,8 @@ TEST(GameDataTest, ReadsTheConstants) {
     json["player"]["walk_speed"] = 3;
     json["party"]["size"] = 4;
     json["party"]["mana_regeneration"] = 0;
+    json["fall_damage"]["safe_speed"] = 6;
+    json["fall_damage"]["spread"] = 0;
     json["level_objects"]["torch_flames"] = {{"orange", 0}, {"blue", 1}, {"green", 3}};
     json["level_objects"]["golden_chest"]["max_total_value"] = 9000;
     json["lighting"]["candlelight"]["color"] = {0.5, 0.25, 2};
@@ -159,6 +161,9 @@ TEST(GameDataTest, ReadsTheConstants) {
     EXPECT_FLOAT_EQ(game.walk_speed, 3.0f);
     EXPECT_EQ(game.party.size, 4U);
     EXPECT_FLOAT_EQ(game.magic.mana_regeneration, 0.0f);
+    EXPECT_FLOAT_EQ(game.fall_damage.safe_speed, 6.0f);
+    EXPECT_FLOAT_EQ(game.fall_damage.full_damage_speed, 18.0f);
+    EXPECT_FLOAT_EQ(game.fall_damage.spread, 0.0f);
     EXPECT_EQ(game.level.object_chances.torch_flames, (std::array<double, 3>{0.0, 1.0, 3.0}));
     EXPECT_EQ(game.level.chest_loot.golden.max_total_value, 9000);
     EXPECT_EQ(lights.player_color, glm::vec3(0.5f, 0.25f, 2.0f));
@@ -169,6 +174,7 @@ TEST(GameDataTest, ListsEveryProblemOfTheConstants) {
     Json json = shipped(kConstantsFileName);
     json["player"]["radius"] = 0;
     json["party"]["size"] = "three";
+    json["fall_damage"]["spread"] = 1.5;
     json["level_objects"]["torch_flames"] = {{"orange", 0}, {"blue", 0}, {"green", 0}};
     json["level_objects"]["wooden_chest"]["min_draws"] = 4;
     json["level_objects"]["wooden_chest"]["max_draws"] = 3;
@@ -181,6 +187,7 @@ TEST(GameDataTest, ListsEveryProblemOfTheConstants) {
     const std::string problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
     EXPECT_TRUE(contains(problems, "constants.json: player.radius is 0, not a positive number"));
     EXPECT_TRUE(contains(problems, "constants.json: party.size is \"three\", not an integer from 1 to 6"));
+    EXPECT_TRUE(contains(problems, "constants.json: fall_damage.spread is 1.5, not a number from 0 to 1"));
     EXPECT_TRUE(contains(problems, "constants.json: level_objects.torch_flames has no flame with a positive weight"));
     EXPECT_TRUE(contains(problems,
                          "constants.json: level_objects.wooden_chest.min_draws 4 is above "
@@ -208,6 +215,11 @@ TEST(GameDataTest, ChecksTheLimitsOfTheConstants) {
     json["party"]["size"] = 6;
     problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
     EXPECT_EQ(problems, "constants.json: player.walk_speed 5 is above player.run_speed 4");
+
+    json["player"]["walk_speed"] = 3;
+    json["fall_damage"]["safe_speed"] = 18;
+    problems = problems_of([&] { parse_constants(json.dump(), "constants.json", game, lights); });
+    EXPECT_EQ(problems, "constants.json: fall_damage.safe_speed 18 is not below fall_damage.full_damage_speed 18");
 }
 
 TEST(GameDataTest, ChecksTheLimitsOfTheLevelLayouts) {

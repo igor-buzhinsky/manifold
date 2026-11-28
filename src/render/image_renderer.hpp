@@ -48,7 +48,9 @@ public:
     /// \param image    What to draw. Its top row is at the top of `area`.
     /// \param area     Where to draw it, in pixels from the top-left corner of the viewport, like OverlayMesh.
     /// \param viewport Where the picture is.
-    void draw(const ImageTexture& image, const Rect& area, const Viewport& viewport) const;
+    /// \param gray     Whether to draw it in shades of gray, at half the luminance of its colors, e.g. the portrait of
+    ///                 a dead character.
+    void draw(const ImageTexture& image, const Rect& area, const Viewport& viewport, bool gray = false) const;
 
 private:
     GLuint program_ = 0;

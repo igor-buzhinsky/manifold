@@ -115,6 +115,22 @@ TEST(MenuScreenTest, StartMenuCanContinueFromTheLevelStartAlone) {
     EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kLoadLevelStart);
 }
 
+TEST(MenuScreenTest, GameOverMenuShowsTheGameAndCantBeLeftWithEscape) {
+    const auto menu = make_game_over_menu(kBothSaves);
+    EXPECT_FALSE(menu->hides_game());
+    EXPECT_EQ(menu->handle(NavKey::kCancel, kPicture), std::nullopt);
+    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kLoadLevelStart);
+    EXPECT_EQ(click(*menu, 1), UiCommand::kNewGame);
+    EXPECT_EQ(click(*menu, 2), UiCommand::kExit);
+}
+
+TEST(MenuScreenTest, GameOverMenuWithoutASaveCantRestartTheLevel) {
+    const auto menu = make_game_over_menu({.progress = true});
+    EXPECT_EQ(menu->buttons().focus(), 1U);
+    EXPECT_EQ(click(*menu, 0), std::nullopt);
+    EXPECT_EQ(menu->handle(NavKey::kConfirm, kPicture), UiCommand::kNewGame);
+}
+
 TEST(MenuScreenTest, BackgroundCoversThePicture) {
     for (const bool hides : {false, true}) {
         const MenuScreen menu(

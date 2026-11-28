@@ -39,12 +39,13 @@ void main() {
 )glsl";
 
 /// The texture is sRGB, so sampling gives linear colors, which are filtered correctly. They are converted back to sRGB,
-/// since nothing else converts the overlay's colors.
+/// since nothing else converts the overlay's colors. A gray image gets the luminance of its linear colors, darkened.
 constexpr const char* kFragmentShader = R"glsl(
 #version 410 core
 in vec2 v_uv;
 
 uniform sampler2D u_image;
+uniform bool u_gray;  // Whether to draw the image gray, see ImageRenderer::draw().
 
 out vec4 frag_color;
 
@@ -56,6 +57,9 @@ vec3 to_srgb(vec3 linear) {
 
 void main() {
     vec4 color = texture(u_image, v_uv);
+    if (u_gray) {
+        color.rgb = vec3(dot(color.rgb, vec3(0.2126, 0.7152, 0.0722)) * 0.5);
+    }
     frag_color = vec4(to_srgb(color.rgb), color.a);
 }
 )glsl";
@@ -105,7 +109,7 @@ ImageRenderer::~ImageRenderer() {
     glDeleteProgram(program_);
 }
 
-void ImageRenderer::draw(const ImageTexture& image, const Rect& area, const Viewport& viewport) const {
+void ImageRenderer::draw(const ImageTexture& image, const Rect& area, const Viewport& viewport, bool gray) const {
     const glm::vec2 top_left = area.top_left;
     const glm::vec2 bottom_right = area.top_left + area.size;
     // Two triangles, without culling.
@@ -122,6 +126,7 @@ void ImageRenderer::draw(const ImageTexture& image, const Rect& area, const View
     glUniform2f(glGetUniformLocation(program_, "u_size"), static_cast<float>(viewport.width),
                 static_cast<float>(viewport.height));
     glUniform1i(glGetUniformLocation(program_, "u_image"), 0);
+    glUniform1i(glGetUniformLocation(program_, "u_gray"), gray ? 1 : 0);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, image.texture());
     glBindVertexArray(vertex_array_);

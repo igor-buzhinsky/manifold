@@ -210,7 +210,7 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   in `assets/portraits/male/`, `female/` and `any/`, and the gender of its directory, or a random one in `any/`. If
   there are too few portraits, a warning is logged and the last characters get none. (Since v0.4, the portraits are
   the files of keys of the asset mapping, and the save holds their keys and indices.) Each character has current and
-  maximum hit points (100), which nothing lowers yet. The portraits are drawn scaled down in the bottom-left corner of
+  maximum hit points (100), which nothing lowered yet (falls do since v0.4). The portraits are drawn scaled down in the bottom-left corner of
   the screen, side by side with small gaps (`layout_party_hud()`, textured by `ImageRenderer`), with a thin red bar of
   hit points below each, or an empty dark place for a missing portrait. The save holds the party at the start of the
   level: portraits, genders and hit points. `party` lists the characters, and the `hp` cheat sets
@@ -260,7 +260,6 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
     and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
   - Items lying on the level, implemented either as 3D objects (preferred) or billboard sprites, which the party can
     pick up into its inventory. Monsters and other containers that hold items, filled by value as chests are.
-  - **Damage from falling**: a fall from high enough hurts the characters of the party.
 
 - **Small chests** (`Chest`): boxes with a lid of another color, at a small gap from a wall, without collision.
   In room levels, each room at least 2 x 2 tiles, except the start room, gets one with a chance of 20%, at a random
@@ -361,6 +360,16 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   with a slider, - and + buttons and the keys; stacks aren't split within one inventory. Saves store each stack as an
   object with the item's key and its count, and still read the keys of older saves as one item each. `give` gives up to
   a million items.
+- **Damage from falling** (see [DECISIONS.md](DECISIONS.md)): landing faster than 8 m/s, after a free fall of 3.3 m,
+  hurts each living character of the party by its own damage: 100 hit points, those of an ordinary person, times
+  (v² - 8²) / (18² - 8²) for the vertical landing speed v, so 100 on average at 18 m/s (16.5 m), times a random factor
+  from 0.7 to 1.3 drawn for each character (`apply_fall_damage()`, `src/party/fall_damage.hpp`). The numbers are in the
+  `fall_damage` group of `data/constants.json`. The random numbers come from the level's seed, so the same play gives
+  the same damage. A landing that hurts (`Game::last_fall_impact()`) turns the picture red for half a second of game
+  time, from 25% to 60% opaque by the damage (`damage_flash_opacity()`). A character at 0 hit points is dead
+  (`Character::dead()`), with a gray portrait, and takes no more damage; once all are dead (`Game::defeated()`), the
+  main loop opens the Game over menu (`make_game_over_menu()`: Restart last level, New game, Exit game), which can't be
+  left with Escape, and the game isn't saved to `save.json` until it is loaded or a new game starts.
 
 ## Later (unordered)
 
