@@ -260,7 +260,6 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
     and new collision shapes (or Jolt). A first version can use a few box-shaped props with box collision.
   - Items lying on the level, implemented either as 3D objects (preferred) or billboard sprites, which the party can
     pick up into its inventory. Monsters and other containers that hold items, filled by value as chests are.
-  - **Stacking of items** in the inventory: items of the same kind in one cell, with their number.
   - **Damage from falling**: a fall from high enough hurts the characters of the party.
 
 - **Small chests** (`Chest`): boxes with a lid of another color, at a small gap from a wall, without collision.
@@ -352,6 +351,15 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   game (F9) in the game menu, Restart last level in both, and `load [level_start]` load them. Loading the start of the
   level leaves `save.json` until the next autosave or the exit, so F9 undoes a restart.
   Each file is written to a `.tmp` file first, which then replaces it.
+- **Stacking of items** (see [DECISIONS.md](DECISIONS.md)): items of a kind share one cell of the inventory, which
+  shows their number in orange at its bottom right if there are more than one. `Inventory` is a list of stacks
+  (`ItemStack`: an `ItemId` and a count) with a hash map from the kind to the place of its stack, so adding an item
+  takes constant time and a stack of any size the same memory. Items moved to the other inventory join their stack
+  there or start one at the end. With a chest open, moving a stack of more than one item to the other side (a click on
+  an empty cell there, a double click or Enter) first opens `ItemSplitDialog`, which asks how many, all by default,
+  with a slider, - and + buttons and the keys; stacks aren't split within one inventory. Saves store each stack as an
+  object with the item's key and its count, and still read the keys of older saves as one item each. `give` gives up to
+  a million items.
 
 ## Later (unordered)
 

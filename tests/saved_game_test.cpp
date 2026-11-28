@@ -49,12 +49,17 @@ TEST(SavedGameTest, JsonRoundTripKeepsAllFields) {
                          .time = 12.25,
                          .party = make_party(),
                          .magic = make_magic(),
-                         .inventory = {"small_ruby", "large_diamond", "small_ruby"}};
+                         .inventory = {{.key = "small_ruby", .count = 2}, {.key = "large_diamond", .count = 1}}};
     EXPECT_EQ(parse_saved_game(save_to_json(save)), save);
     EXPECT_NE(save_to_json(save).find(R"("inventory": [
-    "small_ruby",
-    "large_diamond",
-    "small_ruby"
+    {
+      "item": "small_ruby",
+      "count": 2
+    },
+    {
+      "item": "large_diamond",
+      "count": 1
+    }
   ])"),
               std::string::npos)
         << save_to_json(save);
@@ -111,14 +116,19 @@ TEST(SavedGameTest, ParsingIgnoresUnknownFields) {
                                .magic = {}}));
 }
 
-TEST(SavedGameTest, SavesWithoutAnInventoryHaveNoItems) {
+TEST(SavedGameTest, SavesWithoutAnInventoryHaveNoItemsAndKeysOfOlderSavesAreOneItemEach) {
     EXPECT_TRUE(
         parse_saved_game(with_party(R"("version": 5, "seed": 9, "level_number": 2, "time": 1)")).inventory.empty());
     EXPECT_EQ(
-        parse_saved_game(with_party(R"("version": 5, "seed": 9, "level_number": 2, "time": 1, "inventory": ["A"])"))
+        parse_saved_game(with_party(R"("version": 5, "seed": 9, "level_number": 2, "time": 1, )"
+                                    R"("inventory": ["A", {"item": "B", "count": 3}, "A"])"))
             .inventory,
-        std::vector<std::string>{"A"});
-    for (const char* inventory : {R"("inventory": "A")", R"("inventory": [1])", R"("inventory": [null])"}) {
+        (std::vector<SavedItemStack>{{.key = "A", .count = 1}, {.key = "B", .count = 3}, {.key = "A", .count = 1}}));
+    for (const char* inventory :
+         {R"("inventory": "A")", R"("inventory": [1])", R"("inventory": [null])", R"("inventory": [{"item": "A"}])",
+          R"("inventory": [{"count": 1}])", R"("inventory": [{"item": 1, "count": 1}])",
+          R"("inventory": [{"item": "A", "count": 0}])", R"("inventory": [{"item": "A", "count": 1.5}])",
+          R"("inventory": [{"item": "A", "count": 2147483648}])"}) {
         EXPECT_THROW(parse_saved_game(with_party(
                          std::string(R"("version": 5, "seed": 9, "level_number": 2, "time": 1, )") + inventory)),
                      std::runtime_error)
@@ -246,7 +256,7 @@ LevelProgress make_progress() {
     return {.time = 40.5,
             .party = std::move(party),
             .magic = {.mana = 10.0f, .max_mana = 120.0f, .spells = {{.spell = Spell::kLevitate, .remaining = 1.5f}}},
-            .inventory = {"crown"},
+            .inventory = {{.key = "crown", .count = 3}},
             .player = {.position = {1.25f, -3.5f, 0.75f},
                        .yaw = 4.0f,
                        .pitch = -0.25f,
@@ -254,7 +264,7 @@ LevelProgress make_progress() {
                        .horizontal_velocity = {0.5f, -1.0f},
                        .on_ground = false},
             .doors = {{.openness = 0.25f, .target = 0.0f}, {.openness = 1.0f, .target = 1.0f}},
-            .chests = {{"pebble", "gold_bar"}, {}}};
+            .chests = {{{.key = "pebble", .count = 1}, {.key = "gold_bar", .count = 2}}, {}}};
 }
 
 /// A save of the start of a level at time 12.25, without progress.
@@ -265,7 +275,7 @@ SavedGame make_level_start() {
             .time = 12.25,
             .party = make_party(),
             .magic = make_magic(),
-            .inventory = {"pebble"}};
+            .inventory = {{.key = "pebble", .count = 1}}};
 }
 
 TEST(SavedGameTest, SaveFilesHaveTheirNames) {
@@ -328,10 +338,14 @@ TEST(SavedGameTest, ParsingRejectsInvalidProgress) {
         {R"("time": 40.5)", R"("time": "40.5")"},
         {R"("time": 40.5,)", ""},
         {R"("inventory": [
-      "crown"
+      {
+        "item": "crown",
+        "count": 3
+      }
     ],)",
          ""},
         {R"("crown")", "1"},
+        {R"("count": 3)", R"("count": -3)"},
         {R"("hp": 7)", R"("hp": 200)"},
         {R"("mana": 10.0)", R"("mana": 1000.0)"},
         {R"("spell": "levitate")", R"("spell": "fireball")"},
@@ -346,6 +360,7 @@ TEST(SavedGameTest, ParsingRejectsInvalidProgress) {
         {R"("target": 0.0)", R"("target": 0.5)"},
         {R"("target": 0.0)", R"("target": "0")"},
         {R"("gold_bar")", "null"},
+        {R"("count": 2)", R"("count": "2")"},
     };
     for (const auto& [from, to] : replacements) {
         std::string json = valid;

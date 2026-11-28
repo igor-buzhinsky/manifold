@@ -23,7 +23,7 @@ enum class UiCommand : std::uint8_t {
 };
 
 /// The icon of an item that a screen shows, see Screen::add_icons(). The main loop draws it over the shapes of the
-/// screen, since they are drawn separately from images.
+/// screen, since they are drawn separately from images, and under what Screen::add_over_icons() adds.
 struct IconPlacement {
     ItemId item = 0;  ///< Which item's icon, see AssetMapping::item_icon().
     Rect area;        ///< Where it is drawn, stretched to fit.
@@ -59,6 +59,10 @@ public:
     /// Adds the icons of items that the screen shows, laid out over a picture of `picture` size, to `icons`. None by
     /// default.
     virtual void add_icons(std::vector<IconPlacement>& /*icons*/, const PixelSize& /*picture*/) const {}
+
+    /// Adds what the screen draws over its icons, laid out over a picture of `picture` size, to `mesh`, such as the
+    /// numbers of items of stacks, or a dialog over the icons. Nothing by default.
+    virtual void add_over_icons(OverlayMesh& /*mesh*/, const PixelSize& /*picture*/) const {}
 
     /// Whether the screen shows something of the current level, such as what a chest holds, so that it must be closed
     /// when another level starts, see ScreenStack::close_level_screens(). False by default.

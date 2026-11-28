@@ -33,6 +33,7 @@ std::vector<ScreenLayer> ScreenStack::build_layers(const PixelSize& picture) con
     for (std::size_t i = 0; i < screens_.size(); ++i) {
         screens_[i]->add_to(layers[i].mesh, picture);
         screens_[i]->add_icons(layers[i].icons, picture);
+        screens_[i]->add_over_icons(layers[i].over_icons, picture);
     }
     return layers;
 }

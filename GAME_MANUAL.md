@@ -155,24 +155,31 @@ spells and set the mana, see the Console section of [DEBUGGING.md](DEBUGGING.md#
 ## Inventory
 
 The party shares one inventory, which has no limit of weight yet. I opens it over the darkened game, which is paused
-while it is open, as with a menu: a grid of the items, each in a cell of its own, and their total weight. Weights are in
-kilograms, shown without the unit. Items of the same kind aren't stacked yet, so each takes a cell. For now, the only
-items are gems: small and large diamonds, rubies, emeralds, sapphires and amethysts.
+while it is open, as with a menu: a grid of the items and their total weight. Weights are in kilograms, shown without the
+unit. Items of the same kind are stacked: they share a cell, which shows their number in orange at its bottom right if
+there are more than one (above 9999 shortened, e.g. 12k for 12345; the line at the bottom has the exact number). For
+now, the only items are gems: small and large diamonds, rubies, emeralds, sapphires and amethysts.
 
 Activating a chest opens its items in a grid on the left, with the party's on the right, each narrower. What a chest
 holds is chosen when the level is generated: a wooden chest holds at most three items, usually one or two, and a golden
 one at most five, usually two to four, and more valuable ones. Items can be moved between the two grids, and they stay
 where they were put while the party is in the level. A level that starts again, e.g. after loading, has its chests full
-again.
+again. Items moved to the other grid join the stack of their kind there, or start a new stack at its end.
+
+Moving a stack of more than one item to the other grid, in any of the ways below, first asks how many of them to move,
+all by default: Left and Right, the - and + buttons or the mouse wheel change the number by one, Up and Down by ten,
+and clicking or dragging the slider chooses it. Enter or Move moves them, Escape, Cancel or a click outside the dialog
+moves nothing. The rest of the stack stays where it was. Stacks can't be split within one grid, so the party's
+inventory alone, without a chest, never asks. Take all moves everything without asking.
 
 | Key | Action |
 |---|---|
-| Left mouse button | On an item: select it, which shows its name and weight at the bottom. On an empty cell: move the selected item to the end of that grid's items, the party's or the chest's, and the items after its old place move up |
-| Arrow keys | Move the selection, from one grid to the other at their edges. Without a selection, select the first item |
-| Double click | With a chest open: move the item from the chest to the end of the party's items, or from the party's into the chest. Without a chest, it only selects the item |
-| Enter or Space | With a chest open: move the selected item to the end of the other grid, and select the item that comes into its place |
-| T, or the Take all button | Move all items of the chest to the end of the party's, in their order |
-| Mouse wheel | Scroll the grid under the pointer. Each grid has an empty cell after its items, so that an item can always be put there |
+| Left mouse button | On a stack: select it, which shows its name, number of items and weight at the bottom. On an empty cell: move the selected stack to that grid, the party's or the chest's; in its own grid it goes to the end, and the stacks after its old place move up |
+| Arrow keys | Move the selection, from one grid to the other at their edges. Without a selection, select the first stack |
+| Double click | With a chest open: move the stack from the chest to the party's items, or from the party's into the chest. Without a chest, it only selects the stack |
+| Enter or Space | With a chest open: move the selected stack to the other grid, and select the stack that comes into its place, or keep the rest selected if only some of its items moved |
+| T, or the Take all button | Move all items of the chest to the party's, in their order |
+| Mouse wheel | Scroll the grid under the pointer. Each grid has an empty cell after its stacks, so that a stack can always be put there |
 | Escape or I | Close the inventory |
 
 ## Levels
@@ -222,7 +229,7 @@ that stops while saving keeps the old save.
 Both saves hold the seed of the level, how many levels came before it, the game time at its start, the party as it was
 then (each character's portrait, as its key and index in the asset mapping, see [DEBUGGING.md](DEBUGGING.md#assets),
 gender and hit points, the party's mana and the spells in effect with the time left of each, and the keys of the items
-it carried, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with `--layout`. `save.json` also
+it carried with the number of each stack, see [DEBUGGING.md](DEBUGGING.md#items)), and the layout if it was given with `--layout`. `save.json` also
 holds the progress in the level: the game time, the party, its mana, spells and items when it was saved, where the
 player was, where they looked and how they moved, how far each door was open and where it moved, and what each chest
 held. Noclip isn't saved. Levels are generated again from their seed, so a save of an older version of the game may

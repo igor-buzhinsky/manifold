@@ -12,10 +12,11 @@
 
 namespace manifold {
 
-/// What one screen draws: its shapes, and the icons of items over them.
+/// What one screen draws: its shapes, the icons of items over them, and shapes over the icons.
 struct ScreenLayer {
     OverlayMesh mesh;
     std::vector<IconPlacement> icons;
+    OverlayMesh over_icons;  ///< See Screen::add_over_icons().
 };
 
 /// The screens of the interface that are open, e.g. a menu, and later a dialog opened from it.
@@ -39,8 +40,9 @@ public:
     /// \return What the screen asks for, or nothing, also when no screen is open.
     std::optional<UiCommand> handle(const UiEvent& event, const PixelSize& picture);
 
-    /// What each screen draws, laid out over a picture of `picture` size, bottom first, see Screen::add_to() and
-    /// Screen::add_icons(). Each layer, the shapes and then the icons, is drawn before the next.
+    /// What each screen draws, laid out over a picture of `picture` size, bottom first, see Screen::add_to(),
+    /// Screen::add_icons() and Screen::add_over_icons(). Each layer, the shapes, the icons and then the shapes over
+    /// them, is drawn before the next.
     std::vector<ScreenLayer> build_layers(const PixelSize& picture) const;
 
     /// Closes the screens that show something of the level, see Screen::shows_level(), e.g. when another level starts.

@@ -131,9 +131,9 @@ it types can't be typed.
 | `cast candlelight\|levitate` | Cast a spell, as its key does (see Spells in [GAME_MANUAL.md](GAME_MANUAL.md#spells)), with its sound. Fails if the party has less mana than it costs |
 | `mana VALUE` | Set the party's mana to VALUE, from 0 to its maximum. A cheat, e.g. to cast spells again |
 | `items` | List all kinds of items: their keys, names, weights, values and chances, see [Items](#items) |
-| `inventory` | List the party's items, each with its index, key, name, weight and value, and their total weight and value |
-| `give ITEM [COUNT]` | Give the party COUNT items (by default one, at most 1000) of the key ITEM, see `items`. A cheat, e.g. to fill the inventory |
-| `chests` | List the chests of the level: their numbers, what they are made of, where they stand, and the items they hold now with their total value |
+| `inventory` | List the party's stacks of items, each with its index, number of items, key, name, and the weight and value of one item, and the numbers of items and stacks and their total weight and value |
+| `give ITEM [COUNT]` | Give the party COUNT items (by default one, at most 1000000) of the key ITEM, see `items`, which join its stack of that kind. A cheat, e.g. to see large stacks |
+| `chests` | List the chests of the level: their numbers, what they are made of, where they stand, and the stacks of items they hold now with their total value |
 | `open inventory\|chest N` | Show the party's inventory, as I does, or chest N (see `chests`) with the party's items, as activating it does, instead of an inventory that is open. The commands after it run in the next frame, when it is open, so that a screenshot shows it. `menu close` closes it |
 | `noclip [on\|off]` | Let the player fly through obstacles and walls, without falling, with Page Up / Page Down, or not |
 | `cutaway HEIGHT` | Leave out everything above HEIGHT, to look into a layer from a camera above it. Solids that are cut open are dark. For room levels, `level_info` tells the height for each layer |

@@ -38,17 +38,26 @@ struct SavedPlayer {
     bool operator==(const SavedPlayer&) const = default;
 };
 
+/// A stack of items in a save, see ItemStack: the key of the kind of its items, see ItemType::key, which, unlike
+/// ItemId, stays right when items are added to the item file, and how many items it has.
+struct SavedItemStack {
+    std::string key;
+    int count = 1;  ///< At least 1.
+
+    bool operator==(const SavedItemStack&) const = default;
+};
+
 /// What changed in a level since its start, for a save made in the middle of it, see SavedGame::progress.
 struct LevelProgress {
-    double time = 0.0;                   ///< Game time when the save was made, in seconds, see Game::time().
-    std::vector<Character> party;        ///< The party when the save was made, see SavedGame::party.
-    PartyMagic magic;                    ///< The party's mana and spells when the save was made, see SavedGame::magic.
-    std::vector<std::string> inventory;  ///< The keys of the party's items, see SavedGame::inventory.
-    SavedPlayer player;                  ///< Where the player was and how they moved.
+    double time = 0.0;             ///< Game time when the save was made, in seconds, see Game::time().
+    std::vector<Character> party;  ///< The party when the save was made, see SavedGame::party.
+    PartyMagic magic;              ///< The party's mana and spells when the save was made, see SavedGame::magic.
+    std::vector<SavedItemStack> inventory;  ///< The party's items, see SavedGame::inventory.
+    SavedPlayer player;                     ///< Where the player was and how they moved.
     /// The state of each door of World::doors(), in the same order, see Game::doors().
     std::vector<DoorState> doors;
-    /// The keys of the items of each chest of World::chests(), in the same order, see Game::chest_inventories().
-    std::vector<std::vector<std::string>> chests;
+    /// The items of each chest of World::chests(), in the same order, see Game::chest_inventories().
+    std::vector<std::vector<SavedItemStack>> chests;
 
     bool operator==(const LevelProgress&) const = default;
 };
@@ -71,10 +80,9 @@ struct SavedGame {
     std::vector<Character> party;
     /// The party's mana and the spells in effect at the start of the level, see Game::magic().
     PartyMagic magic;
-    /// The keys of the items that the party carried at the start of the level, in order, see Game::inventory() and
-    /// ItemType::key. Keys, unlike ItemId, stay right when items are added to the item file.
+    /// The stacks of items that the party carried at the start of the level, in order, see Game::inventory().
     // Without the initializer, GCC warns about saves that leave it out.
-    std::vector<std::string> inventory = {};  // NOLINT(readability-redundant-member-init)
+    std::vector<SavedItemStack> inventory = {};  // NOLINT(readability-redundant-member-init)
     /// For a save made in the middle of the level, see SaveKind::kProgress, the state of the level and the party when
     /// it was made, which Game::load() restores after starting the level. A save without it, such as one made by an
     /// older version of the game, starts the level from its start.
@@ -98,12 +106,12 @@ inline constexpr int kSaveFormatVersion = 5;
 /// `key` of the portrait, see asset_key_name(), and its `index` among the files of the key), `gender` (see
 /// gender_name()), `hp` and `max_hp`. `spells` is an array with an object for each spell in effect, in the order of
 /// PartyMagic::spells: `spell` (see spell_key()) and `remaining` (seconds). `inventory` is an array of the keys of
-/// the party's items, see SavedGame::inventory.
+/// the party's stacks of items, see SavedGame::inventory, each an object with the `item` key and the `count` of items.
 ///
 /// `progress` is an object with `time`, `party`, `mana`, `max_mana`, `spells` and `inventory` as above, `player` (an
 /// object with `position` [x, y, z], `yaw`, `pitch`, `vertical_speed`, `horizontal_velocity` [x, y] and `on_ground`),
 /// `doors` (an array with an object of `openness` and `target` for each door) and `chests` (an array with an array of
-/// item keys for each chest).
+/// stacks of items for each chest, as in `inventory`).
 std::string save_to_json(const SavedGame& save);
 
 /// Reads a save written by save_to_json().
@@ -114,10 +122,11 @@ std::string save_to_json(const SavedGame& save);
 ///         non-negative index, which may be beyond the files of the key, see AssetMapping::path(). `max_mana`
 ///         must be positive and `mana` from 0 to it. Each spell must be known, appear at most once, and have a
 ///         positive `remaining` time, which Game::load() cuts to the spell's duration. `inventory` must be an array of
-///         strings; a save without it, made before the party had items, has none. `progress` is optional, but if it
-///         is there, it must have all its fields, with the same checks, a `time` not before the level's, finite
-///         numbers for the player, a `pitch` within the limits of Player::pitch() and a `yaw` within [0, 2 pi), and
-///         doors with an `openness` from 0 to 1 and a `target` of 0 or 1. Unknown fields are ignored.
+///         stacks, each with a string `item` and a positive `count`, or a string, the key of one item, as saves
+///         made before stacking have; a save without it, made before the party had items, has none. `progress` is
+///         optional, but if it is there, it must have all its fields, with the same checks, a `time` not before the
+///         level's, finite numbers for the player, a `pitch` within the limits of Player::pitch() and a `yaw` within
+///         [0, 2 pi), and doors with an `openness` from 0 to 1 and a `target` of 0 or 1. Unknown fields are ignored.
 SavedGame parse_saved_game(std::string_view json);
 
 /// Writes a save file, replacing the old one.

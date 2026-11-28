@@ -444,16 +444,19 @@ TEST(GameCommandsTest, GiveAddsItemsToTheParty) {
     fixture.run("give gold_bar 2");
     EXPECT_EQ(fixture.game.inventory(), Inventory({kPebble, kGoldBar, kGoldBar}));
     for (const char* command :
-         {"give", "give unicorn", "give pebble 0", "give pebble 1001", "give pebble x", "give pebble 1 2"}) {
+         {"give", "give unicorn", "give pebble 0", "give pebble 1000001", "give pebble x", "give pebble 1 2"}) {
         fixture.expect_error(command);
     }
-    EXPECT_EQ(fixture.game.inventory().size(), 3U);
+    EXPECT_EQ(fixture.game.inventory().item_count(), 3);
+    // A large number takes no more room.
+    fixture.run("give pebble 1000000");
+    EXPECT_EQ(fixture.game.inventory().stacks()[0], (ItemStack{.item = kPebble, .count = 1000001}));
 }
 
 TEST(GameCommandsTest, ItemsInventoryAndChestsAreListed) {
     Fixture fixture(make_game_with_items());
     ASSERT_FALSE(fixture.game.world().chests().empty());
-    fixture.run("give crown");
+    fixture.run("give crown 2");
     testing::internal::CaptureStderr();
     fixture.run("items");
     fixture.run("inventory");
@@ -461,7 +464,8 @@ TEST(GameCommandsTest, ItemsInventoryAndChestsAreListed) {
     const std::string log = testing::internal::GetCapturedStderr();
     EXPECT_NE(log.find("3 kinds of items\npebble (Pebble), weight 0.250, value 100, chance 1"), std::string::npos)
         << log;
-    EXPECT_NE(log.find("The party carries 1 item, weight 1.500, value 200\n0: crown (Crown), weight 1.500, value 200"),
+    EXPECT_NE(log.find("The party carries 2 items in 1 stack, weight 3.000, value 400\n0: 2 x crown (Crown), weight "
+                       "1.500, value 200"),
               std::string::npos)
         << log;
     EXPECT_NE(log.find(std::format("{} chests\nChest 0: ", fixture.game.world().chests().size())), std::string::npos)

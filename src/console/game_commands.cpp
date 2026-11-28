@@ -487,14 +487,15 @@ void add_view_commands(Console& console, CommandQueue& queue, ConsoleState& stat
                 });
 }
 
-/// Describes the items of an inventory for the console, one per line, each after a line break: its index, key, name,
-/// weight and value, see ItemType.
+/// Describes the stacks of an inventory for the console, one per line, each after a line break: its index, number of
+/// items, key, name, and the weight and value of one item, see ItemType.
 std::string describe_items(const Inventory& inventory, const ItemCatalog& catalog) {
     std::string list;
     for (std::size_t i = 0; i < inventory.size(); ++i) {
-        const ItemType& item = catalog.at(inventory.items()[i]);
-        list += std::format("\n{}: {} ({}), weight {}, value {}", i, item.key, item.name, format_weight(item.weight),
-                            item.value);
+        const ItemStack& stack = inventory.stacks()[i];
+        const ItemType& item = catalog.at(stack.item);
+        list += std::format("\n{}: {} x {} ({}), weight {}, value {}", i, stack.count, item.key, item.name,
+                            format_weight(item.weight), item.value);
     }
     return list;
 }
@@ -510,11 +511,14 @@ std::size_t parse_chest(const std::string& text, const Game& game) {
     return static_cast<std::size_t>(index);
 }
 
-/// The most items that one `give` gives, so that a mistyped count doesn't fill the memory.
-constexpr int kMaxGiveCount = 1000;
+/// The most items that one `give` gives, which keeps stacks far from the most that an int counts.
+constexpr int kMaxGiveCount = 1000000;
 
 /// "1 item" or "N items".
-std::string item_count(std::size_t count) { return std::format("{} item{}", count, count == 1 ? "" : "s"); }
+std::string item_count(long long count) { return std::format("{} item{}", count, count == 1 ? "" : "s"); }
+
+/// "1 stack" or "N stacks".
+std::string stack_count(std::size_t count) { return std::format("{} stack{}", count, count == 1 ? "" : "s"); }
 
 /// Adds the commands that inspect and change items: items, inventory, give, chests and open.
 void add_item_commands(Console& console, CommandQueue& queue, Game& game, ConsoleState& state) {
@@ -532,9 +536,9 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                 [&game](std::span<const std::string> arguments) {
                     expect_count(arguments, 0, "inventory");
                     const Inventory& inventory = game.inventory();
-                    log_info("The party carries {}, weight {}, value {}{}", item_count(inventory.size()),
-                             format_weight(inventory.weight(game.items())), inventory.value(game.items()),
-                             describe_items(inventory, game.items()));
+                    log_info("The party carries {} in {}, weight {}, value {}{}", item_count(inventory.item_count()),
+                             stack_count(inventory.size()), format_weight(inventory.weight(game.items())),
+                             inventory.value(game.items()), describe_items(inventory, game.items()));
                 });
 
     const std::string give_usage = "give ITEM [COUNT]";
@@ -551,8 +555,10 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                     if (count < 1 || count > kMaxGiveCount) {
                         throw CommandError(std::format("count must be from 1 to {}: {}", kMaxGiveCount, arguments[1]));
                     }
-                    for (int i = 0; i < count; ++i) {
-                        game.inventory().add(*item);
+                    try {
+                        game.inventory().add(*item, count);
+                    } catch (const std::overflow_error&) {
+                        throw CommandError("the party's stack of that item can't take so many more");
                     }
                     log_info("The party gets {} x {}", count, game.items().at(*item).name);
                 });
@@ -567,10 +573,11 @@ void add_item_commands(Console& console, CommandQueue& queue, Game& game, Consol
                     for (std::size_t i = 0; i < chests.size(); ++i) {
                         const Chest& chest = chests[i];
                         const Inventory& inventory = game.chest_inventories()[i];
-                        list += std::format("\nChest {}: {} at ({:.2f}, {:.2f}, {:.2f}), {}, value {}{}", i,
+                        list += std::format("\nChest {}: {} at ({:.2f}, {:.2f}, {:.2f}), {} in {}, value {}{}", i,
                                             chest_look_name(chest.look), chest.base_center.x, chest.base_center.y,
-                                            chest.base_center.z, item_count(inventory.size()),
-                                            inventory.value(game.items()), describe_items(inventory, game.items()));
+                                            chest.base_center.z, item_count(inventory.item_count()),
+                                            stack_count(inventory.size()), inventory.value(game.items()),
+                                            describe_items(inventory, game.items()));
                     }
                     log_info("{} chests{}", chests.size(), list);
                 });
