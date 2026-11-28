@@ -196,6 +196,7 @@ if(MANIFOLD_BUILD_TESTS)
         tests/crosshair_test.cpp
         tests/damage_flash_test.cpp
         tests/door_test.cpp
+        tests/fall_damage_test.cpp
         tests/game_commands_test.cpp
         tests/game_test.cpp
         tests/inventory_screen_test.cpp
@@ -216,7 +217,6 @@ if(MANIFOLD_BUILD_TESTS)
         tests/mouse_look_test.cpp
         tests/movement_sim_test.cpp
         tests/overlay_mesh_test.cpp
-        tests/fall_damage_test.cpp
         tests/party_hud_test.cpp
         tests/spell_hud_test.cpp
         tests/party_test.cpp

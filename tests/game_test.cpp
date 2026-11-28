@@ -402,12 +402,12 @@ TEST(GameTest, ALowFallDoesntHurt) {
 
 TEST(GameTest, AHighFallHurtsEachCharacterByItsOwnDamage) {
     Game game(make_config(), 1, LayoutKind::kDebug);
-    // 10 m, at 14 m/s: about half the hit points of each, from 35% to 65% with the spread.
+    // 10 m, at 14 m/s: a damage of about 49, from 34 to 64 with the spread.
     drop(game, 10.0f);
     const std::vector<int> hps = hps_of(game);
     for (const int hp : hps) {
-        EXPECT_GT(hp, 35);
-        EXPECT_LT(hp, 75);
+        EXPECT_GE(hp, 100 - 65);
+        EXPECT_LE(hp, 100 - 33);
     }
     EXPECT_FALSE(hps[0] == hps[1] && hps[1] == hps[2]);
     const std::optional<FallImpact>& impact = game.last_fall_impact();
@@ -787,6 +787,15 @@ TEST(GameTest, TouchingExitStartsNextLevel) {
     EXPECT_FLOAT_EQ(game.player().yaw(), game.level().player_yaw);
     EXPECT_FLOAT_EQ(game.player().vertical_speed(), 0.0f);
     EXPECT_FLOAT_EQ(static_cast<float>(game.time()), 1.1f);
+}
+
+TEST(GameTest, ADeadPartyDoesntReachTheNextLevel) {
+    Game game(make_config(), make_exit_level());
+    for (std::size_t i = 0; i < game.party().size(); ++i) {
+        game.set_hp(i, 0);
+    }
+    run(game, {.forward = 1.0f}, 3.0f);
+    EXPECT_EQ(game.level_number(), 0);
 }
 
 TEST(GameTest, NoclipTouchesExitToo) {

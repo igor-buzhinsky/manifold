@@ -163,7 +163,8 @@ public:
     /// last_fall_impact(). The game goes on when the whole party is dead, see defeated(): the main loop shows the Game
     /// over menu, which pauses it.
     ///
-    /// If the player then touches the level exit, also with noclip, the next level starts, see next_level().
+    /// If the player then touches the level exit, also with noclip, the next level starts, see next_level(), unless the
+    /// whole party is dead, also by a landing in this frame.
     ///
     /// \param input What the player wants to do.
     /// \param dt    Duration of the frame in seconds.
