@@ -438,7 +438,8 @@ TEST(GameTest, AFallThatKillsEveryoneDefeatsTheParty) {
     drop(game, 14.0f);
     EXPECT_EQ(hps_of(game), (std::vector<int>{0, 0, 0}));
     EXPECT_TRUE(game.defeated());
-    EXPECT_EQ(game.last_fall_impact()->damage, 20);
+    // The impact has the damage of the fall in full, though the characters had only 20 hit points left.
+    EXPECT_GE(game.last_fall_impact()->damage, 50);
 }
 
 TEST(GameTest, FlyingDownDoesntHurt) {

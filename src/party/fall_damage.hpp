@@ -46,7 +46,8 @@ int fall_damage(const FallDamageConfig& config, float impact_speed, Rng& rng);
 /// Hurts each character of `party` by its own fall_damage() of a landing at `impact_speed`, independently of the
 /// others, down to 0 hit points. Dead characters, see Character::dead(), take no damage and draw no random numbers.
 ///
-/// \return The most damage that a character took, after the clamping to 0 hit points: 0 if none was hurt.
+/// \return The most damage that a living character was dealt, before the clamping to 0 hit points, so that a fall
+///         that kills counts in full: 0 if none was hurt.
 int apply_fall_damage(std::span<Character> party, const FallDamageConfig& config, float impact_speed, Rng& rng);
 
 }  // namespace manifold

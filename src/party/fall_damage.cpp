@@ -33,8 +33,8 @@ int apply_fall_damage(std::span<Character> party, const FallDamageConfig& config
         if (character.dead()) {
             continue;
         }
-        const int damage = std::min(fall_damage(config, impact_speed, rng), character.hp);
-        character.hp -= damage;
+        const int damage = fall_damage(config, impact_speed, rng);
+        character.hp -= std::min(damage, character.hp);
         most = std::max(most, damage);
     }
     return most;

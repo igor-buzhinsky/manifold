@@ -56,8 +56,9 @@ Menus are used with the keys or the mouse:
 
 Once all characters of the party are dead (see Party below), the **Game over** menu pauses the darkened game. It offers
 to **Restart last level** from its start, as the game menu does, to start a **New game**, or to **Exit game**. Escape
-doesn't leave it. While the whole party is dead, neither save is written, so `save.json` keeps the game as it was at the
-last autosave before, and Continue in the start menu returns there after Exit game.
+doesn't leave it. When the game is over, `save.json` is deleted and neither save is written while the party is dead, so
+there is no going back to just before the death: F9 and Load game fail, and after Exit game, the start menu offers only
+Restart last level and New game.
 
 The console can be opened over a menu; while it is open, the menu gets no keys or clicks. The `load` command closes
 the menus, as Load game does. The debug overlay (F3) can't be used while a menu is open, and isn't shown over the
@@ -142,7 +143,7 @@ than that, so a fall may kill one and spare another. Only the vertical speed cou
 than a standing one (though a jump lands faster than a step off the same ledge), and weaker gravity makes the same
 fall gentler. Flying down with Levitate doesn't hurt,
 but a fall after it ends in the air does. The screen turns red for a moment when a landing hurts, the more the worse
-the damage.
+the damage, counted in full also when it is more than the hit points left.
 
 A character without hit points left is dead, and its portrait turns gray. Once all characters are dead, the game is
 over, see the Game over menu above.
@@ -232,7 +233,7 @@ The game keeps two saves, both in the game's data directory: `$XDG_DATA_HOME/man
 
 - `save.json` holds the game as it was when it was last saved: when a level starts, every 10 seconds of play (see
   `autosave` and `autosave_interval` in Settings above) and when the game quits, by Exit game, Ctrl+Q or closing the
-  window. F9, Load game and Continue load it.
+  window. F9, Load game and Continue load it. It is deleted when the game is over, see Menus above.
 - `save_level_start.json` holds the start of the level the player is in, and is written only when a level starts.
   Restart last level, in each menu that has it, loads it. It doesn't replace `save.json` at once: the next autosave
   does, one autosave interval of play later, or quitting the game does, and until then, F9 or Load game goes back to
