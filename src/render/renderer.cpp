@@ -840,6 +840,7 @@ void Renderer::draw(const Camera& camera, const Lighting& lighting, const Viewpo
         glEnable(GL_CLIP_DISTANCE0);
     }
     draw_solids(vertex_array_, vertex_count_);
+    stats_.triangles = (static_cast<std::size_t>(vertex_count_) + (doors_.size() * kDoorVertexCount)) / 3;
     if (!doors_.empty()) {
         glBindTexture(GL_TEXTURE_2D, door_texture_);
         draw_solids(door_vertex_array_, static_cast<GLsizei>(doors_.size() * kDoorVertexCount));

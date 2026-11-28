@@ -57,8 +57,12 @@ public:
     /// edges of the screen. SDL lets the pointer go while the window doesn't have the focus.
     void set_relative_mouse_mode(bool on);
 
-    /// Shows the frame drawn since the last call. Waits for vsync.
+    /// Shows the frame drawn since the last call. Waits for vsync, if it is on.
     void swap_buffers();
+
+    /// Turns vsync on, as it is at first, or off, e.g. to measure how fast frames can be drawn. Does nothing if it is
+    /// on or off already.
+    void set_vsync(bool on);
 
     /// The SDL window, e.g. for the debug overlay. It lives as long as this object.
     SDL_Window* sdl_window() const { return window_; }
@@ -68,6 +72,7 @@ public:
 private:
     SDL_Window* window_ = nullptr;
     SDL_GLContext context_ = nullptr;
+    bool vsync_ = true;
 };
 
 }  // namespace manifold

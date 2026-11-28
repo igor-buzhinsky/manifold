@@ -119,4 +119,14 @@ PixelSize Window::framebuffer_size() const {
 
 void Window::swap_buffers() { SDL_GL_SwapWindow(window_); }
 
+void Window::set_vsync(bool on) {
+    if (on == vsync_) {
+        return;
+    }
+    vsync_ = on;
+    if (!SDL_GL_SetSwapInterval(on ? 1 : 0)) {
+        log_warning("Setting vsync {} failed: {}", on ? "on" : "off", SDL_GetError());
+    }
+}
+
 }  // namespace manifold
