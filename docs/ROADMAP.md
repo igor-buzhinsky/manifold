@@ -360,16 +360,16 @@ Scope: menus, saving and loading, sound, a party of characters with mana and the
   with a slider, - and + buttons and the keys; stacks aren't split within one inventory. Saves store each stack as an
   object with the item's key and its count, and still read the keys of older saves as one item each. `give` gives up to
   a million items.
-- **Damage from falling** (see [DECISIONS.md](DECISIONS.md)): landing faster than 8 m/s, after a free fall of 3.3 m,
+- **Damage from falling** (see [DECISIONS.md](DECISIONS.md)): landing faster than 8.5 m/s, after a free fall of 3.7 m,
   hurts each living character of the party by its own damage: 100 hit points, those of an ordinary person, times
-  (v² - 8²) / (18² - 8²) for the vertical landing speed v, so 100 on average at 18 m/s (16.5 m), times a random factor
+  (v² - 8.5²) / (18² - 8.5²) for the vertical landing speed v, so 100 on average at 18 m/s (16.5 m), times a random factor
   from 0.7 to 1.3 drawn for each character (`apply_fall_damage()`, `src/party/fall_damage.hpp`). The numbers are in the
   `fall_damage` group of `data/constants.json`. The random numbers come from the level's seed, so the same play gives
   the same damage. A landing that hurts (`Game::last_fall_impact()`) turns the picture red for half a second of game
   time, from 25% to 60% opaque by the damage (`damage_flash_opacity()`). A character at 0 hit points is dead
   (`Character::dead()`), with a gray portrait, and takes no more damage; once all are dead (`Game::defeated()`), the
   main loop opens the Game over menu (`make_game_over_menu()`: Restart last level, New game, Exit game), which can't be
-  left with Escape, and the game isn't saved to `save.json` until it is loaded or a new game starts.
+  left with Escape. While the party is dead, the game isn't saved, and the exit doesn't start the next level.
 
 ## Later (unordered)
 

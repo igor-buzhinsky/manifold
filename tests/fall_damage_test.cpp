@@ -34,10 +34,17 @@ TEST(FallDamageTest, DamageGrowsWithTheEnergyAboveTheSafeSpeed) {
     // Half the energy between the two.
     EXPECT_NEAR(base_fall_damage(config, std::sqrt((64.0f + 324.0f) / 2.0f)), kFullFallDamage / 2.0f, 1e-3f);
     EXPECT_GT(base_fall_damage(config, 20.0f), kFullFallDamage);
-    // Falls between two layers of rooms, 3.3 m, barely hurt, two layers hurt, and the height of a debug level kills.
-    EXPECT_LT(base_fall_damage(config, speed_of_fall(3.3f)), 1.0f);
-    EXPECT_NEAR(base_fall_damage(config, speed_of_fall(6.6f)), 25.0f, 1.0f);
-    EXPECT_GT(base_fall_damage(config, speed_of_fall(16.0f)), 95.0f);
+}
+
+TEST(FallDamageTest, DefaultsAreCloseToRealFalls) {
+    FallDamageConfig config;
+    config.spread = 0.0f;
+    // A drop from one layer of rooms to the next, 3.3 m, doesn't hurt, even with a frame of gravity more at 30 fps.
+    EXPECT_FLOAT_EQ(base_fall_damage(config, speed_of_fall(3.3f) + (9.81f / 30.0f)), 0.0f);
+    // Two layers take about a quarter, 10 m about half, and the height of a debug level kills.
+    EXPECT_NEAR(base_fall_damage(config, speed_of_fall(6.6f)), 23.0f, 1.0f);
+    EXPECT_NEAR(base_fall_damage(config, speed_of_fall(10.0f)), 49.0f, 1.0f);
+    EXPECT_NEAR(base_fall_damage(config, speed_of_fall(16.5f)), 100.0f, 1.0f);
 }
 
 TEST(FallDamageTest, SpreadKeepsTheDamageWithinItsRange) {

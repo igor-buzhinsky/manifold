@@ -314,7 +314,7 @@ void Game::update(const PlayerInput& input, float dt) {
         activate();
     }
     const std::optional<LevelExit>& exit = level_.world.exit();
-    if (exit && exit->touches(player_.body())) {
+    if (exit && !defeated() && exit->touches(player_.body())) {
         next_level();
     }
 }

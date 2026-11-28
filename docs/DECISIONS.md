@@ -1061,8 +1061,8 @@ Drawbacks:
 
 Status: **ACCEPTED**. Done in v0.4.
 
-Decision: a landing hurts by its vertical speed v, not by the height fallen: up to `safe_speed` (8 m/s, a free fall of
-3.3 m) not at all, and above it by 100 hit points times (v² - safe²) / (full² - safe²), with `full_damage_speed` 18 m/s
+Decision: a landing hurts by its vertical speed v, not by the height fallen: up to `safe_speed` (8.5 m/s, a free fall of
+3.7 m) not at all, and above it by 100 hit points times (v² - safe²) / (full² - safe²), with `full_damage_speed` 18 m/s
 (16.5 m). 100 hit points are an ordinary person's, so the damage doesn't scale with `max_hp`, and a character with more
 hit points survives more. Each living character gets that damage times its own random factor from 1 - `spread` to
 1 + `spread` (0.3), rounded to whole hit points, from a generator seeded by the level's seed. A character at 0 is dead
@@ -1073,19 +1073,20 @@ Gains:
 
 - Close to real falls: people mostly walk away from 3 m, are badly hurt from 6 to 10 m, and rarely survive 15 m or
   more onto a hard floor. The thresholds are a little higher than real ones, so dropping down a hole between two layers
-  of rooms (3.3 m) is free, which keeps the room levels playable.
+  of rooms (3.3 m) is free, even at a low frame rate, whose landing speed has up to a frame more of gravity, which keeps
+  the room levels playable.
 - The kinetic energy of the impact, which the square of the speed measures, is what hurts, so the same rule holds in
-  levels with other gravity, and a running jump hurts no more than a step off the same ledge.
+  levels with other gravity, and a running jump hurts no more than a standing one.
 - The spread makes a fall near the limit a gamble without making small falls deadly, and a fall can kill one
-  character and spare another, as the request wanted.
+  character and spare another.
 - The constants are in `data/constants.json`, so they can be tuned without building the game.
 - The random numbers of falls have their own generator, so they don't change levels, and the same seed and play give
   the same damage.
 
 Rejected alternatives:
 
-- **Damage by the height fallen**: simpler to explain, but wrong under other gravity, and a fall that starts with a jump
-  or after Levitate ends is no different from one of the same speed.
+- **Damage by the height fallen**: simpler to explain, but the height would have to be tracked from the top of each
+  fall, e.g. of a jump, and the same height lands slower under weaker gravity, so it would hurt too much there.
 - **Damage linear in the speed above the threshold**: the jump from harmless to deadly would be steeper at low speeds
   and flatter at high ones than the energy gives.
 - **A share of `max_hp` instead of absolute hit points**: stronger characters wouldn't survive more, and the "100 hit
@@ -1099,6 +1100,8 @@ Drawbacks:
 
 - An autosave can be made in the middle of a deadly fall, so Continue after a Game over may end in another one; Restart
   last level is always offered for that.
+- The landing speed is that at the end of the landing frame, so it is up to a frame of gravity faster than at the
+  contact: 0.33 m/s at 30 fps. The safe speed leaves room for it.
 - Only falls hurt so far, so the Game over menu is only reached by them or by the `hp` cheat.
 - The Game over menu's Restart last level loads `save_level_start.json`, so in runs that don't save, such as those with
   `--exec`, it loads whatever save is there, as the other menus do.

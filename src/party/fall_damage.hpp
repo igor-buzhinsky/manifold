@@ -15,12 +15,13 @@ namespace manifold {
 /// depend on Character::max_hp. It depends on the speed rather than the height, so that the same fall hurts less where
 /// gravity is weaker. Each character then gets its own part of it, see fall_damage().
 ///
-/// The defaults are a bit more forgiving than real falls onto a hard floor: landing at 8 m/s, after a free fall of
-/// 3.3 m under Earth gravity, as from one layer of rooms to the next, doesn't hurt, and one of 16.5 m, at 18 m/s, takes
-/// all 100 hit points on average.
+/// The defaults are a bit more forgiving than real falls onto a hard floor: landing at 8.5 m/s, after a free fall of
+/// 3.7 m under Earth gravity, doesn't hurt, so dropping from one layer of rooms to the next (3.3 m) doesn't either,
+/// even at a low frame rate, whose landing speed includes up to a frame more of gravity. A fall of 16.5 m, at 18 m/s,
+/// takes all 100 hit points on average.
 struct FallDamageConfig {
     /// The fastest landing that doesn't hurt, in metres per second.
-    float safe_speed = 8.0f;
+    float safe_speed = 8.5f;
     /// The landing speed whose damage, before the spread, is kFullFallDamage, in metres per second. Faster than
     /// `safe_speed`.
     float full_damage_speed = 18.0f;

@@ -16,7 +16,7 @@
     "mana_regeneration": 1
   },
   "fall_damage": {
-    "safe_speed": 8.0,
+    "safe_speed": 8.5,
     "full_damage_speed": 18.0,
     "spread": 0.3
   },

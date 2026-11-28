@@ -536,7 +536,7 @@ manifold::SavesToLoad saves_to_continue(const std::optional<SavePaths>& paths, b
 
 /// What belongs to the game's current level outside the game: its renderer and the sound of its exit. If saving is on,
 /// each level that starts is saved, to both saves, and the game is saved to `save.json` every autosave interval and by
-/// save_on_exit(), but not while the whole party is dead. The saved game can be loaded either way.
+/// save_on_exit(), but neither save is written while the whole party is dead. The saved game can be loaded either way.
 class LevelSession {
 public:
     /// Sets up the game's current level.
@@ -696,9 +696,10 @@ private:
     }
 
     /// Saves the start of the game's level to `save_level_start.json`, and the game as it is to `save.json`, if saving
-    /// is on.
+    /// is on, unless the whole party is dead, e.g. after `next_level` when the `hp` cheat killed it, see
+    /// save_progress().
     void save_level_start(const manifold::Game& game) {
-        if (saving_ && save_paths_) {
+        if (saving_ && save_paths_ && !game.defeated()) {
             write_save(game.level_start_save(), save_paths_->level_start);
         }
         save_progress(game);
